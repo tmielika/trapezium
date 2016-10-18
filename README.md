@@ -102,19 +102,20 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
 	
 # Features
 1. Workflow dependency 
+
+
     Any workflow can depend on another workflow to build a complex business pipeline.
-    
-    Config entry for defining workflow dependency
-    dependentWorkflows={
-        workflows=["workflow_1", "workflow_2"]
-        frequencyToCheck=100
-     }
+       Config entry for defining workflow dependency
+        dependentWorkflows={
+            workflows=["workflow_1", "workflow_2"]
+            frequencyToCheck=100
+        }
 
 
 2. Multiple source input
    Multiple source can define in workflow.
    
-   inputData = [
+        inputData = [
         { 
           name = "source1"
         },
