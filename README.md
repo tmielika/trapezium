@@ -130,14 +130,44 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
         Long running jobs
            oneTime = "true" 
        
-
 4. Supported Data types
-   Trapezium can read data in various formats including text, gzip, json, avro and parquet
-   
+ Trapezium can read data in various formats including text, gzip, json, avro and parquet
     Config entry for reading fileFormat
-    fileFormat="avro"
-    fileFormat="json"
-    fileFormat="parquet”	
+    
+            fileFormat="avro"
+            fileFormat="json"
+            fileFormat="parquet”
+
+5. Reading modes
+    Trapezium supports reading data in batch as well streaming mode
+        Config entry for reading in batch mode
+       
+        runMode="STREAM"
+        batchTime=5
+    
+    Config entry for reading in stream mode
+         
+         runMode="BATCH"
+         batchTime=5
+   
+   Read data by timestamp
+        offset=2
+ 
+6.Data Validation
+    Validates data at the source based on rule defined.
+        Filters out all invalid rows and log.
+        
+        validation = 
+            {  columns = ["name", "age", "birthday", "location"]
+                datatypes = ["String", "Int", "Timestamp", "String"]
+                dateFormat = "yyyy-MM-dd HH:mm:ss"  
+                delimiter = "|"  
+                minimumColumn = 4  
+                rules = {    
+                    name=[maxLength(30),minLength(1)]
+                    age=[maxValue(100),minValue(1)]  
+                    }
+            }    
 
 (c) Verizon
 
