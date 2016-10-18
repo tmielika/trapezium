@@ -98,6 +98,45 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
 	If you want to submit your job in cluster mode, environment and workflow config files must be present inside your application jar.
 
 	config is an optional command line parameter while workflow is a required one.
+	
+	
+# Features
+1. Workflow dependency 
+    Any workflow can depend on another workflow to build a complex business pipeline.
+    
+    Config entry for defining workflow dependency
+    dependentWorkflows={
+        workflows=["workflow_1", "workflow_2"]
+        frequencyToCheck=100
+     }
+
+
+2. Multiple source input
+   Multiple source can define in workflow.
+   
+   inputData = [
+        { 
+          name = "source1"
+        },
+        { 
+          name = "source2"
+        }
+        ]
+3. Support Adhoc jobs, Developer run, QA run, integration run and long running jobs
+       Workflow will run only one time for Adhoc,QA
+       Config entry only time time run.
+             oneTime = "true"
+        Long running jobs
+           oneTime = "true" 
+       
+
+4. Supported Data types
+   Trapezium can read data in various formats including text, gzip, json, avro and parquet
+   
+    Config entry for reading fileFormat
+    fileFormat="avro"
+    fileFormat="json"
+    fileFormat="parquet”	
 
 (c) Verizon
 
@@ -105,7 +144,7 @@ Contributions from:
 
 * Pankaj Rastogi (@rastogipankaj)
 * Debasish Das (@debasish83)
-* Hutashan Chandrakar
+* Hutashan Chandrakar(@hutashan)
 * Pramod Lakshmi Narasimha
 * Sumanth Venkatasubbaiah (@vsumanth10)
 * Faraz Waseem
