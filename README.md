@@ -117,12 +117,12 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
    
         inputData = [
         { 
-          name = "source1"
+          name = "source1"
         },
         { 
           name = "source2"
         }
-        ]
+        ]
 3. Support Adhoc jobs, Developer run, QA run, integration run and long running jobs
        Workflow will run only one time for Adhoc,QA
        Config entry only time time run.
