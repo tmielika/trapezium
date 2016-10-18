@@ -58,13 +58,6 @@
             <version>1.0</version>
         </dependency>
         
-        <dependency>
-            <groupId>com.vz.logger</groupId>
-            <artifactId>BDALogger</artifactId>
-            <version>1.0.2</version>
-        </dependency>
-
-
         <!-- Testing dependencies  -->
         <dependency>
             <groupId>org.cassandraunit</groupId>
