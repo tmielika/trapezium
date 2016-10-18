@@ -108,7 +108,7 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
        Config entry for defining workflow dependency
         dependentWorkflows={
             workflows=["workflow_1", "workflow_2"]
-            frequencyToCheck=100
+            frequencyToCheck=100
         }
 
 
@@ -158,16 +158,16 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
         Filters out all invalid rows and log.
         
         validation = 
-            {  columns = ["name", "age", "birthday", "location"]
-                datatypes = ["String", "Int", "Timestamp", "String"]
-                dateFormat = "yyyy-MM-dd HH:mm:ss"  
-                delimiter = "|"  
-                minimumColumn = 4  
-                rules = {    
+            {  columns = ["name", "age", "birthday", "location"]
+                datatypes = ["String", "Int", "Timestamp", "String"]
+                dateFormat = "yyyy-MM-dd HH:mm:ss"
+                delimiter = "|"
+                minimumColumn = 4
+                rules = {
                     name=[maxLength(30),minLength(1)]
-                    age=[maxValue(100),minValue(1)]  
-                    }
-            }    
+                    age=[maxValue(100),minValue(1)]
+                   }
+          }    
 
 (c) Verizon
 
