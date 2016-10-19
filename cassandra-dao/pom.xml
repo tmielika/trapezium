@@ -66,14 +66,6 @@
             </exclusions>
         </dependency>
 
-        <dependency>
-            <groupId>com.vz.logger</groupId>
-            <artifactId>BDALogger</artifactId>
-            <version>1.0.2</version>
-        </dependency>
-
-
-
     </dependencies>
     <build>
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
