@@ -62,6 +62,16 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
 					dev = "test/data/dev"
 					prod = "test/data/prod"
 				}
+    #here defined only one column you can define based on your data
+				validation = {
+                        columns = ["col1"]
+                        datatypes = ["String"]
+                        minimumColumn = 1
+                        dateFormat = "yyyy-MM-dd HH:mm:ss"
+                        delimiter = ","
+                        rules = {
+                        }
+                      }				
 			} ]
 		}
 		transactions = [{
