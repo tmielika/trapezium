@@ -8,13 +8,13 @@ Once Trapezium jar is available in your maven repository, you can add dependency
 
           <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>trapezium</artifactId>
+            <artifactId>framework</artifactId>
             <version>1.0.0-SNAPSHOT</version>
           </dependency>
 
           <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId> trapezium </artifactId>
+            <artifactId>framework</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
             <version>1.0.0-SNAPSHOT</version>
@@ -62,6 +62,15 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
 					dev = "test/data/dev"
 					prod = "test/data/prod"
 				}
+				validation = {
+                        columns = ["col1"]
+                        datatypes = ["String"]
+                        minimumColumn = 1
+                        dateFormat = "yyyy-MM-dd HH:mm:ss"
+                        delimiter = ","
+                        rules = {
+                        }
+                      }				
 			} ]
 		}
 		transactions = [{
