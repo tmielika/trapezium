@@ -11,4 +11,5 @@ cd trapezium.git/
 git remote set-url --push origin https://debasish.das@istg.vzvisp.com:8443/stash/scm/bda/trapezium.git
 
 git fetch -p origin
+
 git push --mirror
