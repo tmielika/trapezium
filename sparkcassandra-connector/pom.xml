@@ -3,17 +3,20 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>trapezium</artifactId>
-        <groupId>com.verizon.bda</groupId>
-        <version>1.0.0-SNAPSHOT</version>
+      <groupId>com.verizon.bda</groupId>
+      <artifactId>trapezium-parent</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>sparkcassandra-connector</artifactId>
+    <artifactId>trapezium-sparkcassandra-connector</artifactId>
+    <packaging>jar</packaging>
+    <name>Trapezium sparkcassandra connector</name>
+    
     <dependencies>
          <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>dal</artifactId>
+            <artifactId>trapezium-dal</artifactId>
             <version>1.0.0-SNAPSHOT</version>
              <exclusions>
                  <exclusion>
@@ -46,7 +49,7 @@
 
         <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>cassandra-dao</artifactId>
+            <artifactId>trapezium-cassandra-dao</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
             <version>1.0.0-SNAPSHOT</version>
@@ -54,7 +57,7 @@
 
         <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>cassandra-dao</artifactId>
+            <artifactId>trapezium-cassandra-dao</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
         

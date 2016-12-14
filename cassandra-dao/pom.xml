@@ -3,15 +3,16 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>trapezium</artifactId>
-        <groupId>com.verizon.bda</groupId>
-        <version>1.0.0-SNAPSHOT</version>
+      <groupId>com.verizon.bda</groupId>
+      <artifactId>trapezium-parent</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
+    <artifactId>trapezium-cassandra-dao</artifactId>
     <packaging>jar</packaging>
-    <artifactId>cassandra-dao</artifactId>
-
+    <name>Trapezium Cassandra DAO</name>
+    
     <properties>
       <spark.version>1.6.0</spark.version>
       <scala.binary.version>2.10</scala.binary.version>

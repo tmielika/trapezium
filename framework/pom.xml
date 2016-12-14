@@ -5,14 +5,14 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>com.verizon.bda</groupId>
-		<artifactId>trapezium</artifactId>
+		<artifactId>trapezium-parent</artifactId>
 		<version>1.0.0-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
         
-	<artifactId>framework</artifactId>
+	<artifactId>trapezium-framework</artifactId>
 	<packaging>jar</packaging>
-	<name>Verizon framework library</name>
+	<name>Trapezium framework library</name>
 
 	<properties>
 		<kafka.version>0.8.2.1</kafka.version>

@@ -8,13 +8,13 @@ Once Trapezium jar is available in your maven repository, you can add dependency
 
           <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>framework</artifactId>
+            <artifactId>trapezium-framework</artifactId>
             <version>1.0.0-SNAPSHOT</version>
           </dependency>
 
           <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>framework</artifactId>
+            <artifactId>trapezium-framework</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
             <version>1.0.0-SNAPSHOT</version>
