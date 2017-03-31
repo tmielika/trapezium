@@ -15,11 +15,13 @@
 package com.verizon.bda.trapezium.framework.apps
 
 import com.verizon.bda.trapezium.framework.ApplicationManagerStartup
+import org.slf4j.LoggerFactory
 
 /**
  * @author Pankaj on 11/2/15.
  */
 object TestManagerStartup extends ApplicationManagerStartup {
+
   override def init(env: String, configDir: String, appSchema: String): Unit = {
     logger.info(s"Config Dir ${configDir}")
     assert(env == "local")

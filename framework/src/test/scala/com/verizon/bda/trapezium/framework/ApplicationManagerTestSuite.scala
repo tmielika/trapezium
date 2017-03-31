@@ -22,6 +22,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.streaming.TestSuiteBase
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.zookeeper.EmbeddedZookeeper
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.{Map => MMap}
 
@@ -31,7 +32,7 @@ import scala.collection.mutable.{Map => MMap}
 class ApplicationManagerTestSuite extends TestSuiteBase {
   var appConfig: ApplicationConfig = _
   var zk: EmbeddedZookeeper = _
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   override def beforeAll() {
     super.beforeAll()
     appConfig = ApplicationManager.getConfig()

@@ -20,6 +20,7 @@ import com.typesafe.config.{ConfigFactory, Config, ConfigObject}
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
 import com.verizon.bda.trapezium.framework.utils.{ScanFS, ApplicationUtils}
+import com.verizon.bda.trapezium.transformation.DataTranformer
 import com.verizon.bda.trapezium.validation.{DataValidator, ValidationConfig}
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
@@ -30,12 +31,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SQLContext, Row}
 import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
 import java.sql.Time
 import java.text.SimpleDateFormat
 import java.util.{GregorianCalendar, Calendar, Date}
-
-
+import org.joda.time.Days
+import org.joda.time.DateTime
 
 // scalastyle:off
 import scala.collection.JavaConversions._
@@ -50,9 +52,8 @@ import scala.collection.JavaConversions._
  */
 private[framework] abstract class SourceGenerator(workflowConfig: WorkflowConfig,
                                                   appConfig: ApplicationConfig,
-                                                  sc: SparkContext)
-
-  extends Iterator[(Time, Map[String, DataFrame], String)] {
+                                                  sc: SparkContext) {
+  val logger = LoggerFactory.getLogger(this.getClass)
   val inputSources = scala.collection.mutable.Set[String]()
   var mode = ""
   // Get all the input source name
@@ -70,15 +71,13 @@ private[framework] abstract class SourceGenerator(workflowConfig: WorkflowConfig
 
   val hdfsBatchConfig = workflowConfig.hdfsFileBatch.asInstanceOf[Config]
   val batchInfoList = hdfsBatchConfig.getList("batchInfo")
-  if (batchInfoList(0).asInstanceOf[ConfigObject].toConfig.hasPath("splitfile")){
-    mode = "splitFile"
+  if (batchInfoList(0).asInstanceOf[ConfigObject].toConfig.hasPath("groupFile")){
+    mode = "groupFile"
   }
 }
 
 object SourceGenerator {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   def validateRDD(rdd: RDD[Row],
                   batchData: Config): DataFrame = {
 
@@ -89,8 +88,7 @@ object SourceGenerator {
     val validationConfig =
       ValidationConfig.getValidationConfig(
         appConfig, workFlowConfig, inputName)
-
-    val validator = DataValidator(rdd.sparkContext, inputName)
+   val validator = DataValidator(rdd.sparkContext, inputName)
     validator.validateDf(rdd, validationConfig)
   }
 
@@ -106,11 +104,9 @@ object SourceGenerator {
   }
 }
  object DynamicSchemaHelper {
-
-   import org.apache.spark.rdd.RDD
    val logger = LoggerFactory.getLogger(this.getClass)
-
-   def generateDataFrame(csv: RDD[Row],
+  import org.apache.spark.rdd.RDD
+  def generateDataFrame(csv: RDD[Row],
                         name: String,
                         file: String,
                         sc: SparkContext): (String, DataFrame) = {
@@ -163,153 +159,139 @@ object SourceGenerator {
 
 }
 
-private[framework] case class SeqSourceGenerator(workflowConfig: WorkflowConfig,
-                                                 appConfig: ApplicationConfig,
-                                                 sc: SparkContext,
-                                                 batches: Seq[Map[String, DataFrame]])
-  extends SourceGenerator(workflowConfig, appConfig, sc) {
-  var index = 0
-    mode = "Seq"
-  def next(): (Time, Map[String, DataFrame], String) = {
-    val workflowTime = new Time(System.currentTimeMillis)
-    val dfs = batchInfoList.asScala.map { batchConfig =>
-      val batchData = batchConfig.asInstanceOf[ConfigObject].toConfig
-      val name = batchData.getString("name")
-      name -> batches(index)(name)
-    }.toMap
-
-    index += 1
-    (workflowTime, dfs, mode)
-  }
-
-  def hasNext(): Boolean = {
-    if (index < batches.size) return true
-    else return false
-  }
-}
-
 /**
  *
  * @param workflowConfig the workflow for which RDD's needs to be created
  * @param appConfig Application config
  * @param sc Spark Context instance
- * @param maxIterations -1 denotes infinite iterations, positive numbers are bounds for batch runs
  */
 // TO DO :
 private[framework] case class
 FileSourceGenerator(workflowConfig: WorkflowConfig,
                     appConfig: ApplicationConfig,
-                    sc: SparkContext,
-                    var maxIterations: Long = -1)  // oneTime is true then run only 1 times
+                    sc: SparkContext)  // readFullDataset is true then run only 1 times
   extends SourceGenerator(workflowConfig, appConfig, sc) {
-  var iterations = 0L
 
   import FileSourceGenerator.getSortedFileMap
   import FileSourceGenerator.getWorkFlowTime
-  var mapFile: java.util.TreeMap[Date, StringBuilder] = null
-  var iteratorMap: Iterator[(Date, StringBuilder)] = Iterator.empty
-  import FileSourceGenerator.addDF
 
-  val logger = LoggerFactory.getLogger(this.getClass)
+  var mapFile: java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]] = null
+  var mapFileAllFile: java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]] = null
 
-      /**
-        *
-        * @return Map of (String, RDD[Row]) and associated workflowTime for the data
-        */
-      def next(): (Time, Map[String, DataFrame], String) = {
-        var workflowTime = new Time(System.currentTimeMillis)
-        var dataMap = MMap[String, DataFrame]()
-        batchInfoList.asScala.foreach { batchConfig =>
-          val batchData = batchConfig.asInstanceOf[ConfigObject].toConfig
-          val name = batchData.getString("name")
-          val dataDirectoryConfig = batchData.getConfig("dataDirectory")
-          val dataDir = {
-            if (dataDirectoryConfig.hasPath("query")) {
-              appConfig.fileSystemPrefix + dataDirectoryConfig
-                .getString(ApplicationUtils.env) + dataDirectoryConfig.getString("query")
-            } else {
-              appConfig.fileSystemPrefix + dataDirectoryConfig
-                .getString(ApplicationUtils.env)
-            }
+  import FileSourceGenerator.getElligbleFiles
+  import FileSourceGenerator.getDataDir
+  import FileSourceGenerator.getCurrentWorkflowTime
+
+  /**
+   *
+   * @return Map of (String, RDD[Row]) and associated workflowTime for the data
+   */
+  def get(): Seq[(Time, (MMap[String, DataFrame], String))] = {
+
+    val dataSources = new java.util.TreeMap[Time, (MMap[String, DataFrame], String)]
+    val dataSourcesNoSplit = MMap[String, DataFrame]()
+
+    var workflowTime = new Time(System.currentTimeMillis)
+
+    // iterate over each data source
+    batchInfoList.asScala.foreach { batchConfig =>
+
+      val batchData: Config = batchConfig.asInstanceOf[ConfigObject].toConfig
+      val name = batchData.getString("name")
+
+      val dataDir = getDataDir(appConfig, batchData)
+
+      val currentWorkflowTime = getCurrentWorkflowTime(appConfig, workflowConfig, batchData)
+
+      if (batchData.hasPath("groupFile")) {
+        mode = "groupFile"
+        val groupFileConf = batchData.getConfig("groupFile")
+        val workSpaceDataDirectory = batchData.getConfig(
+          "dataDirectory").getString(ApplicationUtils.env)
+
+        val batchFiles = ScanFS.getFiles(dataDir, 0)
+        logger.info(s"Number of available files for processing for source $name = " +
+          s": ${batchFiles.size}")
+        if (batchFiles.size > 0) {
+          if (mapFileAllFile == null) {
+            mapFileAllFile = new java.util.TreeMap[Date,
+              java.util.HashMap[String, StringBuilder]]()
           }
-          val oneTime = batchData.getString("oneTime").toBoolean
-          val currentWorkflowTime = {
-            if (!oneTime) {
-              ApplicationUtils.getCurrentWorkflowTime(appConfig, workflowConfig)
-            } else {
-              if (maxIterations == -1) maxIterations = 1 // onlyDir is true then run only 1 times
-              -1L
-            }
-          }
-          if (!batchData.hasPath("splitfile")) {
-
-            val batchFiles = ScanFS.getFiles(dataDir, currentWorkflowTime)
-            logger.info(s"Number of available files for processing for source $name = " +
-              s": ${batchFiles.size}")
-            if (batchFiles.size > 0) {
-              batchFiles.mkString(",")
-              logger.debug(s"list of files for this run " +  batchFiles.mkString(","))
-              addDF(sc, batchFiles, batchData, dataMap)
-            }
-            iterations += 1
+          mapFileAllFile = getSortedFileMap(name,
+            batchFiles.toList, groupFileConf,
+            workSpaceDataDirectory, mapFileAllFile)
+          if (groupFileConf.hasPath("offset")) {
+            mapFile = getElligbleFiles(mapFileAllFile,
+              workflowConfig, appConfig, groupFileConf)
           } else {
-         //   maxIterations = 1
-            mode = "splitFile"
-            val splitfile = batchData.getConfig("splitfile")
-
-            val workSpaceDataDirectory = batchData.getConfig(
-              "dataDirectory").getString(ApplicationUtils.env)
-            if (mapFile == null) {
-              iterations += 1
-              val batchFiles = ScanFS.getFiles(dataDir, currentWorkflowTime)
-              logger.info(s"Number of available files for processing for source $name = " +
-                s": ${batchFiles.size}")
-              if (batchFiles.size > 0) {
-                mapFile = getSortedFileMap(
-                  batchFiles.toList, splitfile,
-                  workSpaceDataDirectory)
-                iteratorMap = mapFile.iterator
-              }
-            }
-            if (iteratorMap.hasNext) {
-              val (sDate, files) = iteratorMap.next()
-              logger.debug("fileSplit running for date " + sDate + " , files are " +
-                files.toString())
-              workflowTime = getWorkFlowTime(sDate, currentWorkflowTime)
-              addDF(sc, files.toString().split(","), batchData, dataMap)
-            }
+            mapFile = mapFileAllFile
           }
         }
-          (workflowTime, dataMap.toMap, mode)
-        }
-        def hasNext(): Boolean = {
-          if (!mode.equals("splitFile")) {
-            if (maxIterations < 0) return true
-            if (iterations < maxIterations) return true
+
+        val mapFileIterator = mapFile.iterator
+
+        while (mapFileIterator.hasNext) {
+          val output = mapFileIterator.next
+
+          val (sDate, sourceMap) = (output._1, output._2)
+          val files = sourceMap(name)
+          logger.info("source name " + name)
+          logger.info("fileSplit running for date " + sDate + " , files are " +
+            files.toString())
+          workflowTime = getWorkFlowTime(sDate, currentWorkflowTime)
+          val dataMap = addDF(sc, files.toString().split(","), batchData)
+
+          val existingDataMap = dataSources.get(workflowTime)
+          if (existingDataMap != null) {
+
+            logger.info(s"Entry exists for this workflow time ${existingDataMap}")
+            existingDataMap._1 ++= dataMap
+            dataSources.put(workflowTime, (existingDataMap._1, mode))
+
           } else {
-            if (maxIterations < 0 &&  mapFile == null) return true
-            if (iterations < maxIterations &&  mapFile == null) return true
-             if (iteratorMap.hasNext) return true
-            else {
-               logger.info("reset counter because of filesplit")
-               mapFile = null
-               return false
-             }
-
+            dataSources.put(workflowTime, (dataMap, mode))
           }
-          return false
         }
 
+        logger.info(s"dataSources size --> ${dataSources.size}")
       }
+      else {
+        val batchFiles = ScanFS.getFiles(dataDir, currentWorkflowTime)
+        logger.info("source name " + name)
+        logger.info(s"Number of available files for processing for source $name = " +
+          s": ${batchFiles.size}")
+        if (batchFiles.size > 0) {
 
-object FileSourceGenerator {
+          logger.info(s"list of files for this run " + batchFiles.mkString(","))
+          val dataMap = addDF(sc, batchFiles, batchData)
+
+          dataSourcesNoSplit ++= dataMap
+        }
+      }
+    }
+
+    val iter = dataSources.iterator
+    iter.foreach( dataSource => {
+      // Add no split source to other sources
+      dataSource._2._1 ++= dataSourcesNoSplit
+    })
+
+    if(dataSources.isEmpty) {
+
+        dataSources.put(workflowTime, (dataSourcesNoSplit, mode))
+    }
+    logger.info(s"dataSources --> ${dataSources}")
+    dataSources.toMap.toSeq
+  }
+
+
   import DynamicSchemaHelper.generateDataFrame
+  def  addDF (sc: SparkContext,
+              input: Array[String],
+              batchData: Config): MMap[String, DataFrame] = synchronized{
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-  def addDF(sc: SparkContext,
-            input: Array[String],
-            batchData: Config,
-            dataMap: MMap[String, DataFrame]): MMap[String, DataFrame] = {
+    var dataMap = MMap[String, DataFrame]()
+
     val name = batchData.getString("name")
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
@@ -338,89 +320,155 @@ object FileSourceGenerator {
         dataMap += ((name, SQLContext.getOrCreate(sc).read.text(input: _*)))
       }
       case _ => {
+
         val rdd = sc.textFile(input.mkString(",")).map(line => Row(line.toString))
         dataMap += ((name, SourceGenerator.validateRDD(rdd, batchData)))
 
       }
     }
+    if (batchData.hasPath("transformation")) {
+      dataMap(name) = DataTranformer.transformDf(dataMap(name), batchData)
+    }
+    dataMap
   }
+}
+
+object FileSourceGenerator {
+  import DynamicSchemaHelper.generateDataFrame
+  val logger = LoggerFactory.getLogger(this.getClass)
+
+  def  getElligbleFiles(fileMap: java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]],
+                        workflowConfig: WorkflowConfig,
+                        appConfig: ApplicationConfig,
+                        offsetConfig: Config):
+         java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]] = {
+    val batchTime: Long =
+      workflowConfig
+        .hdfsFileBatch
+        .asInstanceOf[Config]
+        .getLong("batchTime")
+    val startOffset : Long = offsetConfig.getLong("offset")* batchTime *1000
+    logger.info("startOffset :" + startOffset )
+    val calculateFolderTimeStamp: Long = System.currentTimeMillis() + startOffset
+    val endDate = new Date(calculateFolderTimeStamp)
+    val startDate = new Date(ApplicationUtils.getCurrentWorkflowTime(appConfig, workflowConfig))
+    logger.info("Date range is startDate :" + startDate + " enddate : " + endDate)
+    // TO-DO may be better implementation
+    val mapFile = new java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]]()
+    fileMap.foreach(f => {
+     val x = f._1
+     val fileList = f._2
+      if ((x.after(startDate) ) && (x.equals(endDate)  || x.before(endDate))){
+        mapFile.put(x , fileList)
+      }
+    })
+
+    mapFile
+  }
+
+
 
 /**
           * This method invoked only once in each cycle if filesplit is required.
           * Sorted files according to date
   */
 
-        def getSortedFileMap(inputFileList: java.util.List[String],
-                             splitfile: Config,
-                             workSpaceDataDirectory : String
-                            ): java.util.TreeMap[Date, StringBuilder] = {
 
-          val simpleDateFormat: SimpleDateFormat = new SimpleDateFormat(
-            splitfile.getString("dateformat"))
-          val mapFile = new java.util.TreeMap[Date, StringBuilder]()
-         if (!splitfile.hasPath("regexFile")) {
-           val startDateIndex = splitfile.getString("startDateIndex").toInt
-           val endDateIndex = splitfile.getString("endDateIndex").toInt
-           val workSpaceLength = {
-             if (inputFileList(0) != null) {
-               inputFileList(0).indexOf(workSpaceDataDirectory) + workSpaceDataDirectory.length
-             } else {
-               logger.info("length count == 0")
-               0
-             }
-           }
-           inputFileList.foreach { file =>
-             try {
-               val fileLen = file.length
-               val fileDate = file.substring(
-                 workSpaceLength + startDateIndex, workSpaceLength + endDateIndex)
-               val dt: Date = simpleDateFormat.parse(fileDate)
-               val fileName = mapFile.get(dt)
-               if (fileName == null) {
-                 mapFile.put(dt, new StringBuilder(file))
-               } else {
-                 fileName.append(",")
-                 fileName.append(file)
-                 mapFile.put(dt, fileName)
-               }
-             }
-             catch {
-               case e: Throwable =>
-                 logger.error(s"Error in file parsing. File name $file ", e)
-             }
-           }
-         } else {
 
-           val pattern = Pattern.compile(splitfile.getString("regexFile"))
-           inputFileList.foreach { file =>
-             try {
-               val fileDate = {
-              val matcher = pattern.matcher(file)
-               if (matcher.find()){
-                 matcher.group()
-               } else ""
-               }
-               val dt: Date = simpleDateFormat.parse(fileDate)
-               val fileName = mapFile.get(dt)
-               if (fileName == null) {
-                 mapFile.put(dt, new StringBuilder(file))
-               } else {
-                 fileName.append(",")
-                 fileName.append(file)
-                 mapFile.put(dt, fileName)
-               }
-             }
-             catch {
-               case e: Throwable =>
-                 logger.error(s"Error in file parsing. File name $file ", e)
-             }
-           }
 
-         }
+  def getSortedFileMap(source : String,
+                       inputFileList: java.util.List[String],
+                       groupFileConf: Config,
+                       workSpaceDataDirectory : String,
+                       mapFile : java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]]
+                      ): java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]] = {
 
-          mapFile
+    val simpleDateFormat: SimpleDateFormat = new SimpleDateFormat(
+      groupFileConf.getString("dateformat"))
+     if (!groupFileConf.hasPath("regexFile")) {
+      val startDateIndex = groupFileConf.getString("startDateIndex").toInt
+      val endDateIndex = groupFileConf.getString("endDateIndex").toInt
+      val workSpaceLength = {
+        if (inputFileList(0) != null) {
+          inputFileList(0).indexOf(workSpaceDataDirectory) + workSpaceDataDirectory.length
+        } else {
+          logger.info("length count == 0")
+          0
         }
+      }
+      inputFileList.foreach { file =>
+        try {
+          val fileLen = file.length
+          val fileDate = file.substring(
+            workSpaceLength + startDateIndex, workSpaceLength + endDateIndex)
+          val dt: Date = simpleDateFormat.parse(fileDate)
+          val sourceMap = mapFile.get(dt)
+          if (sourceMap == null) {
+            val hs = new java.util.HashMap[String, StringBuilder] ()
+            hs.put(source, new StringBuilder(file))
+            mapFile.put(dt, hs)
+          } else {
+            val fileName = sourceMap.get(source)
+            if (fileName == null) {
+              sourceMap.put(source, new StringBuilder(file))
+              mapFile.put(dt, sourceMap)
+            } else {
+              fileName.append(",")
+              fileName.append(file)
+              sourceMap.put(source, fileName)
+              mapFile.put(dt, sourceMap)
+            }
 
+          }
+        }
+        catch {
+          case e: Throwable =>
+            logger.error(s"Error in file parsing. File name" +
+              s" $file ", e.getCause)
+        }
+      }
+    } else {
+
+      val pattern = Pattern.compile(groupFileConf.getString("regexFile"))
+      inputFileList.foreach { file =>
+        try {
+          val fileDate = {
+            val matcher = pattern.matcher(file)
+            if (matcher.find()){
+              matcher.group()
+            } else ""
+          }
+          val dt: Date = simpleDateFormat.parse(fileDate)
+          val sourceMap = mapFile.get(dt)
+          if (sourceMap == null) {
+            val hs = new java.util.HashMap[String, StringBuilder] ()
+            hs.put(source, new StringBuilder(file))
+            mapFile.put(dt, hs)
+          } else {
+            val fileName = sourceMap.get(source)
+            if (fileName == null) {
+              sourceMap.put(source, new StringBuilder(file))
+              mapFile.put(dt, sourceMap)
+            } else {
+              fileName.append(",")
+              fileName.append(file)
+              sourceMap.put(source, fileName)
+              mapFile.put(dt, sourceMap)
+            }
+
+          }
+        }
+        catch {
+          case e: Throwable =>
+            logger.error(s"Error in file parsing. File name" +
+              s" $file ", e.getCause)
+        }
+      }
+
+    }
+
+    mapFile
+  }
         // TO DO
         // Need to handle some corner case because it may create some performance issue in regular.
         // this part will impact timeseries flow. I will check with team
@@ -433,7 +481,53 @@ object FileSourceGenerator {
         }
 
 
+
+  def getDataDir (appConfig: ApplicationConfig, batchData: Config): String = {
+
+    val dataDirectoryConfig = batchData.getConfig("dataDirectory")
+    val directoryConfigPathEnv = getDirectoryConfigPathEnv(appConfig)
+
+    if (appConfig.uid.equals("")) {
+      if (dataDirectoryConfig.hasPath("query")) {
+        appConfig.fileSystemPrefix + dataDirectoryConfig
+          .getString(directoryConfigPathEnv) + dataDirectoryConfig.getString("query")
+      } else {
+        appConfig.fileSystemPrefix + dataDirectoryConfig
+          .getString(directoryConfigPathEnv)
       }
+    } else {
+      if (dataDirectoryConfig.hasPath("query")) {
+        appConfig.fileSystemPrefix + dataDirectoryConfig
+          .getString(directoryConfigPathEnv) + dataDirectoryConfig.getString("query")
+      } else {
+        appConfig.fileSystemPrefix + dataDirectoryConfig
+          .getString(directoryConfigPathEnv)
+      }
+    }
+  }
+  def getDirectoryConfigPathEnv(appConfig: ApplicationConfig) : String = {
+    if (appConfig.integrationRun){
+       "integration"
+    } else {
+      ApplicationUtils.env
+    }
+  }
+
+  def getCurrentWorkflowTime(appConfig: ApplicationConfig,
+                      workflowConfig: WorkflowConfig,
+                      batchData: Config): Long = {
+    if (batchData.hasPath("readFullDataset")) {
+      val readFullDataset = batchData.getString("readFullDataset").toBoolean
+      if (!readFullDataset) {
+        ApplicationUtils.getCurrentWorkflowTime(appConfig, workflowConfig)
+      } else {
+        -1L
+      }
+    } else {
+      ApplicationUtils.getCurrentWorkflowTime(appConfig, workflowConfig)
+    }
+  }
+}
 // 1. Add DAO support to read Hive and Cassandra for ModelTransaction
 // 2. Add Kafka support to read the online stream data that's added to FS.
 // Is the time series maintained in Kafka batch path ?

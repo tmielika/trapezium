@@ -14,7 +14,6 @@
 */
 package com.verizon.bda.trapezium.framework.kafka
 
-
 import scala.io.Source
 
 /**

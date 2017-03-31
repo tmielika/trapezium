@@ -14,27 +14,27 @@
 */
 package com.verizon.bda.trapezium.framework.apps
 
+import java.nio.file.{Paths, Path}
 import java.sql.{Date, Time}
 
 import com.verizon.bda.trapezium.framework.BatchTransaction
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SQLContext, DataFrame}
+import org.apache.spark.sql.{SaveMode, SQLContext, DataFrame}
 import org.slf4j.LoggerFactory
 
 
 /**
- * @author sumanth.venkatasubbaiah
+ * @author sumanth.venkatasubbaiah\
+  *         venkatesh TestBatchTxn9
  *         Various Test Batch transactions
  *
  */
 
 object TestBatchTxn1 extends BatchTransaction {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   private val CONST_STRING = "This has to be populated in the preprocess method"
   var populateFromPreprocess: String = _
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   override def preprocess(sc: SparkContext): Unit = {
     logger.info("Inside preprocess of TestBatchTxn1")
     populateFromPreprocess = CONST_STRING
@@ -60,9 +60,7 @@ object TestBatchTxn1 extends BatchTransaction {
 } // end TestBatchTxn1
 
 object TestBatchTxn2 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
     logger.info("Inside process of TestBatchTxn2")
@@ -83,9 +81,7 @@ object TestBatchTxn2 extends BatchTransaction {
 
 
 object TestBatchTxn3 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
     logger.info("Inside process of TestBatchTxn3")
@@ -106,9 +102,7 @@ object TestBatchTxn3 extends BatchTransaction {
 } // end TestBatchTxn3
 
 object TestBatchTxn4 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
     logger.info("Inside process of TestBatchTxn4")
@@ -125,9 +119,7 @@ object TestBatchTxn4 extends BatchTransaction {
   }
 }
 object TestFileSplit extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time)
   : DataFrame = {
 
@@ -151,9 +143,7 @@ object TestFileSplit extends BatchTransaction {
 }
 
 object TestBatchTxn5 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
     logger.info("Inside process of TestBatchTxn4")
@@ -172,9 +162,7 @@ object TestBatchTxn5 extends BatchTransaction {
 } // end TestBatchTxn5
 
 object TestBatchTxn6 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
     logger.info("Inside process of TestBatchTxn6")
     require(df.size > 0)
@@ -193,9 +181,7 @@ object TestBatchTxn6 extends BatchTransaction {
 }
 
 object TestBatchTxn7 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
     logger.info("Inside process of TestBatchTxn7")
     require(df.size > 0)
@@ -214,9 +200,7 @@ object TestBatchTxn7 extends BatchTransaction {
 }
 
 object TestBatchTxn8 extends BatchTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
     logger.info("Inside process of TestBatchTxn8")
     require(df.size > 0)
@@ -234,4 +218,70 @@ object TestBatchTxn8 extends BatchTransaction {
   }
 }
 
+object TestBatchTxn9 extends BatchTransaction {
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
+    val currentRelativePath: Path = Paths.get("")
+    val path: String = currentRelativePath.toAbsolutePath.toString
+    logger.info("Current relative path is: " + path)
+
+    logger.info("Inside process of TestBatchTxn9")
+    require(df.size > 0)
+    val inData = df("onlyDirTrue")
+    inData.rdd.saveAsTextFile(path + "/tmp/dropRowWithExtraColumn")
+    val count = inData.count()
+    inData.show(false)
+    inData
+  }
+
+  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+    require(df.count > 0)
+  }
+
+  override def rollbackBatch(batchTime: Time): Unit = {
+  }
+}
+
+
+
+
+object TestReadByDate extends BatchTransaction {
+  val logger = LoggerFactory.getLogger(this.getClass)
+override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+logger.info("Inside process of TestReadByDate  " + new Date(wfTime.getTime))
+require(df.size > 0)
+val inData = df.head._2
+
+  df("testDataSplitFiles").show()
+  df("location").show()
+  df("secondSource").show()
+inData
+}
+
+override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+require(df.count > 0)
+df.write.parquet("target/testdata/TestBatchTxn8" + System.currentTimeMillis())
+}
+
+override def rollbackBatch(batchTime: Time): Unit = {
+}
+}
+
+
+
+object TestBatchTxn10 extends BatchTransaction {
+
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+
+    val inData = df("source1")
+    inData.show
+    inData
+  }
+
+  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+    require(df.count == 4)
+    df.write.mode(SaveMode.Overwrite).parquet("target/testdata/TestBatchTxn9/")
+  }
+
+}

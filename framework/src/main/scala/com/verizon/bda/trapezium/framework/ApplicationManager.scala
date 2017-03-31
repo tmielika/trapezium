@@ -14,14 +14,17 @@
 */
 package com.verizon.bda.trapezium.framework
 
+import java.util.Timer
+
 import _root_.kafka.common.TopicAndPartition
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.handler.{BatchHandler, FileSourceGenerator, SeqSourceGenerator, StreamingHandler}
+import com.verizon.bda.trapezium.framework.handler.{BatchHandler, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
-import com.verizon.bda.trapezium.framework.kafka.KafkaDStream
+import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
+import org.apache.spark.zookeeper.ChaosMonekyUtils
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
@@ -44,9 +47,7 @@ import scala.collection.mutable.{Map => MMap}
  */
 
 object ApplicationManager {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   private var ssc: StreamingContext = null
   var sqlContext: SQLContext = null
   private var appConfig: ApplicationConfig = _
@@ -54,7 +55,8 @@ object ApplicationManager {
   var stopStreaming: Boolean = false
   val ERROR_EXIT_CODE = -1
   private var embeddedServer: EmbeddedHttpServer = _
-
+  private var uid = ""
+  private var chaosMonkey : Boolean = false
 
   def getEmbeddedServer: EmbeddedHttpServer = {
 
@@ -66,22 +68,26 @@ object ApplicationManager {
    * @param configDir input config directory
    * @return an instance of ApplicationConfig
    */
-  def getConfig(configDir: String = null): ApplicationConfig = {
+  def getConfig(configDir: String = null, uid: String = null ): ApplicationConfig = {
     if (appConfig == null) {
       logger.info(s"Application is null.")
-      appConfig = new ApplicationConfig(ApplicationUtils.env, configDir)
+      if (uid ==null) {
+        appConfig = new ApplicationConfig(ApplicationUtils.env, configDir, "")
+      } else {
+        appConfig = new ApplicationConfig(ApplicationUtils.env, configDir, uid)
+      }
     }
-
     appConfig
   }
 
   def setWorkflowConfig(workflow: String): WorkflowConfig = {
-
     val workflowConfig = new WorkflowConfig(workflow)
-
     threadLocalWorkflowConfig.set(workflowConfig)
     workflowConfig
+
   }
+
+
 
   /**
    *
@@ -94,7 +100,9 @@ object ApplicationManager {
 
   // Case class to hold the command line arguments
   private case class Params(configDir: String = null,
-                            workFlowName: String = null)
+                            workFlowName: String = null,
+                            uid: String = null,
+                            chaosMonkey: Boolean = false)
 
   // ApplicationManager entry point
   def main(args: Array[String]) {
@@ -112,6 +120,14 @@ object ApplicationManager {
          .text(s"workflow to run")
          .required
          .action((x, c) => c.copy(workFlowName = x))
+       opt[String]("uid")
+         .text(s"workflow to run")
+         .optional
+         .action((x, c) => c.copy(uid = x))
+       opt[Boolean]("chaosMonkey")
+         .text(s"chaosMonkey to run")
+         .optional
+         .action((x, c) => c.copy(chaosMonkey = x))
      }
 
      parser.parse(args, defaultParams).map { params =>
@@ -122,7 +138,8 @@ object ApplicationManager {
      }
    } catch {
      case ex: Throwable => {
-       logger.error(s"Exiting job because of following exception", ex)
+       logger.error(s"Exiting job because of following exception" ,
+         ex.getMessage)
        System.exit(ERROR_EXIT_CODE)
      }
 
@@ -130,15 +147,13 @@ object ApplicationManager {
   }
 
   private def run(params: Params): Unit = {
-
-    getConfig(params.configDir)
     val workFlowToRun = params.workFlowName
+    val uid = params.uid
+    chaosMonkey = params.chaosMonkey
+    getConfig(params.configDir , uid)
 
     // load start up class
     initialize(appConfig)
-
-
-
 
     val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
     val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
@@ -161,22 +176,20 @@ object ApplicationManager {
             initStreamThread (workFlowToRun)
           }
           case _ => {
-
-            val sc = new SparkContext(getSparkConf (appConfig))
-            runBatchWorkFlow(workflowConfig, appConfig)(sc)
-
+           var sc : SparkContext = null
+          runBatchWorkFlow(workflowConfig, appConfig)(sc)
             // if spark context is not stopped, stop it
-            if( !sc.isStopped ){
+             if( sc !=null && !sc.isStopped ){
               sc.stop
-            }
+             }
 
           }
         }
 
       }
       case "API" => {
-
         val sc = new SparkContext(getSparkConf (appConfig))
+        setHadoopConf(sc, appConfig)
         startHttpServer(sc, workflowConfig)
 
       }
@@ -221,7 +234,7 @@ object ApplicationManager {
           case ex: Throwable => {
 
             logger.error(s"Consumed following exception because " +
-              s"spark context was NOT stopped gracefully." , ex)
+              s"spark context was NOT stopped gracefully." , {ex.getMessage})
             throw ex
           }
 
@@ -262,6 +275,8 @@ object ApplicationManager {
         ssc = HdfsDStream.createStreamingContext(hdfsStreamConfig.getString("batchTime").toInt,
           checkPointDirectory,
           sparkConf)
+        setHadoopConf(ssc.sparkContext, appConfig)
+        runChaosMoneky(appConfig)(ssc.sparkContext)
         dStreams = HdfsDStream.createDStreams(ssc)
       }
       case "KAFKA" => {
@@ -272,26 +287,24 @@ object ApplicationManager {
         logger.info("Kafka broker list " + kafkaBrokerList)
 
         ssc = KafkaDStream.createStreamingContext(sparkConf)
-
+        setHadoopConf(ssc.sparkContext, appConfig)
+        runChaosMoneky(appConfig)(ssc.sparkContext)
         val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
 
         streamsInfo.asScala.foreach(streamInfo => {
-
           val topicName = streamInfo.getString("topicName")
-
           val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
           topicPartitionOffsets ++= partitionOffset
-
-          val validConfig = streamInfo.getConfig("validation")
-          dStreams = KafkaDStream.createDStreams(
-            ssc,
-            kafkaBrokerList,
-            kafkaConfig,
-            topicPartitionOffsets.toMap,
-            appConfig)
         })
-      }
 
+        dStreams = KafkaDStream.createDStreams(
+          ssc,
+          kafkaBrokerList,
+          kafkaConfig,
+          topicPartitionOffsets.toMap,
+          appConfig)
+
+      }
       case _ => {
         logger.error("Mode not implemented. Exiting...", dataSource)
         System.exit(ERROR_EXIT_CODE)
@@ -324,6 +337,20 @@ object ApplicationManager {
     if (appConfig.env == "local") sparkConf.setMaster("local[5]")
 
     sparkConf
+  }
+
+  private[framework] def setHadoopConf(sc: SparkContext, appConfig: ApplicationConfig) = {
+
+    val hadoopConfParameters: Config = appConfig.hadoopConfParam
+
+    if (!hadoopConfParameters.isEmpty) {
+      val keyValueItr = hadoopConfParameters.entrySet().iterator()
+      while (keyValueItr.hasNext) {
+        val hConf = keyValueItr.next()
+        sc.hadoopConfiguration.set(hConf.getKey, hConf.getValue.unwrapped().toString)
+        logger.info(s"${hConf.getKey}: ${hConf.getValue.unwrapped().toString}")
+      }
+    }
   }
 
   private[framework] def initialize(appConfig: ApplicationConfig): Unit = {
@@ -387,20 +414,27 @@ object ApplicationManager {
 
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,
-                       batches: Seq[Map[String, DataFrame]])
-                      (implicit sc: SparkContext): Unit = {
-    val sources = SeqSourceGenerator(workFlow, appConfig, sc, batches)
-    BatchHandler.scheduleBatchRun(workFlow, sources, appConfig, sc)
-  }
-
-  def runBatchWorkFlow(workFlow: WorkflowConfig,
-                       appConfig: ApplicationConfig,
                        maxIters: Long = -1)
                       (implicit sc: SparkContext): Unit = {
-    val sources = FileSourceGenerator(workFlow, appConfig, sc, maxIters)
-    startHttpServer(sc, workFlow)
-    BatchHandler.scheduleBatchRun(workFlow, sources, appConfig, sc)
+    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
   }
+def runChaosMoneky(appConfig: ApplicationConfig)(implicit sc: SparkContext): Unit = {
+  if (chaosMonkey) {
+    val chparsam = appConfig.chaosMonkeyParam
+    val timer = new Timer();
+    val delay = {
+      if (chparsam.hasPath("delay")) {
+        chparsam.getInt("delay")
+      } else {
+        10
+      }
+    }
+    val ch = new ChaosMonekyUtils(sc.applicationId , chparsam , timer)(sc)
+    timer.scheduleAtFixedRate(ch , delay*1000 ,
+      chparsam.getInt("frequncyToKillExecutor")*1000);
+  }
+}
+
 
   def getSynchronizationTime: String = {
 
@@ -494,14 +528,18 @@ object ApplicationManager {
         logger.info(s"${confParam.getKey}: ${confParam.getValue.unwrapped().toString}")
       }
     }
+    // for local as well as jenkins build
+    // should use available port for Kafka rather than defined in conf
+    if (ApplicationManager.getConfig().env == "local" ) {
+
+      tempConf += ("bootstrap.servers" -> KafkaApplicationUtils.kafkaBrokers)
+    }
     tempConf.toMap[String, Object]
   }
 }
 
 class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   override def run() : Unit = {
     logger.info(s"Starting a new workflow")
 
@@ -517,9 +555,8 @@ class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
       }
       case ex: Throwable => {
 
-        logger.error("Stopping job", ex)
+        logger.error("Stopping job", ex.getMessage)
         ApplicationManager.stopStreaming = true
-        throw ex
       }
     }
 

@@ -21,9 +21,8 @@ import org.slf4j.LoggerFactory
 
 class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   test("dependent work flow test") {
+
     val workflowConfig = ApplicationManager.setWorkflowConfig("dependentWorkflow")
     val dependentTime = ApplicationUtils.getDependentsWorkflowTime(
       ApplicationManager.getConfig(), workflowConfig)
@@ -33,6 +32,7 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 
   test("dependent workflow executed." +
     " Current workflow should run isDependentWorkflowExecuted function should return true") {
+
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis() , "dependentWorkflow")
 
     ApplicationManager.updateWorkflowTime(
@@ -47,6 +47,7 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 
   test("one of dependent workflow executed. " +
     "Current workflow should not run isDependentWorkflowExecuted function should return false") {
+
     val currentTime = System.currentTimeMillis()
     ApplicationManager.updateWorkflowTime(currentTime, "dependent1")
     ApplicationManager.updateWorkflowTime(currentTime - 5000, "dependent2")
@@ -59,6 +60,7 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 
 
   test("No dependency. should return true") {
+
     val workflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
     val dependentTime = ApplicationUtils.isDependentWorkflowExecuted(
       ApplicationManager.getConfig(), workflowConfig)
@@ -68,40 +70,22 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 
 
   test("Test dependency waitForDependentWorkflow") {
-    val dependentTest = new WFThread(sc, "dependentWorkflow")
-    dependentTest.start()
-    Thread.sleep(70000)
 
     // Run workflow1
-    val workflowConfig1 = ApplicationManager.setWorkflowConfig("dependent1")
-    ApplicationManager.runBatchWorkFlow(
-      workflowConfig1, ApplicationManager.getConfig(), 1)(sc)
-
-    // Run workflow2
-    val workflowConfig2 = ApplicationManager.setWorkflowConfig("dependent2")
-    ApplicationManager.runBatchWorkFlow(
-      workflowConfig2, ApplicationManager.getConfig(), 1)(sc)
+    val dependentTest1 = new WFThread(sc, "dependent1")
+    dependentTest1.start()
+    val dependentTest = new WFThread(sc, "dependentWorkflow")
+    dependentTest.start()
+    val dependentTest2 = new WFThread(sc, "dependent2")
+    dependentTest2.start()
 
     logger.info("dependent val set")
-    while (dependentTest.isRunning) {
+    while (dependentTest.isRunning || dependentTest1.isRunning|| dependentTest2.isRunning) {
       Thread.sleep(100)
     }
   }
-
-
-
-
 }
 
-class WorkflowThread (sc : SparkContext) extends Thread {
-  var isRunning = true
-  override def run(): Unit = {
-    val workflowConfig = ApplicationManager.setWorkflowConfig("dependentWorkflow")
-    ApplicationManager.runBatchWorkFlow(
-      workflowConfig, ApplicationManager.getConfig(), 1)(sc)
-    isRunning = false
-  }
-}
 
 class WFThread (sc : SparkContext, wf : String) extends Thread {
   var isRunning = true
@@ -112,3 +96,4 @@ class WFThread (sc : SparkContext, wf : String) extends Thread {
     isRunning = false
   }
 }
+

@@ -14,6 +14,8 @@
 */
 package com.verizon.bda.trapezium.dal.core.cassandra
 
+import java.io.FileNotFoundException
+
 import com.datastax.driver.core.Cluster.Builder
 import com.datastax.driver.core.policies.{RoundRobinPolicy, TokenAwarePolicy, DefaultRetryPolicy}
 import com.datastax.driver.core._
@@ -28,6 +30,19 @@ import scala.collection.mutable.ListBuffer
   */
 object SessionManager {
   val sessions = new ListBuffer[Session]()
+
+  val env = try {
+    val environemnt = scala.io.Source.fromFile("/opt/bda/environment").mkString.trim
+
+    // Hack for Jenkins integration
+    if (environemnt == "saiph") {
+      "local"
+    } else {
+      environemnt
+    }
+  } catch {
+    case e: FileNotFoundException => "local"
+  }
 
   def getSession(hosts: mutable.Buffer[String], keyspace: String,
                  cassandraConfig: CassandraConfig =
@@ -58,6 +73,14 @@ object SessionManager {
 
       if (null != cassandraConfig && cassandraConfig.configOptions.get("port") != null) {
         builder.withPort(cassandraConfig.configOptions.get("port").asInstanceOf[Int])
+
+      }
+
+      // for local as well as jenkins build
+      if (env == "local" ) {
+
+        val port = System.getProperty("cassandra.native_transport_port").toInt
+        builder.withPort(port)
       }
 
       if (null != cassandraConfig &&

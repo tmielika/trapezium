@@ -27,15 +27,14 @@ import org.slf4j.LoggerFactory
   *         Tests ScanHDFS functionality
   */
 class ScanFSSuite extends FunSuite with BeforeAndAfterAll {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   @transient lazy val conf = new Configuration
   @transient lazy val testDir = "target/scanDir"
   @transient lazy val MTIME = 3
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+
     // Create a temp directory
     val tempDir = s"${testDir}/temp"
     val fs = new RawLocalFileSystem

@@ -26,9 +26,7 @@ import scala.collection.mutable.ArrayBuffer
   *         Adopted from ScanHDFS.java from ETLJobFramework project
   */
 object ScanFS {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   /**
     *
     * @param inDir the input hdfs dir to watch for new files
@@ -67,7 +65,7 @@ object ScanFS {
         }
       } catch {
           case e : Throwable =>
-            logger.error(s"Error while scanning file", e)
+            logger.error(s"Error while scanning file", e.getMessage)
       }
       fileArray
     }

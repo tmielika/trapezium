@@ -31,9 +31,7 @@ import org.slf4j.LoggerFactory
  * @author Pankaj on 10/21/15.
  */
 private[framework] object HdfsDStream {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   /**
    * Creates streaming context from a HDFS directory
    * Creates streaming DAG

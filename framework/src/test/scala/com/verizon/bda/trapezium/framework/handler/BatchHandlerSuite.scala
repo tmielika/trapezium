@@ -47,24 +47,6 @@ class BatchHandlerSuite extends FunSuite  with LocalSparkContext {
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
   }
 
-  test("batchHandler workflow") {
-    val source2 = sc.textFile(path2).map(_.split(",")).map(x => Row.fromSeq(x.toSeq))
-    val df1 = SQLContext.getOrCreate(sc).read.parquet(path1)
-
-    assert(df1.columns.size == 7)
-
-    val df2 = DataValidator(sc).applySchema(
-      source2, ValidationConfig.getValidationConfig(appConfig , workflowConfig, "source2"))
-
-    val batches =
-      SeqSourceGenerator(
-        workflowConfig,
-        appConfig,
-        sc,
-        Seq(Map("source1" -> df1, "source2" -> df2)))
-    BatchHandler.scheduleBatchRun(workflowConfig, batches, appConfig, sc)
-  }
-
   override def afterAll(): Unit = {
 
     // Close ZooKeeper connections
