@@ -28,21 +28,9 @@ import org.slf4j.LoggerFactory
   * Common Cache Session Factory. It creates reference cache for application as per
   * implementation specified in property commons.cache.impl.
   * For CouchBase we need corresponding buckets in CouchBase.
-  * cbc.url= "http://146.1.180.119:8091/pools"
-#rest-cache
-cbc.pcache.bucket=rest
-cbc.pcache.pwd=bda123
-#global app cache
-default.app.name="GlobalApps"
-cbc.gcache.pwd= ""
-commons.cache.impl="com.verizon.bda.trapezium.cache.couchbase.CouchBaseStoreImpl"
-commons.cache.keyNotFound ="Key can not be null"
-commons.cache.wrongParams ="For Couch base we need to have either zero ot 2 arguements"
-commons.cache.retryCount=3
-commons.cache.retryInterval=300
-
   *
   */
+
 class CommonCacheSessionFactory[K, V] {
   val logger = LoggerFactory.getLogger(this.getClass)
   private var cacheMap: scala.collection.mutable.Map[String, KVStore[K, V]] =
