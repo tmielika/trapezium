@@ -14,19 +14,13 @@
 */
 package com.verizon.bda.trapezium.framework.server.directives
 
-import java.lang.reflect.Constructor
-
-import akka.actor.ActorSystem
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import com.verizon.bda.trapezium.cache.CommonCacheSessionFactory
-import com.verizon.bda.trapezium.framework.server.ServiceEndPoint
-import org.apache.spark.SparkContext
+import com.verizon.bda.trapezium.cache.CacheSessionFactory
 import org.slf4j.LoggerFactory
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Try
 
 /**
   * Created by v468328 on 10/25/16.
@@ -40,9 +34,7 @@ object CacheRouteUtils {
   val CACHED: String = "cached"
   val CONTENT_TYPE = "Content-Type"
   // meaning this response is coming from cache.
-  val factory: CommonCacheSessionFactory[String, String] =
-    new CommonCacheSessionFactory[String, String]
-
+  val factory = new CacheSessionFactory[String, String]
   val cache = factory.getCache()
 
   def put(response: Future[String], cacheId: String): Unit = {

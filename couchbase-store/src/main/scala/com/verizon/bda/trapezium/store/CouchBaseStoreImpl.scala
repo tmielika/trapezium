@@ -7,7 +7,6 @@ import com.typesafe.config.ConfigFactory
 import com.verizon.bda.trapezium.cache.CacheConfig
 import com.verizon.bda.trapezium.cache.exception.CacheException
 import com.verizon.bda.trapezium.dal.data.KVStore
-import com.verizon.bda.trapezium.store.CouchConnection
 import com.verizon.bda.trapezium.cache
 import org.slf4j.LoggerFactory
 

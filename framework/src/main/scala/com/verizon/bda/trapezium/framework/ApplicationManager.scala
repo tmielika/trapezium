@@ -14,8 +14,6 @@
 */
 package com.verizon.bda.trapezium.framework
 
-import java.util.Timer
-
 import _root_.kafka.common.TopicAndPartition
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.handler.{BatchHandler, StreamingHandler}
@@ -24,8 +22,7 @@ import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDS
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
-import org.apache.spark.zookeeper.ChaosMonekyUtils
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -42,8 +39,7 @@ import scala.collection.mutable.{Map => MMap}
  *                  Added scopt for parsing command line args
  *                  Refactored handleWorkflow API to runStreamHandler API
  *                  Added runBatchHandler API
-  *        Hutashan: Added changes for batch and return code
-  *
+ *         Hutashan: Added changes for batch and return code
  */
 
 object ApplicationManager {
@@ -56,10 +52,8 @@ object ApplicationManager {
   val ERROR_EXIT_CODE = -1
   private var embeddedServer: EmbeddedHttpServer = _
   private var uid = ""
-  private var chaosMonkey : Boolean = false
 
   def getEmbeddedServer: EmbeddedHttpServer = {
-
     embeddedServer
   }
 
@@ -84,10 +78,7 @@ object ApplicationManager {
     val workflowConfig = new WorkflowConfig(workflow)
     threadLocalWorkflowConfig.set(workflowConfig)
     workflowConfig
-
   }
-
-
 
   /**
    *
@@ -124,10 +115,6 @@ object ApplicationManager {
          .text(s"workflow to run")
          .optional
          .action((x, c) => c.copy(uid = x))
-       opt[Boolean]("chaosMonkey")
-         .text(s"chaosMonkey to run")
-         .optional
-         .action((x, c) => c.copy(chaosMonkey = x))
      }
 
      parser.parse(args, defaultParams).map { params =>
@@ -149,7 +136,6 @@ object ApplicationManager {
   private def run(params: Params): Unit = {
     val workFlowToRun = params.workFlowName
     val uid = params.uid
-    chaosMonkey = params.chaosMonkey
     getConfig(params.configDir , uid)
 
     // load start up class
@@ -173,19 +159,17 @@ object ApplicationManager {
 
           case "KAFKA" => {
 
-            initStreamThread (workFlowToRun)
+            initStreamThread(workFlowToRun)
           }
           case _ => {
-           var sc : SparkContext = null
-          runBatchWorkFlow(workflowConfig, appConfig)(sc)
+            var sc: SparkContext = null
+            runBatchWorkFlow(workflowConfig, appConfig)(sc)
             // if spark context is not stopped, stop it
-             if( sc !=null && !sc.isStopped ){
+            if (sc != null && !sc.isStopped) {
               sc.stop
-             }
-
+            }
           }
         }
-
       }
       case "API" => {
         val sc = new SparkContext(getSparkConf (appConfig))
@@ -276,7 +260,6 @@ object ApplicationManager {
           checkPointDirectory,
           sparkConf)
         setHadoopConf(ssc.sparkContext, appConfig)
-        runChaosMoneky(appConfig)(ssc.sparkContext)
         dStreams = HdfsDStream.createDStreams(ssc)
       }
       case "KAFKA" => {
@@ -288,7 +271,6 @@ object ApplicationManager {
 
         ssc = KafkaDStream.createStreamingContext(sparkConf)
         setHadoopConf(ssc.sparkContext, appConfig)
-        runChaosMoneky(appConfig)(ssc.sparkContext)
         val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
 
         streamsInfo.asScala.foreach(streamInfo => {
@@ -418,23 +400,6 @@ object ApplicationManager {
                       (implicit sc: SparkContext): Unit = {
     BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
   }
-def runChaosMoneky(appConfig: ApplicationConfig)(implicit sc: SparkContext): Unit = {
-  if (chaosMonkey) {
-    val chparsam = appConfig.chaosMonkeyParam
-    val timer = new Timer();
-    val delay = {
-      if (chparsam.hasPath("delay")) {
-        chparsam.getInt("delay")
-      } else {
-        10
-      }
-    }
-    val ch = new ChaosMonekyUtils(sc.applicationId , chparsam , timer)(sc)
-    timer.scheduleAtFixedRate(ch , delay*1000 ,
-      chparsam.getInt("frequncyToKillExecutor")*1000);
-  }
-}
-
 
   def getSynchronizationTime: String = {
 
@@ -456,7 +421,7 @@ def runChaosMoneky(appConfig: ApplicationConfig)(implicit sc: SparkContext): Uni
   def updateWorkflowTime(timeStamp: Long, workflowName: String = ""): Unit = {
 
     val currentWorkflowName =
-      if ( workflowName.size == 0) {
+      if (workflowName.size == 0) {
         ApplicationManager.getWorkflowConfig.workflow
       } else {
         workflowName
@@ -467,7 +432,6 @@ def runChaosMoneky(appConfig: ApplicationConfig)(implicit sc: SparkContext): Uni
       timeStamp,
       appConfig.zookeeperList)
   }
-
 
   def updateSynchronizationTime(timeStamp: Long, workflowName: String = ""): Unit = {
 

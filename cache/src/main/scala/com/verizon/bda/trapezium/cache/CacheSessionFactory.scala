@@ -25,13 +25,13 @@ import org.slf4j.LoggerFactory
 
 /**
   * Created by v468328 on 9/22/16.
-  * Common Cache Session Factory. It creates reference cache for application as per
+  * Cache Session Factory. It creates reference cache for application as per
   * implementation specified in property commons.cache.impl.
   * For CouchBase we need corresponding buckets in CouchBase.
   *
   */
 
-class CommonCacheSessionFactory[K, V] {
+class CacheSessionFactory[K, V] {
   val logger = LoggerFactory.getLogger(this.getClass)
   private var cacheMap: scala.collection.mutable.Map[String, KVStore[K, V]] =
     new mutable.HashMap[String, KVStore[K, V]]()

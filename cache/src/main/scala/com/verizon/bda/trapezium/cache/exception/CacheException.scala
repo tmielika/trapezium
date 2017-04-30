@@ -15,11 +15,9 @@
 package com.verizon.bda.trapezium.cache.exception
 
 /**
-  * Created by v468328 on 10/4/16.
+  * @author faraz.waseem on 10/4/16.
   * Placeholder Exception class for caching exception
   */
 class CacheException(msg: String) extends Exception(msg: String){
-
-
 
 }

@@ -14,19 +14,13 @@
 */
 package com.verizon.bda.trapezium.framework.server.directives
 
-import akka.actor.ActorSystem
-import akka.actor.Status.{Failure, Success}
-import akka.http.scaladsl.model.{ContentTypes, HttpMethods, HttpEntity, HttpResponse}
-import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import com.verizon.bda.trapezium.cache.CacheConfig
 import com.verizon.bda.trapezium.framework.server.ServiceEndPoint
-import com.verizon.bda.trapezium.framework.server.utils.EndPointUtils
 import org.apache.spark.SparkContext
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
-import HttpMethods._
 
 /**
   * Created by  v468328 on 10/25/16.

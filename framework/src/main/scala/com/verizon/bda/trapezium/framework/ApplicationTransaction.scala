@@ -50,13 +50,3 @@ trait BatchTransaction extends ApplicationTransaction {
   def rollbackBatch(batchTime: Time): Unit = {}
 }
 
-/**
- * ModelTransaction behavior
- * train model on batch using train(rdd): Use DAL to store the model
- * score model on batch using process(rdd)
- * score model on stream using process(dstream) through extending
- * StreamingApplicationTransaction
- */
-trait ModelTransaction extends BatchTransaction {
-  def train(df: Map[String, DataFrame], workflowTime: Time): Boolean
-}

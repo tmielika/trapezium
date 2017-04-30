@@ -10,8 +10,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <packaging>jar</packaging>
-    <artifactId>couchbase-store</artifactId>
-
+    <artifactId>trapezium-couchbase-store</artifactId>
+    
     <properties>
         <cache.version>1.0.0-SNAPSHOT</cache.version>
         <couch.client.version>1.4.5</couch.client.version>

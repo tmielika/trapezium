@@ -14,19 +14,15 @@
 */
 package com.verizon.bda.trapezium.framework.server.utils
 
-import java.io.File
-
-import com.typesafe.config.{ConfigFactory, Config}
 import com.verizon.bda.trapezium.cache.CacheConfig
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
-import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerStartup}
+import com.verizon.bda.trapezium.framework.ApplicationManager
 import org.slf4j.LoggerFactory
 
 /**
-  * Created by v468328 on 11/23/16.
+  * @author faraz.waseem on 11/23/16.
   */
 object AkkaRouterStartUp {
-
 
   def loadConfig(): Unit = {
 
@@ -58,8 +54,6 @@ object AkkaRouterStartUp {
         CacheConfig.loadConfigFromFile(applicationConfig.getConfigDir()
           +  "/" +  applicationConfig.getEnv()  + "_cache.conf")
       }
-
-
     } catch {
       case ex: NullPointerException => logger.error("Property file not found",
         ex.getMessage)

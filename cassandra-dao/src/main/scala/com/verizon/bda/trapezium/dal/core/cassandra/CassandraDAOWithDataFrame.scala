@@ -14,7 +14,6 @@
 */
 package com.verizon.bda.trapezium.dal.core.cassandra
 
-import com.verizon.bda.trapezium.dal.core.cassandra.{CassandraConfig, CassandraDAO}
 import org.apache.spark.sql.{Row, DataFrame}
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable

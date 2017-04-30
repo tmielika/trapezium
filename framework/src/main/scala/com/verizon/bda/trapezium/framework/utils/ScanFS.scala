@@ -15,11 +15,9 @@
 package com.verizon.bda.trapezium.framework.utils
 
 import java.net.URI
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.slf4j.LoggerFactory
-
 import scala.collection.mutable.ArrayBuffer
 /**
   * @author sumanth.venkatasubbaiah

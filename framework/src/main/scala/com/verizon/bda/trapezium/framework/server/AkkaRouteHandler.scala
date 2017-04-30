@@ -25,7 +25,7 @@ import akka.http.scaladsl.model.{HttpHeader, HttpResponse}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
-import com.verizon.bda.trapezium.cache.CommonCacheSessionFactory
+import com.verizon.bda.trapezium.cache.CacheSessionFactory
 import com.verizon.bda.trapezium.cache.exception.CacheException
 import com.verizon.bda.trapezium.framework.server.directives.{CacheHTTPDirectives, CacheRouteUtils}
 import com.verizon.bda.trapezium.framework.server.utils.{AkkaRouterStartUp, EndPointUtils}

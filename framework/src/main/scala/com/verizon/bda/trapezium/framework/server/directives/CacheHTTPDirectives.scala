@@ -14,18 +14,14 @@
 */
 package com.verizon.bda.trapezium.framework.server.directives
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.verizon.bda.trapezium.framework.server.ServiceEndPoint
 import org.apache.spark.SparkContext
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 /**
-  * Created by v468328 on  10/25/16.
+  * @author faraz.waseem on  10/25/16.
   */
 object CacheHTTPDirectives {
 

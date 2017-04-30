@@ -128,31 +128,9 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
   /**
     * It reads data which we setup in setup embeded cassandra phase.
-
-    */
-  /* test("Cassandra IP DAO Read test For materialized View") {
-
-    val selectJava = ipDaoMaterialized.getAll()
-    val resultJava: ResultSet = ipDao.execute(selectJava.where(
-      QueryBuilder.eq("ipaddress", 1095549466L)));
-    val resultList: java.util.List[com.datastax.driver.core.Row] = resultJava.all();
-    logger.info("result 2 set found is "
-      + resultList);
-    assert(resultList.size() >= 1)
-    val row: com.datastax.driver.core.Row = resultList.get(0);
-    // now check few fields to make sure that we have right elements.
-    assert(row.getString("color").equals("red"))
-    assert(row.getString("notes").equals("Aliens"))
-
-
-  }
-*/
-  /**
-    * It reads data which we setup in setup embeded cassandra phase.
     *  It uses selected columns only.
     */
   test("Cassandra IP DAO Read test for selected columns") {
-  // def getColumns(cols: mutable.Buffer[String]): Select = {
     val buf: java.util.List[String] = new java.util.ArrayList[String]()
     buf.add("ipaddress")
     buf.add("color")
@@ -168,8 +146,6 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     // now check few fields to make sure that we have right elements.
     assert(row.getString("color").equals("red"))
     assert(row.getString("notes").equals("Aliens"))
-
-
   }
 
   /**

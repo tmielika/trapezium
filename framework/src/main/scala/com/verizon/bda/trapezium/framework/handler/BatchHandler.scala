@@ -78,7 +78,6 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       logger.info("Starting context")
       sc = new SparkContext(ApplicationManager.getSparkConf(appConfig))
       ApplicationManager.setHadoopConf(sc, appConfig)
-      ApplicationManager.runChaosMoneky(appConfig)(sc)
       logger.info("Started context")
      }
     sc
@@ -86,16 +85,13 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
   def stopContext: Unit = {
 
-    if ( ApplicationUtils.env != "local" && !sc.isStopped &&
-      (workFlowConfig.httpServer==null || !(workFlowConfig.httpServer.hasPath("hostname")) ) ){
+    if (ApplicationUtils.env != "local" && !sc.isStopped &&
+      (workFlowConfig.httpServer == null || !workFlowConfig.httpServer.hasPath("hostname"))) {
       logger.info("Stoping context")
       sc.stop
       logger.info("Stopped context")
     }
   }
-
-
-
 
   def handleWorkFlow : Unit = {
 
@@ -228,13 +224,13 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         val inputName = inputSource.getString("name")
 
         if (dataMap.keys.filter(name => name.contains(inputName)).size > 0) {
-          dataMap.keys.filter(name => name.contains(inputName)).map (name => {
+          dataMap.keys.filter(name => name.contains(inputName)).map(name => {
             logger.info(s"Adding RDD ${name} to transaction " +
               s"workflow ${transactionClassName}")
             transactionInputData += ((name, dataMap(name)))
           }
           )
-        } else if ( allTransactionInputData.contains(inputName)) {
+        } else if (allTransactionInputData.contains(inputName)) {
           // DF is output from an earlier transaction
           logger.info(s"Adding RDD ${inputName} to transaction " +
             s"workflow ${transactionClassName}")
@@ -244,7 +240,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
       logger.info(s"Calling $transactionClass.process with " +
         s"input $transactionInputData")
-      val processedData = transactionClass.processBatch( transactionInputData.toMap, workflowTime)
+      val processedData = transactionClass.processBatch(transactionInputData.toMap, workflowTime)
 
       val persistData = transaction.getString("persistDataName")
 
@@ -378,7 +374,6 @@ private[framework] object BatchHandler {
                        sc: SparkContext): Unit = {
     val timer: Timer = new Timer(true)
     try {
-
       logger.info("Starting Batch WorkFlow")
       val batchTime: Long =
         workFlowConfig
