@@ -14,6 +14,7 @@
 */
 package com.verizon.bda.trapezium.framework.zookeeper
 
+import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.apache.zookeeper.ZooKeeper
 import org.apache.zookeeper.ZooKeeper.States
 import org.slf4j.LoggerFactory
@@ -22,7 +23,6 @@ import org.slf4j.LoggerFactory
  * @author Pankaj on 10/21/15.
  */
 private[framework] object ZooKeeperConnection {
-
   val logger = LoggerFactory.getLogger(this.getClass)
   var zkc: ZooKeeper = _
 
@@ -30,15 +30,19 @@ private[framework] object ZooKeeperConnection {
 
     if (zkc == null || !zkc.getState.isConnected) {
 
+      var zkcTemp: ZooKeeper = null
       synchronized {
 
         // check if zkc is still null
         if (zkc == null || !zkc.getState.isConnected) {
           logger.info(s"Creating ZooKeeper connection ${zookeeperList}")
-          val zkcTemp = new ZooKeeper(zookeeperList, 30 * 60 * 1000, ZooKeeperWatcher)
 
           // for local testing
           if (zookeeperList.contains("localhost")) {
+
+            val zkList = EmbeddedZookeeper.zkConnectString
+
+            zkcTemp = new ZooKeeper(zkList, 30 * 60 * 1000, ZooKeeperWatcher)
             try {
               var retryAttempts = 0
               while(!zkcTemp.getState.equals(States.CONNECTED)
@@ -53,6 +57,10 @@ private[framework] object ZooKeeperConnection {
                 ex.printStackTrace()
               }
             }
+          } else {
+
+            zkcTemp = new ZooKeeper(zookeeperList, 30 * 60 * 1000, ZooKeeperWatcher)
+
           }
 
           // This reassignment is needed to assign ZooKeeper connection after the sleep

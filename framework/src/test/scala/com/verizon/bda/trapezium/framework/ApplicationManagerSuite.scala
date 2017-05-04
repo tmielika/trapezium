@@ -33,11 +33,22 @@ import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
  */
 class ApplicationManagerSuite extends ApplicationManagerTestSuite {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   test("getConfig should read the config file") {
     assert(appConfig.env == "local")
     assert(appConfig.sparkConfParam.getString("spark.akka.frameSize") == "100")
+    assert(appConfig.hadoopConfParam.getString("parquet.enable.summary-metadata") == "false")
+
+    val hadoopConfParameters: Config = appConfig.hadoopConfParam
+
+    if (!hadoopConfParameters.isEmpty) {
+      val keyValueItr = hadoopConfParameters.entrySet().iterator()
+      while (keyValueItr.hasNext) {
+        val hConf = keyValueItr.next()
+        if (hConf.getKey.equals("parquet.enable.summary-metadata")) {
+          assert(hConf.getValue.unwrapped().toString == "false")
+        }
+      }
+    }
   }
 
   test("runStreamWorkFlow should successfully run the stream workflow") {
@@ -209,11 +220,9 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
 }
 
 class WorkflowThread (val workflowName: String) extends Thread {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   var isStarted: Boolean = false
   var localWorkflowName: String = _
+  val logger = LoggerFactory.getLogger(this.getClass)
   override def run(): Unit = {
     logger.info(s"Inside workflow $workflowName")
     this.synchronized {

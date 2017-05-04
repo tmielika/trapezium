@@ -24,9 +24,7 @@ import org.slf4j.LoggerFactory
  * Created by Pankaj on 6/3/16.
  */
 object TestUtils {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   def getSparkConf(appConfig: ApplicationConfig = ApplicationManager.getConfig()): SparkConf = {
 
     val sparkConfigParam: Config = appConfig.sparkConfParam

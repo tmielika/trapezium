@@ -48,11 +48,11 @@ object FileCopy {
       if (conditions == null) {
         "src/test/data/hdfs/filesplit/new_file" + fileCounter + fileDate + "/midm.txt"
       } else {
-        if (fileCounter%2 == 0) {
+        if (fileCounter % 2 == 0) {
           "src/test/data/hdfs/filesplit/new_file" +
-             fileDate + fileCounter +conditions + "/midm.txt"
+            fileDate + fileCounter + conditions + "/midm.txt"
         } else {
-          "src/test/data/hdfs/filesplit/new_file" + fileCounter +fileDate + "/midm.txt"
+          "src/test/data/hdfs/filesplit/new_file" + fileCounter + fileDate + "/midm.txt"
         }
       }
     }
@@ -62,12 +62,7 @@ object FileCopy {
     val uri = new URI(sourceMIDM)
     val fsystem = FileSystem.get(uri, conf)
     fsystem.copyFromLocalFile(scrPath, destinationPath)
-
   }
-
-
-
-
 
   def fileDelete(): Unit = {
     val fs = new RawLocalFileSystem

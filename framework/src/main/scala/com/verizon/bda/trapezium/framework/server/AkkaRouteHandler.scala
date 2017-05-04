@@ -14,56 +14,59 @@
 */
 package com.verizon.bda.trapezium.framework.server
 
+import java.lang.Exception
+
 import akka.actor.ActorSystem
+import akka.http.javadsl.model.ResponseEntity
+import akka.http.javadsl.server.RequestContext
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{HttpHeader, HttpResponse}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server._
+import akka.stream.ActorMaterializer
+import com.verizon.bda.trapezium.cache.CacheSessionFactory
+import com.verizon.bda.trapezium.cache.exception.CacheException
+import com.verizon.bda.trapezium.framework.server.directives.{CacheHTTPDirectives, CacheRouteUtils}
+import com.verizon.bda.trapezium.framework.server.utils.{AkkaRouterStartUp, EndPointUtils}
 import com.verizon.bda.trapezium.framework.utils.ReflectionSupport
 import org.apache.spark.SparkContext
-import org.slf4j.LoggerFactory
+
+import scala.concurrent.Future
+
 
 /**
   * Created by Jegan on 5/24/16.
   */
-class AkkaRouteHandler(sc: SparkContext, as: ActorSystem) extends ReflectionSupport {
+class AkkaRouteHandler(sc: SparkContext, implicit val as: ActorSystem) extends ReflectionSupport {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
+
   val exceptionHandler = AkkaHttpExceptionHandler.handler
-
+  AkkaRouterStartUp.loadConfig()
   def defineRoute(path: String, endPointClassName: String): Route = {
     require(path != null && !path.isEmpty, "Path cannot be null or empty")
     require(endPointClassName != null && !endPointClassName.isEmpty,
       "End-point class name cannot be null or empty")
 
-    val endPoint = loadEndPoint(endPointClassName)
+    val endPoint: ServiceEndPoint = EndPointUtils.loadEndPoint(endPointClassName, sc, as)
+
+    implicit val materializer = ActorMaterializer()
     pathPrefix(path) {
       handleExceptions(exceptionHandler) {
-        endPoint.route
+        // respondWithHeader(RawHeader("Content-Type", "application/json charset=utf-8")) {
+         CacheHTTPDirectives.bdaCheckCache(endPoint, sc, materializer) {
+          // ctx => ctx.complete("")
+          // the route will be completed by bdaCheckCache directive otherwise we should hand over
+          // to next route.
+          ctx => ctx.reject()
+        }
+        //  }
       }
+
     }
-  }
 
-  private def loadEndPoint(endPointClassName: String): ServiceEndPoint = {
-    val clazz = loadClass(endPointClassName)
-
-    /*
-    * Create instance of endpoint using the constructor either the one with having
-    * SparkContext param or the one with ActorSystem
-    */
-    val instance = instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
-      instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
-
-    instance.getOrElse {
-      logger.error(
-        "EndPoint should have constructors with params of either SparakContext or ActorSystem",
-        "Unable to create endpoint instances")
-      // Can't do much. Exit with error.
-      throw new RuntimeException("Unable to create endpoint instances")
-    }
-  }
-
-  private def instanceOf[T](clazz: Class[_], paramType: Class[T], param: AnyRef):
-  Option[ServiceEndPoint] = {
-    val cons = getConstructorOfType(clazz, paramType)
-    cons.map(c => c.newInstance(param).asInstanceOf[ServiceEndPoint])
   }
 }
+
+
+

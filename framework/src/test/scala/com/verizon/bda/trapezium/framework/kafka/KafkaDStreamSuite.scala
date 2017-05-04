@@ -15,6 +15,7 @@
 package com.verizon.bda.trapezium.framework.kafka
 
 import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import scala.io.Source
 
 /**
@@ -61,9 +62,42 @@ class KafkaDStreamSuite extends KafkaTestSuiteBase {
       ))
   }
 
+  test("Application Manager Kafka multiple topics test with new topic") {
+
+    val zkPath = s"/kafkaMultipleTopicsWithNewTopic/stream_1/0"
+    ApplicationUtils.updateZookeeperValue(zkPath,
+      "0",
+      ApplicationManager.getConfig().zookeeperList)
+
+    setupWorkflowForMultipleTopics("kafkaMultipleTopicsWithNewTopic",
+      Seq(
+        Seq(
+          ("stream_1", input1),
+          ("stream_2", input1)),
+        Seq(
+          ("stream_1", input2),
+          ("stream_2", input2))
+      ))
+  }
+
   test("Read json data from Kafka") {
 
     setupWorkflow("readJsonFromKafka", Seq(jsonInput, jsonInput))
 
   }
+
+  test("Application Manager Kafka multiple workflows with multiple topics test") {
+
+    setupMultipleWorkflowForMultipleTopics(
+      List("kafkaMultipleTopics_wf_1", "kafkaMultipleTopics_wf_2"),
+      Seq(
+        Seq(
+          ("stream_1", input1),
+          ("stream_2", input2)),
+        Seq(
+          ("stream_1", input1),
+          ("stream_2", input2))
+      ))
+  }
+
 }

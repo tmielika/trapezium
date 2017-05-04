@@ -40,8 +40,6 @@ class HdfsDStreamTestSuiteBase extends TestSuiteBase{
   private var zk: EmbeddedZookeeper = _
   private var appConfig: ApplicationConfig = _
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   override def beforeAll(): Unit = {
     super.beforeAll()
 
@@ -71,7 +69,7 @@ class HdfsDStreamTestSuiteBase extends TestSuiteBase{
 
   def applicationManagerProcess(inputStream: DStream[String]): Unit = {
 
-
+    val logger = LoggerFactory.getLogger(this.getClass)
     val inputRowStream: DStream[Row] = inputStream.map(line => Row(line))
 
     val workflowConfig = ApplicationManager.getWorkflowConfig

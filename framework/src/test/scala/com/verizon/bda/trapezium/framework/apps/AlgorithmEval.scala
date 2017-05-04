@@ -26,13 +26,10 @@ import org.slf4j.LoggerFactory
  * @author Pankaj on 10/28/15.
  */
 object AlgorithmEval extends StreamingTransaction {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
   var batchID = 0
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   override def processStream(dStreams: Map[String, DStream[Row]],
                        batchtime: Time): DStream[Row] = {
-
     logger.info("Inside Eval")
     val dStream = dStreams.head._2
 

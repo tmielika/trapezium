@@ -31,9 +31,7 @@ import java.sql.{Date, Timestamp}
   *
   */
 object ValidateDataType {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   /**
     *
     * Validate data based on validation mentioned in config.
@@ -70,7 +68,7 @@ object ValidateDataType {
       case ex: Exception =>
         val errLine = arrLine.mkString(delimiter.toString)
         logger.warn(" Row is filtered out because" +
-          " : " + ex.getStackTrace.take(500)  +" . Line: " + errLine )
+          " : " + ex.getMessage.take(500)  +" . Line: " + errLine )
         throw new Exception("Column Data is not valid" + ex)
     }
     outPut.toSeq
@@ -94,7 +92,7 @@ object ValidateDataType {
       case ex: Exception =>
         throw new Exception("data type validation failed for record: " + data +
           " , expected datatype: " + dataType +" : " +"Column name :" +
-          colName + "exception" + ex.getStackTrace.take(100) )
+          colName + "exception" + ex.getMessage.take(100) )
       }
   }
 

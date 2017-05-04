@@ -25,9 +25,7 @@ import org.slf4j.LoggerFactory
     initialize  properties of validator and set spark context
  */
 object Validator {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   /**
    * This is start point of validation framework
    * @param inputRow
