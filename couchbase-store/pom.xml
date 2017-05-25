@@ -13,7 +13,7 @@
     <artifactId>trapezium-couchbase-store</artifactId>
     
     <properties>
-        <cache.version>1.0.0</cache.version>
+        <cache.version>0.3.8</cache.version>
         <couch.client.version>1.4.5</couch.client.version>
         <couch.mock.version>1.4.3</couch.mock.version>
         <slf4j.version>1.7.0</slf4j.version>
