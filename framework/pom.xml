@@ -103,13 +103,13 @@
 		</dependency>
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
-			<artifactId>couchbase-store</artifactId>
+			<artifactId>trapezium-couchbase-store</artifactId>
 			<version>1.0.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
-			<artifactId>couchbase-store</artifactId>
+			<artifactId>trapezium-couchbase-store</artifactId>
 			<version>1.0.0</version>
 			<scope>test</scope>
 			<type>test-jar</type>
