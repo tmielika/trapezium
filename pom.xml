@@ -13,11 +13,11 @@
   
   <modules>
     <module>dal</module>
+    <module>cache</module>
     <module>couchbase-store</module>
     <module>framework</module>
     <module>cassandra-dao</module>
     <module>sparkcassandra-connector</module>
-    <module>cache</module>
   </modules>
   
   <properties>
