@@ -31,7 +31,7 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
   val JWTTOKEN_DATA_FILE_PATH = "src/test/data/"
   val JWTTOKEN_DATA_FILE = "wso2_assertiontoken.txt"
   var JWT_ASSERTION_TOKEN : String = null
-  val hostname: String = "10.20.210.68" // getHostName
+  val hostname: String = getHostName
   var svcsToPublish : util.HashMap[String, ApiHttpServices] =
     new util.HashMap[String, ApiHttpServices]()
 
