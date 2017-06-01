@@ -16,13 +16,14 @@ package com.verizon.bda.trapezium.framework
 
 import _root_.kafka.common.TopicAndPartition
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.handler.{BatchHandler, StreamingHandler}
+import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, BatchHandler, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
-import org.apache.spark.sql.{Row, SQLContext}
+import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
+import org.apache.spark.sql.{Row, SQLContext, DataFrame}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -31,6 +32,7 @@ import scopt.OptionParser
 import java.net.InetAddress
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
+import java.sql.Time
 
 /**
  * @author Pankaj on 9/1/15.
@@ -293,9 +295,41 @@ object ApplicationManager {
       }
     }
 
-    runStreamWorkFlow(dStreams)
+    startStreamWorkFlow(dStreams , workflowConfig)
     addStreamListeners(ssc, workflowConfig)
   }
+
+  def  startStreamWorkFlow(dStreams : collection.mutable.Map[String, DStream[Row]] ,
+                          workflowConfig: WorkflowConfig) : Unit = {
+
+    if (workflowConfig.runMode.equals("trigger")) {
+      val dVal = dStreams.valuesIterator
+      ssc = dStreams.head._2.context
+      dVal.foreach((dStream) => {
+        dStream.foreachRDD((rdd) => {
+          val collectRDD = rdd.collect()
+          collectRDD.foreach(row => {
+            val batchHandler = new BatchHandler(workflowConfig, appConfig, 1)(ssc.sparkContext)
+            batchHandler.processAndPersist(new Time(System.currentTimeMillis),
+              FileSourceGenerator.getDFFromStream(row.getString(0), ssc.sparkContext))
+              ApplicationUtils.updateZkForTrigger(workflowConfig, appConfig)
+          })
+        }
+        )
+      })
+    } else {
+      runStreamWorkFlow(dStreams)
+    }
+
+  }
+
+
+
+
+
+
+
+
 
   /**
    * method to create a SparkContext
@@ -459,7 +493,6 @@ object ApplicationManager {
       }
     }
      logger.info("Registering hostName:" + hostName)
-
      ApplicationUtils.registerHostName(
       currentWorkflowName,
        hostName,
@@ -473,7 +506,6 @@ object ApplicationManager {
    * @return a Map[String, Object]
    */
   def getKafkaConf(appConf: ApplicationConfig = null): Map[String, Object] = {
-
     val kafkaConfigParam: Config = if ( appConf != null ) {
       appConf.kafkaConfParam
     }

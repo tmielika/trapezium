@@ -149,7 +149,7 @@ private[framework] object KafkaDStream {
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           for (o <- offsetRanges) {
             topicpartitions += (new TopicAndPartition(o.topic, o.partition)
-              ->(o.fromOffset, o.untilOffset))
+              -> (o.fromOffset, o.untilOffset))
             rddcount += (o.untilOffset - o.fromOffset)
           }
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
@@ -170,7 +170,7 @@ private[framework] object KafkaDStream {
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           for (o <- offsetRanges) {
             topicpartitions += (new TopicAndPartition(o.topic, o.partition)
-              ->(o.fromOffset, o.untilOffset))
+              -> (o.fromOffset, o.untilOffset))
             rddcount += (o.untilOffset - o.fromOffset)
           }
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
@@ -292,10 +292,12 @@ private[framework] object KafkaDStream {
           lastOffset
         }
         else {
-
-          logger.warn(s"Zookeeper offset value $lastOffset is smaller than earliest Kafka " +
+            logger.warn(s"Zookeeper offset value $lastOffset is smaller than earliest Kafka " +
             s"offset ${earliest._2}, so taking Kafka offset ${earliest._2} for streaming.")
-          earliest._2
+           // update zk
+          ApplicationUtils.updateZookeeperValue(new StringBuilder(zkNode).append("/")
+            .append(partition).toString(), earliest._2, appConfig.zookeeperList)
+            earliest._2
         }
       }
 
@@ -351,7 +353,7 @@ private[framework] object KafkaDStream {
         newtopicpart.foreach { case (tp, (soff, eoff)) =>
           // New partition
           if (!topicpart.contains(tp)) {
-            topicpart += (tp ->(0, eoff))
+            topicpart += (tp -> (0, eoff))
             modified = true
           }
         }

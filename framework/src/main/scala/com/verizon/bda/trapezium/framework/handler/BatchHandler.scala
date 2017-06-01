@@ -18,6 +18,7 @@ import java.sql.Time
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, Timer, TimerTask}
 import com.typesafe.config.{Config, ConfigList, ConfigObject}
+import com.verizon.bda.trapezium.framework.kafka.KafkaSink
 import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.{ApplicationManager, BatchTransaction}
@@ -341,7 +342,21 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         try {
           val persistDF = dataMap(persistDataName)
             logger.info(s"Persisting data: ${persistDataName}")
-            transactionClass.persistBatch(persistDF, workflowTime)
+          val callbackEvent = transactionClass.persistBatch(persistDF, workflowTime)
+          if (callbackEvent!=null && !(callbackEvent.isEmpty)){
+            val returnEvent = callbackEvent.get
+            logger.info("Inside return event")
+            val kafkaConf = ApplicationManager.getKafkaConf()
+            val kafkaSink = sc.broadcast(KafkaSink(kafkaConf))
+            logger.info("is spark context live " + sc.isStopped)
+            logger.info("topic " + returnEvent + " sending to topic "
+              + returnEvent.mkString(","))
+            for (event <- returnEvent) {
+              kafkaSink.value.send(workFlowConfig.workflow, event.toString())
+              logger.info("Kafka message sent" + event.toString())
+            }
+
+          }
           DataValidator.printStats()
         } catch {
           case e: Throwable => {

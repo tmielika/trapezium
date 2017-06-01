@@ -29,7 +29,7 @@ import scala.collection.mutable.{Map => MMap}
 /**
  * @author debasish83 test utilities for application manager, embedded kafka and zk.
  */
-class ApplicationManagerTestSuite extends TestSuiteBase {
+trait ApplicationManagerTestSuite extends TestSuiteBase {
   var appConfig: ApplicationConfig = _
   var zk: EmbeddedZookeeper = _
   val logger = LoggerFactory.getLogger(this.getClass)

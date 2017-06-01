@@ -25,6 +25,7 @@ import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, ScanFS}
 import com.verizon.bda.trapezium.transformation.DataTranformer
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.json.JSONObject
 import org.slf4j.LoggerFactory
 import scala.collection.mutable.StringBuilder
 import scala.collection.mutable.{Map => MMap}
@@ -203,6 +204,34 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
 
 object FileSourceGenerator {
   val logger = LoggerFactory.getLogger(this.getClass)
+
+  def getDFFromStream(json : String, sc: SparkContext) : MMap[String, DataFrame] = {
+    val dataMap = MMap[String, DataFrame]()
+    logger.info("json to read " + json)
+    try {
+      val jObject = new JSONObject(json)
+      val jArray = jObject.getJSONArray("datasources")
+      for( i <- 0 to jArray.length()-1){
+        logger.info(s"input source is Parquet" )
+        val jObject = jArray.get(i).asInstanceOf[JSONObject]
+        val sourcesName = jObject.getString("name")
+        val sourceLocation = jObject.getString("location")
+        logger.info("source location : " + sourceLocation)
+        dataMap += ((sourcesName, SQLContext.getOrCreate(sc).
+          read.parquet(sourceLocation)))
+      }
+    } catch {
+      case ex : Exception => {
+        logger.info("issue in json " + json)
+        ex.printStackTrace()
+      }
+
+    }
+
+    dataMap
+  }
+
+
 
   def getElligbleFiles(fileMap: java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]],
                        workflowConfig: WorkflowConfig,

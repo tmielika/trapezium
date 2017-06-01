@@ -190,12 +190,20 @@ private[framework] object ApplicationUtils {
     val zk = ZooKeeperConnection.create(zookeeperList)
 
     val modified_zkNode = modifyKey(zkNode, appPrefix)
+    updateZkValue(modified_zkNode, value, zookeeperList )
+  }
 
+
+  def updateZkValue(zkKey: String,
+                           value: String,
+                           zookeeperList: String
+                           ): Unit = {
+    val zk = ZooKeeperConnection.create(zookeeperList)
     try {
-      checkPath(zk, modified_zkNode)
+      checkPath(zk, zkKey)
 
-      logger.info(s"Update $modified_zkNode ${value}")
-      zk.setData(modified_zkNode, value.getBytes, -1)
+      logger.info(s"Update $zkKey ${value}")
+      zk.setData(zkKey, value.getBytes, -1)
 
     } catch {
 
@@ -208,6 +216,24 @@ private[framework] object ApplicationUtils {
     }
 
   }
+
+
+
+
+  def updateZkForTrigger(workflowConfig: WorkflowConfig, appConfig: ApplicationConfig): Unit = {
+    val kafkaconfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
+    val streamsInfo = kafkaconfig.getConfigList("streamsInfo")
+    logger.info(s"SaveKafkaStreamOffsets ---- ${streamsInfo}")
+    val streamInfo = streamsInfo.get(0)
+    val topicName = streamInfo.getString("topicName")
+    val zkpath = ApplicationUtils.
+      getCurrentWorkflowKafkaPath(appConfig, topicName, workflowConfig)
+    val sb = new StringBuilder(zkpath).append("/").append(0).toString()
+    val offsetVal = ApplicationUtils.getLongValFromZk(sb, appConfig)
+    val newOffset = offsetVal + 1
+    ApplicationUtils.updateZkValue(sb, newOffset.toString, appConfig.zookeeperList)
+  }
+
 
   def getZookeeperData(appConfig: ApplicationConfig, zkNode: String): Time = {
     var data: Long = 0L
@@ -258,7 +284,7 @@ private[framework] object ApplicationUtils {
     getLongValFromZk(zkNode, appConfig)
   }
 
-  private def getLongValFromZk(zkNode: String, appConfig: ApplicationConfig): Long = {
+   def getLongValFromZk(zkNode: String, appConfig: ApplicationConfig): Long = {
 
     val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
 
