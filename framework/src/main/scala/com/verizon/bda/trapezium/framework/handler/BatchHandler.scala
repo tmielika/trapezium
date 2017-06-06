@@ -49,6 +49,9 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   override def run(): Unit = {
     try {
       logger.info("workflow name" + workFlowConfig.workflow)
+      // Check if license is valid
+      ApplicationManager.validateLicense()
+
       ApplicationManager.setWorkflowConfig(workFlowConfig.workflow)
       val batchMode = workFlowConfig.dataSource
 

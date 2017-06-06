@@ -95,7 +95,7 @@
 
         <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>cache</artifactId>
+            <artifactId>trapezium-cache</artifactId>
             <version>${cache.version}</version>
         </dependency>
 

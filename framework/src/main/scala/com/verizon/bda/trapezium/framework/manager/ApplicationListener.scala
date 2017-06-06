@@ -64,6 +64,9 @@ class ApplicationListener(workflowConfig: WorkflowConfig) extends StreamingListe
     val logger = LoggerFactory.getLogger(this.getClass)
 
     logger.info(s"Inside onBatchStarted ${batchStarted.batchInfo.batchTime}")
+    // Validate license before running the batch
+    ApplicationManager.validateLicense()
+
   }
 
   override def onBatchSubmitted(batchSubmitted: StreamingListenerBatchSubmitted): Unit = {

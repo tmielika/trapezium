@@ -22,6 +22,7 @@ import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDS
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
+import com.verizon.bda.license.{LicenseLib, LicenseType, LicenseException}
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
@@ -31,6 +32,9 @@ import scopt.OptionParser
 import java.net.InetAddress
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
+import java.util.Properties
+import java.io.InputStream
+import java.util.Calendar
 
 /**
  * @author Pankaj on 9/1/15.
@@ -52,6 +56,11 @@ object ApplicationManager {
   val ERROR_EXIT_CODE = -1
   private var embeddedServer: EmbeddedHttpServer = _
   private var uid = ""
+
+  private var validLicense: Boolean = true
+  // License check period in seconds. Default 60 seconds
+  private var licenseCheckPeriod: Integer = 60
+  private var licenseCheckTimeout: Calendar = Calendar.getInstance()
 
   def getEmbeddedServer: EmbeddedHttpServer = {
     embeddedServer
@@ -140,6 +149,11 @@ object ApplicationManager {
 
     // load start up class
     initialize(appConfig)
+
+    // Initialize license library and licenseValidationTimeout
+    if (ApplicationManager.getConfig().env != "local" ) {
+      LicenseLib.init(appConfig.zookeeperList)
+    }
 
     val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
     val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
@@ -393,6 +407,25 @@ object ApplicationManager {
 
     StreamingHandler.addStreamListener(ssc, workflowConfig)
   }
+
+    def validateLicense(): Unit = {
+      if (ApplicationManager.getConfig().env == "local" ) {
+        return
+      }
+
+      // Check license for validity only if current date is higher than or
+      // equal to the timestamp of last license validity check.
+      var c = Calendar.getInstance();
+      if (0 <= c.getTime().compareTo(licenseCheckTimeout.getTime())) {
+        licenseCheckTimeout = Calendar.getInstance()
+        licenseCheckTimeout.add(Calendar.SECOND, licenseCheckPeriod);
+        validLicense = LicenseLib.isValid(LicenseType.PLATFORM)
+      }
+
+      if (validLicense == false) {
+        throw new LicenseException("PLATFORM license is not valid")
+      }
+    }
 
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,

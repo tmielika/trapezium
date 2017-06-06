@@ -21,6 +21,38 @@
 		<couch.mock.version>1.4.3</couch.mock.version>
 	</properties>
 
+    <profiles>
+        <profile>
+            <id>verizon</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <profile_name>verizon</profile_name>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.verizon.bda</groupId>
+                    <artifactId>license</artifactId>
+                    <version>0.1.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>opensource</id>
+            <properties>
+                <profile_name>opensource</profile_name>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.verizon.bda</groupId>
+                    <artifactId>license</artifactId>
+                    <version>0.0.1-STUB</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
@@ -103,13 +135,13 @@
 		</dependency>
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
-			<artifactId>couchbase-store</artifactId>
+			<artifactId>trapezium-couchbase-store</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
-			<artifactId>couchbase-store</artifactId>
+			<artifactId>trapezium-couchbase-store</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 			<scope>test</scope>
 			<type>test-jar</type>
