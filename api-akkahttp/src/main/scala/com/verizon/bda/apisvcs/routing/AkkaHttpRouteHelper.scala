@@ -1,5 +1,7 @@
 package com.verizon.bda.apisvcs.routing
 
+import java.text.ParseException
+
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.{Directives, Route}
@@ -12,7 +14,7 @@ import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
 import com.verizon.bda.commons.serviceapis.security.BDAAuthorizationService
 import com.verizon.logger.BDALoggerFactory
 
-import scala.collection.mutable.Map
+import scala.collection.mutable.{ListBuffer, Map}
 
 /**
   * Created by chundch on 5/19/17.
@@ -88,11 +90,23 @@ trait AkkaHttpRouteHelper extends Directives {
 
     logger.info("handleRequest for resource : " + processorId)
     if(authService != null) {
-      logger.info("handleRequest authorizing with configured authorizer")
-      val validReq = authService.authorizeApiClient(
-        getAuthorizationElementsFromHttpHeader(
-          request, authService.authorizationDataAccessKeys()))
 
+      logger.info("handleRequest authorizing with configured authorizer")
+      var validReq : (Boolean, Any) = (false, null)
+        try {
+          validReq = authService.authorizeApiClient(
+          getAuthorizationElementsFromHttpHeader(
+            request, authService.authorizationDataAccessKeys()))
+        } catch {
+          case p: ParseException => {
+            logger.error("Failed with parse exception " , p)
+            complete(getFailedHttpResponse(StatusCodes.Unauthorized, UNAUTHORIZED_ERROR_MSG))
+          }
+          case e: Exception => {
+            logger.error(" Failed to authenticate " , e)
+            complete(getFailedHttpResponse(StatusCodes.Unauthorized, UNAUTHORIZED_ERROR_MSG))
+          }
+        }
       if (!validReq._1) {
         complete(getFailedHttpResponse(StatusCodes.Unauthorized,
           UNAUTHORIZED_ERROR_MSG))
