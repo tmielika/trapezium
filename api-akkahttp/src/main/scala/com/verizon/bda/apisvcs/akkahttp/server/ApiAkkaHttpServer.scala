@@ -6,7 +6,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigObject}
 import com.verizon.bda.apisvcs.ApiHttpServices
 import com.verizon.bda.apisvcs.routing.{AkkaHttpRouteHelper}
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 sealed trait ApiHttpServerInterface {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   private var bindPort: Int = _
 
@@ -54,7 +54,7 @@ sealed trait ApiHttpServerInterface {
 
 class ApiAkkaHttpServer extends ApiHttpServerInterface with AkkaHttpRouteHelper {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
   implicit lazy val actorSystem = ActorSystem("httpsvcs-akkaactorsystem")
   implicit lazy val materializer = ActorMaterializer()
 

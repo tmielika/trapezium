@@ -11,8 +11,8 @@ import com.verizon.bda.apisvcs.security.{ApiAuthorizationService, FederatedAutho
 import com.verizon.bda.apisvcs.utils.AkkaHttpHeaderUtil
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
-import com.verizon.bda.commons.serviceapis.security.BDAAuthorizationService
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
+
 
 import scala.collection.mutable.{ListBuffer, Map}
 
@@ -22,7 +22,7 @@ import scala.collection.mutable.{ListBuffer, Map}
 
 trait AkkaHttpRouteHelper extends Directives {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   def buildRoute(httpPath: String, routeProcessor : ApiHttpServices) : Route = {
     val publishEndpoint = httpPath

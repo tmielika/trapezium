@@ -3,7 +3,7 @@ package com.verizon.bda.apisvcs.utils.test
 import akka.http.scaladsl.model.StatusCodes
 import com.verizon.bda.apisvcs.security.ApiAuthorizationService
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext
 @RunWith(classOf[JUnitRunner])
 class TestHttpServicesUtils extends FunSuite with BeforeAndAfterAll {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
 
   /**

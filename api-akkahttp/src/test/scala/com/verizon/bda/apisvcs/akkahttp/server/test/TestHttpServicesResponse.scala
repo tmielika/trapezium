@@ -2,7 +2,7 @@ package com.verizon.bda.apisvcs.akkahttp.server.test
 
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import com.verizon.bda.apisvcs.akkahttp.server.HttpServicesResponse
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers, WordSpec}
@@ -15,7 +15,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers, WordSpec}
 @RunWith(classOf[JUnitRunner])
 class TestHttpServicesResponse  extends FunSuite with BeforeAndAfterAll {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
 
   /**

@@ -5,7 +5,7 @@ import java.util
 import com.verizon.bda.apisvcs.{ApiHttpServices, SampleRouteHttpServices}
 import com.verizon.bda.apisvcs.akkahttp.server.ApiAkkaHttpServer
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import org.scalatest.junit.JUnitRunner
@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 @RunWith(classOf[JUnitRunner])
 class ExampleApiServicesTest extends FunSuite with BeforeAndAfterAll {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   var apiServer: ApiAkkaHttpServer = null
   val JWTTOKEN_DATA_FILE_PATH = "src/test/data/"

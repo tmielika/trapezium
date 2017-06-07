@@ -2,7 +2,7 @@ package com.verizon.bda.apisvcs.utils
 
 
 import akka.http.scaladsl.model.{HttpHeader, HttpRequest}
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 
 /**
   * Created by chundch on 4/26/17.
@@ -10,7 +10,7 @@ import com.verizon.logger.BDALoggerFactory
 
 class AkkaHttpHeaderUtil (request: HttpRequest) {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   /**
     * Akka Http header util to retrieve

@@ -2,7 +2,7 @@ package com.verizon.bda.apisvcs.test
 
 import akka.util.ByteString
 import com.verizon.bda.apisvcs.SampleRouteProcessor
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
@@ -14,7 +14,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSuite}
 @RunWith(classOf[JUnitRunner])
 class TestSampleRouteProcessor extends FunSuite with BeforeAndAfterAll {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   /**
     * Helper to initialize required

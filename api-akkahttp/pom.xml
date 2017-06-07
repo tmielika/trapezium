@@ -15,7 +15,6 @@
         <compiler.plugin.version>3.6.1</compiler.plugin.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <bdalogger.version>2.0.0</bdalogger.version>
         <junit.version>4.12</junit.version>
     </properties>
     <dependencies>
@@ -39,11 +38,6 @@
                     <artifactId>scala-java8-compat_2.11</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.verizon.logger</groupId>
-            <artifactId>BDALogger</artifactId>
-            <version>${bdalogger.version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>

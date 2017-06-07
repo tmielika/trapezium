@@ -4,7 +4,7 @@ import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.util
 
 import com.verizon.bda.apiservices.ApiSvcProcessor
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
 
@@ -15,7 +15,7 @@ import scala.concurrent.ExecutionContext
 class SampleRouteProcessor(implicit val executionContext: ExecutionContext)
                                                   extends ApiSvcProcessor {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   import akka.http.scaladsl.model.ContentType
   def conetnType: ContentType = null
