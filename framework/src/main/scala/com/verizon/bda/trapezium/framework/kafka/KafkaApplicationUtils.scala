@@ -60,7 +60,7 @@ class KafkaApplicationUtils(zkClient: ZkClient, kafkaBrokers: String) {
     val dStreams = KafkaDStream.createDStreams(ssc, kafkaBrokers,
       kafkaConfig, topicPartitionOffsets.toMap, applicationConfig)
 
-    ApplicationManager.startStreamWorkFlow(dStreams, workflowConfig)
+    ApplicationManager.runStreamWorkFlow(dStreams)
 
     // add streaming listener
     val listener: ApplicationListener = new ApplicationListener(workflowConfig)

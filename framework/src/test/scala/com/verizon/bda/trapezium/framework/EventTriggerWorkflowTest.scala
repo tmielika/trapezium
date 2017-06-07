@@ -1,16 +1,19 @@
 package com.verizon.bda.trapezium.framework
 
+import java.io.{File, FileNotFoundException}
+
 import com.verizon.bda.trapezium.framework.kafka.KafkaTestSuiteBase
-import java.io.{FileNotFoundException, File}
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
+
 import scala.io.Source
+
 /**
   * Created by v708178 on 5/31/17.
   */
-class TriggerWorkflowTestSuite extends KafkaTestSuiteBase with ApplicationManagerTestSuite {
+class EventTriggerWorkflowTest extends KafkaTestSuiteBase with ApplicationManagerTestSuite {
   val path1 = "src/test/data/TriggerEvents/triggerinput"
   val input1: Seq[String] = Source.fromFile(path1).mkString("").split("\n").toSeq
   def cleanOutput(path : String) : Unit = {
@@ -30,11 +33,10 @@ class TriggerWorkflowTestSuite extends KafkaTestSuiteBase with ApplicationManage
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
       appConfig , maxIters = 1)(sc)
-    sc.stop()
-    setupWorkflow("TriggerWorkFlow", Seq(input1))
-    if (sc.isStopped) {
-      sc = new SparkContext(sc.getConf)
-    }
+     val workFlowToRun1: WorkflowConfig = ApplicationManager.setWorkflowConfig("ListnerWorkflow")
+    ApplicationManager.runBatchWorkFlow(
+      workFlowToRun1,
+      appConfig , maxIters = 1)(sc)
     val sqlContext = new SQLContext(sc);
     val df = sqlContext.read.parquet("target/testdata/TriggeringTest")
     assert(df.count()>1)

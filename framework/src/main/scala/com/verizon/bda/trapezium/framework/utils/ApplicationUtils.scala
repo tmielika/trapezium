@@ -217,21 +217,12 @@ private[framework] object ApplicationUtils {
 
   }
 
-
-
-
-  def updateZkForTrigger(workflowConfig: WorkflowConfig, appConfig: ApplicationConfig): Unit = {
-    val kafkaconfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
-    val streamsInfo = kafkaconfig.getConfigList("streamsInfo")
-    logger.info(s"SaveKafkaStreamOffsets ---- ${streamsInfo}")
-    val streamInfo = streamsInfo.get(0)
-    val topicName = streamInfo.getString("topicName")
+  def getZKOffset(workflowConfig : WorkflowConfig, appConfig : ApplicationConfig) : Long = {
     val zkpath = ApplicationUtils.
-      getCurrentWorkflowKafkaPath(appConfig, topicName, workflowConfig)
+      getCurrentWorkflowKafkaPath(appConfig, workflowConfig.workflow, workflowConfig)
     val sb = new StringBuilder(zkpath).append("/").append(0).toString()
-    val offsetVal = ApplicationUtils.getLongValFromZk(sb, appConfig)
-    val newOffset = offsetVal + 1
-    ApplicationUtils.updateZkValue(sb, newOffset.toString, appConfig.zookeeperList)
+    ApplicationUtils.getOffsetZk(sb, appConfig)
+
   }
 
 
@@ -295,6 +286,23 @@ private[framework] object ApplicationUtils {
       val currentTime = System.currentTimeMillis
       updateZookeeperValue(zkNode, currentTime, appConfig.zookeeperList )
       currentTime
+    }
+
+  }
+
+
+
+  def getOffsetZk(zkNode: String, appConfig: ApplicationConfig): Long = {
+
+    val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
+
+    if ( workflowTimeZk != null) {
+
+      workflowTimeZk.toLong
+    } else {
+
+      updateZookeeperValue(zkNode, 0L, appConfig.zookeeperList )
+      0L
     }
 
   }

@@ -68,6 +68,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         }
     } catch {
       case e: Throwable =>
+        e.printStackTrace()
         logger.error(s"Error in running the workflow", e.getMessage)
         notifyError(e)
     }
@@ -105,7 +106,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       val (workflowTimeToSave, runSuccess, mode) = executeWorkFlow
       logger.info("going to call complete method")
 
-      completed(workflowTimeToSave, runSuccess)
+      completed(workflowTimeToSave, runSuccess, mode)
 
       if( mode.equalsIgnoreCase("groupFile")) {
         val keyFileProcessed = s"/etl/${workFlowConfig.workflow}/fileProccessed"
@@ -136,9 +137,17 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
       workflowTimeToSave = fileSource._1
       val rddMap = fileSource._2._1
+      if (fileSource._2._2.toString.equalsIgnoreCase("eventType")) {
+        if (rddMap.size > 0) {
+          runSuccess = processAndPersist(workflowTimeToSave, rddMap)
+        }
+        val zkpath = ApplicationUtils.
+          getCurrentWorkflowKafkaPath(appConfig, workFlowConfig.workflow, workFlowConfig)
+          ApplicationUtils.updateZkValue(zkpath,
+            fileSource._2._3.toString, appConfig.zookeeperList )
 
-      if (fileSource._2._2.toString.equalsIgnoreCase("groupFile")) {
-        mode = fileSource._1.toString
+      } else { if (fileSource._2._2.toString.equalsIgnoreCase("groupFile") ) {
+        mode = fileSource._2.toString
         val LastCal = Calendar.getInstance()
         val currentCal = Calendar.getInstance()
         val keyFileProcessed = s"/etl/${workFlowConfig.workflow}/fileProccessed"
@@ -177,6 +186,8 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         }
         else logger.warn("No new RDD in this batch run.")
       }
+    }
+      //
     })
 
     (workflowTimeToSave, runSuccess, mode)
@@ -268,7 +279,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     * This method is called only if all the transactions that are part of the workflow
     * are complted successfully.
     */
-  private def completed(workflowTime: Time, isSuccess: Boolean): Unit = {
+  private def completed(workflowTime: Time, isSuccess: Boolean, mode : String ): Unit = {
     try {
       if (isSuccess) {
         logger.info(s"Workflow with time $workflowTime completed successfully.")

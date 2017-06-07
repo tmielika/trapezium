@@ -325,7 +325,7 @@ object TestTriggering extends BatchTransaction {
 
     logger.info("Inside process of TestTriggering")
     require(df.size > 0)
-    val inData = df("testTrigger")
+    val inData = df("TestTriggering")
     inData.show()
 
     inData

@@ -15,10 +15,12 @@
 package com.verizon.bda.trapezium.framework.kafka
 
 import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.kafka.KafkaCluster.LeaderOffset
 import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import com.verizon.bda.trapezium.validation.Validator
+import org.apache.spark.rdd.RDD
 import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable.HashMap
@@ -30,13 +32,13 @@ import org.apache.spark.streaming.Seconds
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.dstream.InputDStream
-import org.apache.spark.streaming.kafka.HasOffsetRanges
-import org.apache.spark.streaming.kafka.KafkaUtils
+import org.apache.spark.streaming.kafka.{OffsetRange, HasOffsetRanges, KafkaUtils}
 import org.apache.zookeeper.{ZooKeeper, KeeperException}
-
+import org.apache.kafka.common.serialization.StringDeserializer
 import kafka.common.TopicAndPartition
 import kafka.message.MessageAndMetadata
 import kafka.serializer.StringDecoder
+
 
 /**
  * @author Jiten on 10/22/15.
@@ -265,6 +267,24 @@ private[framework] object KafkaDStream {
     currentTopicPartitions.toMap
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   def getPartitionsInfo( zk: ZooKeeper,
                          zkNode: String,
                          kafkaTopicName: String,
@@ -424,7 +444,7 @@ private[framework] object KafkaDStream {
    * since the DStream was first created
    *
    */
-  private def getAllTopicPartitions(kafkabrokerlist: String, topic : String)
+  def getAllTopicPartitions(kafkabrokerlist: String, topic : String)
   : Map[TopicAndPartition, (Long, Long)] = {
 
     val kblist = MMap[String, String]()
@@ -432,7 +452,6 @@ private[framework] object KafkaDStream {
 
     val kc = new KafkaCluster( kblist.toMap )
     val res = kc.getPartitions(topic.split(",").toSet)
-
     val topicparts = MMap[TopicAndPartition, (Long, Long)]()
 
     if (res.isRight) {
@@ -451,6 +470,35 @@ private[framework] object KafkaDStream {
 
   }
 
+
+   def getAllTopicPartitionsLatest(kafkabrokerlist: String, topic : String)
+  : Map[TopicAndPartition, (Long, Long)] = {
+
+    val kblist = MMap[String, String]()
+    kblist += ("metadata.broker.list" -> getKafkaBrokerList(kafkabrokerlist))
+
+    val kc = new KafkaCluster( kblist.toMap )
+    val res = kc.getPartitions(topic.split(",").toSet)
+    val topicparts = MMap[TopicAndPartition, (Long, Long)]()
+    if (res.isRight) {
+      val tp = res.right.get
+      val loff = kc.getLatestLeaderOffsets(tp)
+      if (loff.isRight ) {
+        val off = loff.right.get
+        off foreach { case (toppar, eoff) => {
+          logger.info("ttest" + toppar + "eoff " + eoff.offset )
+        }
+        }
+        off foreach { case (toppar, eoff) =>
+          topicparts += (toppar -> (0L, (eoff.offset)))
+        }
+      }
+    }
+
+    logger.info(s"Topic partition info from Broker ${topicparts}")
+    topicparts.toMap
+
+  }
 
   private def buildKafkaParams(kafkabrokerlist: String,
                                kafkaConfig: Config): Map[String, String] = {

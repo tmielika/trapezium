@@ -265,29 +265,7 @@ object ApplicationManager {
         dStreams = HdfsDStream.createDStreams(ssc)
       }
       case "KAFKA" => {
-        val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
-        val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
-        val kafkaBrokerList = appConfig.kafkabrokerList
-
-        logger.info("Kafka broker list " + kafkaBrokerList)
-
-        ssc = KafkaDStream.createStreamingContext(sparkConf)
-        setHadoopConf(ssc.sparkContext, appConfig)
-        val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
-
-        streamsInfo.asScala.foreach(streamInfo => {
-          val topicName = streamInfo.getString("topicName")
-          val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
-          topicPartitionOffsets ++= partitionOffset
-        })
-
-        dStreams = KafkaDStream.createDStreams(
-          ssc,
-          kafkaBrokerList,
-          kafkaConfig,
-          topicPartitionOffsets.toMap,
-          appConfig)
-
+        dStreams = initKafkaDstream(workflowConfig, sparkConf, runMode )
       }
       case _ => {
         logger.error("Mode not implemented. Exiting...", dataSource)
@@ -295,39 +273,37 @@ object ApplicationManager {
       }
     }
 
-    startStreamWorkFlow(dStreams , workflowConfig)
+    runStreamWorkFlow(dStreams)
     addStreamListeners(ssc, workflowConfig)
   }
 
-  def  startStreamWorkFlow(dStreams : collection.mutable.Map[String, DStream[Row]] ,
-                          workflowConfig: WorkflowConfig) : Unit = {
 
-    if (workflowConfig.runMode.equals("trigger")) {
-      val dVal = dStreams.valuesIterator
-      ssc = dStreams.head._2.context
-      dVal.foreach((dStream) => {
-        dStream.foreachRDD((rdd) => {
-          val collectRDD = rdd.collect()
-          collectRDD.foreach(row => {
-            val batchHandler = new BatchHandler(workflowConfig, appConfig, 1)(ssc.sparkContext)
-            batchHandler.processAndPersist(new Time(System.currentTimeMillis),
-              FileSourceGenerator.getDFFromStream(row.getString(0), ssc.sparkContext))
-              ApplicationUtils.updateZkForTrigger(workflowConfig, appConfig)
-          })
-        }
-        )
-      })
-    } else {
-      runStreamWorkFlow(dStreams)
-    }
+  def initKafkaDstream(workflowConfig : WorkflowConfig, sparkConf : SparkConf,
+                       runMode : String) : MMap[String, DStream[Row]] = {
+    val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
+    val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
+    val kafkaBrokerList = appConfig.kafkabrokerList
 
+    logger.info("Kafka broker list " + kafkaBrokerList)
+
+    ssc = KafkaDStream.createStreamingContext(sparkConf)
+    setHadoopConf(ssc.sparkContext, appConfig)
+    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
+
+    streamsInfo.asScala.foreach(streamInfo => {
+      val topicName = streamInfo.getString("topicName")
+      val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
+      topicPartitionOffsets ++= partitionOffset
+    })
+
+    val dStreams = KafkaDStream.createDStreams(
+      ssc,
+      kafkaBrokerList,
+      kafkaConfig,
+      topicPartitionOffsets.toMap,
+      appConfig)
+    dStreams
   }
-
-
-
-
-
-
 
 
 
