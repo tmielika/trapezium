@@ -1,6 +1,5 @@
 package com.verizon.bda.trapezium.framework.handler
-import com.verizon.bda.trapezium.framework.handler.FileSourceGenerator
-import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
+import com.verizon.bda.trapezium.framework.{ApplicationManagerTestSuite}
 import scala.collection.mutable.{Map => MMap}
 import org.json._
 /**
