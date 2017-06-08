@@ -361,12 +361,9 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
             val kafkaSink = sc.broadcast(KafkaSink(kafkaConf))
             logger.info("is spark context live " + sc.isStopped)
             logger.info("topic " + returnEvent + " sending to topic "
-              + returnEvent.mkString(","))
-            for (event <- returnEvent) {
-              kafkaSink.value.send(workFlowConfig.workflow, event.toString())
-              logger.info("Kafka message sent" + event.toString())
-            }
-
+              + returnEvent.toString())
+              kafkaSink.value.send(workFlowConfig.workflow, returnEvent.toString())
+              logger.info("Kafka message sent" + returnEvent.toString())
           }
           DataValidator.printStats()
         } catch {

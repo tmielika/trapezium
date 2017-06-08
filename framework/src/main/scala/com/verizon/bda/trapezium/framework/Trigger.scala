@@ -7,7 +7,7 @@ import org.json.JSONObject
   * Created by v708178 on 6/1/17.
   */
 
-class TriggerStruct (val dataSource: String, val arr: Array[DataSourceNameLocation]){
+case class Trigger (val dataSource: String, val arr: Array[DataSources]){
 
   override def toString () : String = {
 
@@ -25,7 +25,7 @@ class TriggerStruct (val dataSource: String, val arr: Array[DataSourceNameLocati
   }
 }
 
-class DataSourceNameLocation(val sourceName : String, val path : String){
+case class DataSources(val sourceName : String, val path : String, var event : String = ""){
 
 }
 
