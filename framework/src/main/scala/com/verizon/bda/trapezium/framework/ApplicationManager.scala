@@ -16,13 +16,14 @@ package com.verizon.bda.trapezium.framework
 
 import _root_.kafka.common.TopicAndPartition
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.handler.{BatchHandler, StreamingHandler}
+import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, BatchHandler, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
-import org.apache.spark.sql.{Row, SQLContext}
+import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
+import org.apache.spark.sql.{Row, SQLContext, DataFrame}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -31,6 +32,7 @@ import scopt.OptionParser
 import java.net.InetAddress
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
+import java.sql.Time
 
 /**
  * @author Pankaj on 9/1/15.
@@ -263,29 +265,7 @@ object ApplicationManager {
         dStreams = HdfsDStream.createDStreams(ssc)
       }
       case "KAFKA" => {
-        val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
-        val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
-        val kafkaBrokerList = appConfig.kafkabrokerList
-
-        logger.info("Kafka broker list " + kafkaBrokerList)
-
-        ssc = KafkaDStream.createStreamingContext(sparkConf)
-        setHadoopConf(ssc.sparkContext, appConfig)
-        val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
-
-        streamsInfo.asScala.foreach(streamInfo => {
-          val topicName = streamInfo.getString("topicName")
-          val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
-          topicPartitionOffsets ++= partitionOffset
-        })
-
-        dStreams = KafkaDStream.createDStreams(
-          ssc,
-          kafkaBrokerList,
-          kafkaConfig,
-          topicPartitionOffsets.toMap,
-          appConfig)
-
+        dStreams = initKafkaDstream(workflowConfig, sparkConf, runMode )
       }
       case _ => {
         logger.error("Mode not implemented. Exiting...", dataSource)
@@ -296,6 +276,36 @@ object ApplicationManager {
     runStreamWorkFlow(dStreams)
     addStreamListeners(ssc, workflowConfig)
   }
+
+
+  def initKafkaDstream(workflowConfig : WorkflowConfig, sparkConf : SparkConf,
+                       runMode : String) : MMap[String, DStream[Row]] = {
+    val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
+    val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
+    val kafkaBrokerList = appConfig.kafkabrokerList
+
+    logger.info("Kafka broker list " + kafkaBrokerList)
+
+    ssc = KafkaDStream.createStreamingContext(sparkConf)
+    setHadoopConf(ssc.sparkContext, appConfig)
+    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
+
+    streamsInfo.asScala.foreach(streamInfo => {
+      val topicName = streamInfo.getString("topicName")
+      val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
+      topicPartitionOffsets ++= partitionOffset
+    })
+
+    val dStreams = KafkaDStream.createDStreams(
+      ssc,
+      kafkaBrokerList,
+      kafkaConfig,
+      topicPartitionOffsets.toMap,
+      appConfig)
+    dStreams
+  }
+
+
 
   /**
    * method to create a SparkContext
@@ -459,7 +469,6 @@ object ApplicationManager {
       }
     }
      logger.info("Registering hostName:" + hostName)
-
      ApplicationUtils.registerHostName(
       currentWorkflowName,
        hostName,
@@ -473,7 +482,6 @@ object ApplicationManager {
    * @return a Map[String, Object]
    */
   def getKafkaConf(appConf: ApplicationConfig = null): Map[String, Object] = {
-
     val kafkaConfigParam: Config = if ( appConf != null ) {
       appConf.kafkaConfParam
     }

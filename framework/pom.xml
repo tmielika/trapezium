@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.verizon.bda</groupId>
 		<artifactId>trapezium-parent</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.1.0-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
         
@@ -22,6 +22,13 @@
 	</properties>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20170516</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -103,14 +110,14 @@
 		</dependency>
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
-			<artifactId>couchbase-store</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
+			<artifactId>trapezium-couchbase-store</artifactId>
+			<version>1.1.0-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
-			<artifactId>couchbase-store</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
+			<artifactId>trapezium-couchbase-store</artifactId>
+			<version>1.1.0-SNAPSHOT</version>
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>

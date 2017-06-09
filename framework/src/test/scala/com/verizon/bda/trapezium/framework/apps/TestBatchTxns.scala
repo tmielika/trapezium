@@ -17,9 +17,9 @@ package com.verizon.bda.trapezium.framework.apps
 import java.nio.file.{Paths, Path}
 import java.sql.{Date, Time}
 
-import com.verizon.bda.trapezium.framework.BatchTransaction
+import com.verizon.bda.trapezium.framework.{DataSource, Trigger, BatchTransaction}
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SaveMode, SQLContext, DataFrame}
+import org.apache.spark.sql.{SaveMode, DataFrame}
 import org.slf4j.LoggerFactory
 
 
@@ -49,10 +49,11 @@ object TestBatchTxn1 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
     logger.info(s"Count ${df.count}")
     require(populateFromPreprocess == CONST_STRING)
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -69,9 +70,10 @@ object TestBatchTxn2 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     logger.info(s"Count ${df.count}")
     require(df.count == 499 )
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -93,8 +95,9 @@ object TestBatchTxn3 extends BatchTransaction {
     inData1
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -111,8 +114,9 @@ object TestBatchTxn4 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -134,8 +138,9 @@ object TestFileSplit extends BatchTransaction {
     (inData1)
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -153,8 +158,9 @@ object TestBatchTxn5 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -171,9 +177,10 @@ object TestBatchTxn6 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
     df.write.parquet("/target/testdata/TestBatchTxn6")
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -190,9 +197,10 @@ object TestBatchTxn7 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
     df.write.parquet("target/testdata/TestBatchTxn7")
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -209,9 +217,10 @@ object TestBatchTxn8 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
     df.write.parquet("target/testdata/TestBatchTxn8")
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -235,8 +244,9 @@ object TestBatchTxn9 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count > 0)
+    None
   }
 
   override def rollbackBatch(batchTime: Time): Unit = {
@@ -259,9 +269,10 @@ val inData = df.head._2
 inData
 }
 
-override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
 require(df.count > 0)
 df.write.parquet("target/testdata/TestBatchTxn8" + System.currentTimeMillis())
+  None
 }
 
 override def rollbackBatch(batchTime: Time): Unit = {
@@ -279,9 +290,55 @@ object TestBatchTxn10 extends BatchTransaction {
     inData
   }
 
-  override def persistBatch(df: DataFrame, batchTime: Time): Unit = {
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     require(df.count == 4)
     df.write.mode(SaveMode.Overwrite).parquet("target/testdata/TestBatchTxn9/")
+    None
   }
 
 }
+
+object TriggerTestTxn extends BatchTransaction {
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+
+    logger.info("InsideTriggerTestTxn")
+    val inData = df("triggerTest")
+    inData.show()
+    inData
+  }
+
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
+    require(df.count > 0)
+    df.write.mode(SaveMode.Overwrite).parquet("target/testdata/TriggeringTest")
+    None
+  }
+
+  override def rollbackBatch(batchTime: Time): Unit = {
+  }
+}
+
+object TestTriggering extends BatchTransaction {
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+
+    logger.info("Inside process of TestTriggering")
+    require(df.size > 0)
+    val inData = df("TestTriggering")
+    inData.show()
+
+    inData
+  }
+
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
+    require(df.count > 0)
+    val json = new Trigger(Array(new DataSource ("triggerTest", "src/test/data/parquet")))
+    logger.info("topic posted msg is " + json.toString() )
+    df.write.mode(SaveMode.Overwrite).parquet("target/testdata/eventworkflow")
+    Some(Array(json))
+  }
+
+  override def rollbackBatch(batchTime: Time): Unit = {
+  }
+}
+

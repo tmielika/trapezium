@@ -49,7 +49,8 @@ private[framework] object HdfsDStream {
     ssc
   }
 
-  def createDStreams(ssc: StreamingContext): collection.mutable.Map[String, DStream[Row]] = {
+  def createDStreams(ssc: StreamingContext, dynamicPath : String = null):
+  collection.mutable.Map[String, DStream[Row]] = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.getWorkflowConfig
@@ -65,8 +66,14 @@ private[framework] object HdfsDStream {
 
       val streamInfo = streamsInfoListItr.next.asInstanceOf[ConfigObject].toConfig
       // create new stream from HDFS location
-      val streamDirectory = appConfig.fileSystemPrefix + streamInfo.getConfig("dataDirectory")
-        .getString(ApplicationUtils.env)
+      val streamDirectory = {
+        if (dynamicPath != null) {
+          dynamicPath
+        } else {
+          appConfig.fileSystemPrefix + streamInfo.getConfig("dataDirectory")
+            .getString(ApplicationUtils.env)
+        }
+      }
       val dStreamString = ssc.fileStream[LongWritable, Text, TextInputFormat](
         streamDirectory, (x: Path) => true, newFilesOnly = false)
 
