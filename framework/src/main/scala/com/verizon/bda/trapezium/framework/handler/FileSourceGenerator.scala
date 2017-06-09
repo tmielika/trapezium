@@ -176,6 +176,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
+
         dataMap += ((name, SQLContext.getOrCreate(sc).read.parquet(input: _*)))
       }
       case "AVRO" => {
