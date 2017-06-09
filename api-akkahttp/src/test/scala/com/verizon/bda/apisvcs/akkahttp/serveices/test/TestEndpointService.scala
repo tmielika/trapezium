@@ -6,7 +6,7 @@ import com.verizon.bda.apiservices.ApiSvcProcessor
 import com.verizon.bda.apisvcs.ApiHttpServices
 import com.verizon.bda.apisvcs.akkahttp.serveices.processors.test.TestEndpointProcessor
 import com.verizon.bda.apisvcs.utils.test.ApiServicesTestConstatns._
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
 
@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext
 
 class TestEndpointService(implicit val executionContext: ExecutionContext)  extends ApiHttpServices{
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   override def getApiSvcAuthorizer: String = {
     APISVCS_TESTENDPOINT_AUTHORIZER

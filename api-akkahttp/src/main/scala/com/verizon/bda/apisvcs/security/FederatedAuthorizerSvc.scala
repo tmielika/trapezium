@@ -1,14 +1,14 @@
 package com.verizon.bda.apisvcs.security
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
 import com.verizon.bda.commons.serviceapis.security.BDAAuthorizationService
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 
 /**
   * Created by chundch on 5/9/17.
   */
 class FederatedAuthorizerSvc extends ApiAuthorizationService {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   override def authorizeApiClient(authData: Map[String, String]): (Boolean, Any) = {
 

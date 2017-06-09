@@ -5,7 +5,7 @@ import java.net.InetAddress
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCode, StatusCodes}
 import com.verizon.bda.apisvcs.akkahttp.server.HttpServicesResponse
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 
 /**
   * Created by chundch on 4/25/17.
@@ -13,7 +13,7 @@ import com.verizon.logger.BDALoggerFactory
 
 object HttpServicesUtils {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   /**
     * Get the host name or ip address

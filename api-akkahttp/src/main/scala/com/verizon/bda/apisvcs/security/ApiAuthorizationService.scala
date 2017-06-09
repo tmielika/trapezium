@@ -3,7 +3,9 @@ package com.verizon.bda.apisvcs.security
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
 import com.verizon.bda.commons.serviceapis.security.BDAAuthSvcManager
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
+
+import scala.util.Try
 
 
 /**
@@ -12,7 +14,7 @@ import com.verizon.logger.BDALoggerFactory
 
 class ApiAuthorizationService {
 
-   private val logger = BDALoggerFactory.getLogger(this.getClass)
+   private val logger = LoggerFactory.getLogger(this.getClass)
 
    private var authSvcProviderType : String = _
 
@@ -53,6 +55,7 @@ class ApiAuthorizationService {
       }
 
       (validClient, authdata)
+
    }
 
 

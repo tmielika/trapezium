@@ -11,7 +11,7 @@ import com.verizon.bda.apisvcs.akkahttp.serveices.test.TestEndpointService
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
 import com.verizon.bda.wso2impl.util.JWTParseHelper
-import com.verizon.logger.BDALoggerFactory
+import org.slf4j.LoggerFactory
 import org.apache.commons.httpclient.HttpClient
 import org.apache.commons.httpclient.methods.{FileRequestEntity, GetMethod, PostMethod, StringRequestEntity}
 import org.junit.runner.RunWith
@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 @RunWith(classOf[JUnitRunner])
 class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
 
-  private val logger = BDALoggerFactory.getLogger(this.getClass)
+  private val logger = LoggerFactory.getLogger(this.getClass)
   var apiServer: ApiAkkaHttpServer = null
   val JWTTOKEN_DATA_FILE_PATH = "src/test/data/"
   val JWTTOKEN_DATA_FILE = "wso2_assertiontoken.txt"
