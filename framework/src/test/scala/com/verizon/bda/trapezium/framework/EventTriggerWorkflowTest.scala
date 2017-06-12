@@ -42,6 +42,6 @@ class EventTriggerWorkflowTest extends KafkaTestSuiteBase with ApplicationManage
     assert(df.count()>1)
 
   }
-
+  
 
 }
