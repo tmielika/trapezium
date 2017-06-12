@@ -33,11 +33,11 @@ class EventTriggerWorkflowTest extends KafkaTestSuiteBase with ApplicationManage
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
       appConfig , maxIters = 1)(sc)
-     val workFlowToRun1: WorkflowConfig = ApplicationManager.setWorkflowConfig("ListnerWorkflow")
+     val workFlowToRun1: WorkflowConfig = ApplicationManager.setWorkflowConfig("ListnerWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun1,
       appConfig , maxIters = 1)(sc)
-    val sqlContext = new SQLContext(sc);
+    val sqlContext = new SQLContext(sc)
     val df = sqlContext.read.parquet("target/testdata/TriggeringTest")
     assert(df.count()>1)
 
