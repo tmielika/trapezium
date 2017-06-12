@@ -45,7 +45,7 @@ trait BatchTransaction extends ApplicationTransaction {
   def processBatch(df: Map[String, DataFrame],
               workflowTime: Time): DataFrame
 
-  def persistBatch(df: DataFrame, batchTime: Time): Unit = {}
+  def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = None
 
   def rollbackBatch(batchTime: Time): Unit = {}
 }

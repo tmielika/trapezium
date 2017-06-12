@@ -36,10 +36,10 @@ import org.slf4j.LoggerFactory
 /**
  * @author Pankaj on 3/8/16.
  */
-class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
-  val logger = LoggerFactory.getLogger(this.getClass)
+trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
+  val kf_logger = LoggerFactory.getLogger(this.getClass)
   private var zkList: String = _
-  private var zk: EmbeddedZookeeper = _
+  var zk_kafka: EmbeddedZookeeper = _
   private val zkConnectionTimeout = 6000
   private val zkSessionTimeout = 6000
   private var kafkaBrokers: String = _
@@ -61,7 +61,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     kafkaBrokers = appConfig.kafkabrokerList
     zkList = appConfig.zookeeperList
 
-    logger.info("Kafka broker list " + kafkaBrokers)
+    kf_logger.info("Kafka broker list " + kafkaBrokers)
 
     // set up local Kafka cluster
     setupKafka
@@ -84,7 +84,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   private def setupKafka() {
 
     // Zookeeper server startup
-    zk = new EmbeddedZookeeper(s"$zkList")
+    zk_kafka = new EmbeddedZookeeper(s"$zkList")
 
     // for local as well as jenkins build
     if (ApplicationManager.getConfig().env == "local" ) {
@@ -95,10 +95,10 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     // Get the actual zookeeper binding port
     zkReady = true
-    logger.info("==================== Zookeeper Started ====================")
+    kf_logger.info("==================== Zookeeper Started ====================")
 
     zkClient = new ZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout, ZKStringSerializer)
-    logger.info("==================== Zookeeper Client Created ====================")
+    kf_logger.info("==================== Zookeeper Client Created ====================")
 
     // Kafka broker startup
     var bindSuccess: Boolean = false
@@ -108,7 +108,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         brokerConf = new KafkaConfig(brokerProps)
         server = new KafkaServer(brokerConf)
         server.startup()
-        logger.info("==================== Kafka Broker Started ====================")
+        kf_logger.info("==================== Kafka Broker Started ====================")
         bindSuccess = true
       } catch {
         case e: KafkaException =>
@@ -123,7 +123,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
     Thread.sleep(1000)
-    logger.info("==================== Kafka + Zookeeper Ready ====================")
+    kf_logger.info("==================== Kafka + Zookeeper Ready ====================")
     brokerReady = true
   }
 
@@ -144,7 +144,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         brokerConf2 = new KafkaConfig(brokerProps)
         server2 = new KafkaServer(brokerConf2)
         server2.startup()
-        logger.info("==================== Second Kafka Broker Started ====================")
+        kf_logger.info("==================== Second Kafka Broker Started ====================")
         bindSuccess = true
       } catch {
         case e: KafkaException =>
@@ -167,7 +167,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         server = new KafkaServer(brokerConf)
         */
         server.startup()
-        logger.info("==================== Kafka Broker Re-Started ====================")
+        kf_logger.info("==================== Kafka Broker Re-Started ====================")
         bindSuccess = true
       } catch {
         case e: KafkaException =>
@@ -182,7 +182,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
     Thread.sleep(1000)
-    logger.info("==================== Kafka + Zookeeper Ready Again ====================")
+    kf_logger.info("==================== Kafka + Zookeeper Ready Again ====================")
     brokerReady = true
   }
 
@@ -212,9 +212,9 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     ZooKeeperConnection.close
 
     // shutdown zookeeper
-    if (zk != null) {
-      zk.shutdown()
-      zk = null
+    if (zk_kafka != null) {
+      zk_kafka.shutdown()
+      zk_kafka = null
     }
 
   }
@@ -231,7 +231,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       new KeyedMessage[String, String](topic, null, _)
     }: _*)
     producer.close()
-    logger.info(s"=============== Sent Messages ===================")
+    kf_logger.info(s"=============== Sent Messages ===================")
   }
 
 
@@ -349,7 +349,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
       input.foreach( seq => {
 
-        logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })
@@ -362,7 +362,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       kafkaConfig.getLong("batchTime") * 1000)
 
     if( ssc != null ) {
-      logger.info(s"Stopping streaming context from test Thread.")
+      kf_logger.info(s"Stopping streaming context from test Thread.")
       ssc.stop(true, false)
 
       // reset option
@@ -401,7 +401,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       thread.start()
       do{
 
-        logger.info(s"Waiting for workflow ${workflowName} to start...")
+        kf_logger.info(s"Waiting for workflow ${workflowName} to start...")
         Thread.sleep(1000)
       }while (!thread.isStarted)
     })
@@ -413,7 +413,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
       input.foreach( seq => {
 
-        logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })
@@ -426,7 +426,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       kafkaConfig.getLong("batchTime") * 1000)
 
     if( ssc != null ) {
-      logger.info(s"Stopping streaming context from test Thread.")
+      kf_logger.info(s"Stopping streaming context from test Thread.")
       ssc.stop(true, false)
 
       // reset option

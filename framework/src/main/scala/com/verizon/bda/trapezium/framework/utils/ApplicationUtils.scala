@@ -190,12 +190,20 @@ private[framework] object ApplicationUtils {
     val zk = ZooKeeperConnection.create(zookeeperList)
 
     val modified_zkNode = modifyKey(zkNode, appPrefix)
+    updateZkValue(modified_zkNode, value, zookeeperList )
+  }
 
+
+  def updateZkValue(zkKey: String,
+                           value: String,
+                           zookeeperList: String
+                           ): Unit = {
+    val zk = ZooKeeperConnection.create(zookeeperList)
     try {
-      checkPath(zk, modified_zkNode)
+      checkPath(zk, zkKey)
 
-      logger.info(s"Update $modified_zkNode ${value}")
-      zk.setData(modified_zkNode, value.getBytes, -1)
+      logger.info(s"Update $zkKey ${value}")
+      zk.setData(zkKey, value.getBytes, -1)
 
     } catch {
 
@@ -208,6 +216,15 @@ private[framework] object ApplicationUtils {
     }
 
   }
+
+  def getZKOffset(workflowConfig : WorkflowConfig, appConfig : ApplicationConfig) : Long = {
+    val zkpath = ApplicationUtils.
+      getCurrentWorkflowKafkaPath(appConfig, workflowConfig.workflow, workflowConfig)
+    val sb = new StringBuilder(zkpath).append("/").append(0).toString()
+    ApplicationUtils.getOffsetZk(sb, appConfig)
+
+  }
+
 
   def getZookeeperData(appConfig: ApplicationConfig, zkNode: String): Time = {
     var data: Long = 0L
@@ -258,7 +275,7 @@ private[framework] object ApplicationUtils {
     getLongValFromZk(zkNode, appConfig)
   }
 
-  private def getLongValFromZk(zkNode: String, appConfig: ApplicationConfig): Long = {
+   def getLongValFromZk(zkNode: String, appConfig: ApplicationConfig): Long = {
 
     val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
 
@@ -269,6 +286,23 @@ private[framework] object ApplicationUtils {
       val currentTime = System.currentTimeMillis
       updateZookeeperValue(zkNode, currentTime, appConfig.zookeeperList )
       currentTime
+    }
+
+  }
+
+
+
+  def getOffsetZk(zkNode: String, appConfig: ApplicationConfig): Long = {
+
+    val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
+
+    if ( workflowTimeZk != null) {
+
+      workflowTimeZk.toLong
+    } else {
+
+      updateZookeeperValue(zkNode, 0L, appConfig.zookeeperList )
+      0L
     }
 
   }

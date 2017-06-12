@@ -52,7 +52,13 @@ class DataValidator(sc: SparkContext) extends Serializable {
     }
 
     try {
-      val arrLine = parser.parseLine(row.getString(0))
+      val arrLine = {
+        if (numberOfColumn == 1) {
+          Array(row.getString(0))
+        } else {
+          parser.parseLine(row.getString(0))
+        }
+      }
       if (ValidateColumn.validateNumberOfColumns(arrLine, numberOfColumn, dropRowWithExtraColumn)) {
         Some(ValidateDataType.validate(arrLine, column, dataType, validation, sFormat, delimiter))
       } else {
