@@ -15,7 +15,6 @@
 
     <properties>
         <commons.dal.version>0.3.8-SNAPSHOT</commons.dal.version>
-        <slf4j.version>1.7.10</slf4j.version>
         <spark.version>1.6.0</spark.version>
         <scala.binary.version>2.10</scala.binary.version>
         <scala.version>2.10.5</scala.version>
@@ -26,16 +25,7 @@
     </properties>
 
     <dependencies>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-
-
-        <dependency>
+       <dependency>
             <groupId>com.typesafe</groupId>
             <artifactId>config</artifactId>
             <version>${typesafe.version}</version>
