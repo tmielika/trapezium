@@ -223,8 +223,16 @@ object FileSourceGenerator {
         val sourcesName = jObject.getString("name")
         val sourceLocation = jObject.getString("location")
         logger.info("source location : " + sourceLocation)
-        dataMap += ((sourcesName, SQLContext.getOrCreate(sc).
-          read.parquet(sourceLocation)))
+       try {
+         dataMap += ((sourcesName, SQLContext.getOrCreate(sc).
+           read.parquet(sourceLocation)))
+       } catch {
+         case ex : AssertionError => {
+           logger.info("parquet file is not present on location " + sourceLocation)
+           ex.printStackTrace()
+         }
+
+       }
       }
     } catch {
       case ex : Exception => {
