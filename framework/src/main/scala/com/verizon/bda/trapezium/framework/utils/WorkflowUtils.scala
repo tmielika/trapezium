@@ -22,7 +22,6 @@ import scopt.OptionParser
  * Created by Pankaj on 7/6/16.
  */
 object WorkflowUtils {
-
   val logger = LoggerFactory.getLogger(this.getClass)
 
   // Case class to hold the command line arguments
@@ -90,7 +89,7 @@ object WorkflowUtils {
   /**
    * Parse workflow and reset workflow time
    */
-  def run(params: Params): Unit = {
+  private def run(params: Params): Unit = {
 
     // Initialize config file
     val config = ApplicationManager.getConfig(params.configDir)
@@ -124,4 +123,87 @@ object WorkflowUtils {
     }
   }
 
+  /**
+   * API to get value for Application Property
+   */
+  def getAppProperty (propertyName: String,
+                  persistSchema: String = null,
+                  uid: String = ""): String = {
+
+    // Initialize config file
+    val config = ApplicationManager.getConfig()
+
+    val schemaPrefix: String =
+      if (persistSchema == null) {
+
+        // if persistSchema is null, use from current workflow
+        config.persistSchema
+      } else {
+
+        persistSchema
+      }
+
+    val propValue = ApplicationUtils.
+      getValFromZk(propertyName, config.zookeeperList, s"${schemaPrefix}${uid}/application")
+
+    logger.info(s"appProperty for ${schemaPrefix}${uid} is $propValue")
+    propValue
+  }
+
+  /**
+   * API to set value for Application Property
+   */
+  def setAppProperty (propertyName: String,
+                      propValue: String,
+                  persistSchema: String = null,
+                  uid: String = ""): Unit = {
+
+    // Initialize config file
+    val config = ApplicationManager.getConfig()
+
+    val schemaPrefix: String =
+      if (persistSchema == null) {
+
+        // if persistSchema is null, use from current workflow
+        config.persistSchema
+      } else {
+
+        persistSchema
+      }
+
+    ApplicationUtils.updateZookeeperValue(propertyName,
+      propValue,
+      config.zookeeperList,
+      s"${schemaPrefix}${uid}/application")
+
+    logger.info(s"updated appProperty for ${schemaPrefix}${uid} to $propValue")
+  }
+
+  /**
+   * Get value for property used by framework
+   */
+  def getFrameworkProperty (workflowName: String,
+                            persistSchema: String = null,
+                            uid: String = ""): String = {
+
+    // Initialize config file
+    val config = ApplicationManager.getConfig()
+
+    val schemaPrefix: String =
+      if (persistSchema == null) {
+
+        // if persistSchema is null, use from current workflow
+        config.persistSchema
+      } else {
+
+        persistSchema
+      }
+
+    val propValue = ApplicationUtils.
+      getValFromZk(ApplicationUtils.lastSuccessfulAccess,
+        config.zookeeperList, s"${schemaPrefix}${uid}/${workflowName}/")
+
+    logger.info(s"frameworkProperty is $propValue")
+    propValue
+  }
 }

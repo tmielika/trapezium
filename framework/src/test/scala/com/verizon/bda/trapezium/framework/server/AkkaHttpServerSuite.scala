@@ -28,9 +28,7 @@ import org.slf4j.LoggerFactory
   * Created by Jegan on 5/20/16.
   */
 class AkkaHttpServerSuite extends FunSuite with BeforeAndAfterAll {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   var appConfig: ApplicationConfig = _
   var zk: EmbeddedZookeeper = null
 
@@ -57,18 +55,20 @@ class AkkaHttpServerSuite extends FunSuite with BeforeAndAfterAll {
     if( ApplicationManager.getEmbeddedServer != null) {
 
       logger.info(s"Stopping embedded server")
-      ApplicationManager.getEmbeddedServer.stop()
+      ApplicationManager.getEmbeddedServer.stop(true)
     }
   }
 
   test("configured end-points should work") {
     val client = new HttpClient
-    val method1 = new GetMethod("http://localhost:8090/rest-api/test")
+
+    val port = ApplicationManager.getEmbeddedServer.getBindPort
+    val method1 = new GetMethod(s"http://localhost:${port}/rest-api/test")
 
     client.executeMethod(method1)
     assert(method1.getResponseBodyAsString.contains("Hello from EndPoint 1"))
 
-    val method2 = new GetMethod("http://localhost:8090/rest-api/test2")
+    val method2 = new GetMethod(s"http://localhost:${port}/rest-api/test2")
 
     client.executeMethod(method2)
     assert(method2.getResponseBodyAsString.contains("Hello from EndPoint 2"))
@@ -76,7 +76,9 @@ class AkkaHttpServerSuite extends FunSuite with BeforeAndAfterAll {
 
   test("exception should be handled by the framework") {
     val client = new HttpClient
-    val method = new GetMethod("http://localhost:8090/rest-api/test3")
+
+    val port = ApplicationManager.getEmbeddedServer.getBindPort
+    val method = new GetMethod(s"http://localhost:${port}/rest-api/test3")
 
     client.executeMethod(method)
     assert(method.getStatusCode == StatusCodes.InternalServerError.intValue)
@@ -84,7 +86,9 @@ class AkkaHttpServerSuite extends FunSuite with BeforeAndAfterAll {
 
   test("should support actor-based endpoints") {
     val client = new HttpClient
-    val method = new GetMethod("http://localhost:8090/rest-api/actortest")
+
+    val port = ApplicationManager.getEmbeddedServer.getBindPort
+    val method = new GetMethod(s"http://localhost:${port}/rest-api/actortest")
 
     client.executeMethod(method)
     assert(method.getResponseBodyAsString.contains("Hello from Actor based EndPoint 4"))
