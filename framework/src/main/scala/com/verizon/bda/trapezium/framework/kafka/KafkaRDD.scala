@@ -18,7 +18,7 @@ private[framework] object KafkaRDD {
   def getRDDFromKafka ( kafkaTopicName: String,
                         appConfig: ApplicationConfig,
                         workflowConfig: WorkflowConfig,
-                        sparkContext: SparkContext) : RDD[(String, String)] = {
+                        sparkContext: SparkContext) : Option[(RDD[(String, String)], Long)] = {
     val logger = LoggerFactory.getLogger(this.getClass)
     logger.info ("inside")
     val zk = ZooKeeperConnection.create(appConfig.zookeeperList)
@@ -29,9 +29,15 @@ private[framework] object KafkaRDD {
     val offsetRangeList: List[OffsetRange] =
       KafkaUtil.getOffsetsRange(zk, zkpath, kafkaTopicName, appConfig)
     logger.info ("got offset" + offsetRangeList.size)
-     KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](sparkContext,
-      getkafkaParam(appConfig.getEnv(),
-        appConfig.kafkaConfParam, kafkaTopicName), offsetRangeList.toArray)
+     if (offsetRangeList.size>0) {
+       val fromOffset = offsetRangeList(0).fromOffset
+       logger.info ("zk fromOffset" + fromOffset)
+      Some( KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](sparkContext,
+         getkafkaParam(appConfig.getEnv(),
+           appConfig.kafkaConfParam, kafkaTopicName), offsetRangeList.toArray) , fromOffset)
+     } else {
+       None
+     }
   }
 
 
@@ -54,7 +60,7 @@ private[framework] object KafkaRDD {
 
       }
     }
-    logger.info ("KafkaApplicationUtils.kafkaBrokers" + KafkaApplicationUtils.kafkaBrokers)
+    logger.info ("KafkaApplicationUtils.kafkaBrokers" + kafkaParamBootStrap)
     val kafkaParamsMap = Map[String, String](
       "bootstrap.servers" -> kafkaParamBootStrap,
       "group.id" -> kafkaGroup

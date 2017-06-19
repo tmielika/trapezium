@@ -63,14 +63,25 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
   def getDFFromKafka (topicName : String) : util.TreeMap[Time,
     (MMap[String, DataFrame], String, Long)] = {
     val dataSources = new java.util.TreeMap[Time, (MMap[String, DataFrame], String, Long)]
-    val rdd = KafkaRDD.getRDDFromKafka(topicName, appConfig, workflowConfig, sc)
-    val collectRDD = rdd.values.collect()
-    collectRDD.foreach(row => {
-      val offSet = ApplicationUtils.getZKOffset(workflowConfig, appConfig)
-      val dfMap = FileSourceGenerator.getDFFromStream(row, sc)
-      val workflowTime = new Time(System.currentTimeMillis())
-      dataSources.put(workflowTime, (dfMap, "eventType", offSet))
-    })
+    val rddOption = KafkaRDD.getRDDFromKafka(topicName, appConfig, workflowConfig, sc)
+    if (rddOption.isDefined) {
+      logger.info("inside rddOption.isDefined")
+
+      val rdd = rddOption.get
+      val collectRDD = rdd._1.values.collect()
+
+      var counter = rdd._2
+      logger.info("collectRDD " + collectRDD.toString + "int counter " + counter)
+      collectRDD.foreach(row => {
+        val dfMap = FileSourceGenerator.getDFFromStream(row, sc)
+        val workflowTime = new Time(System.currentTimeMillis())
+        logger.info("Kafka --> on offset" + rdd._2)
+        dataSources.put(workflowTime, (dfMap, "eventType", counter))
+        counter = counter + 1
+      })
+    } else {
+      logger.info("Kafka --> Data source is empty")
+    }
     dataSources
   }
 
@@ -160,8 +171,8 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
         }
       }
     }
-    logger.info(s"dataSources --> ${dataSources}")
-    dataSources.toMap.toSeq
+ //   logger.info(s"dataSources --> ${dataSources}")
+    dataSources.toMap.toList.sortBy(_._1.getTime)
   }
 
 
@@ -244,20 +255,6 @@ object FileSourceGenerator {
 
     dataMap
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
