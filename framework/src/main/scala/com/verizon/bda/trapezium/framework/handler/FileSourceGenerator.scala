@@ -239,8 +239,9 @@ object FileSourceGenerator {
            read.parquet(sourceLocation)))
        } catch {
          case ex : AssertionError => {
-           logger.info("parquet file is not present on location " + sourceLocation)
-           ex.printStackTrace()
+           logger.info("parquet file is not present on location AssertionError excpetion "
+             + sourceLocation)
+
          }
 
        }
