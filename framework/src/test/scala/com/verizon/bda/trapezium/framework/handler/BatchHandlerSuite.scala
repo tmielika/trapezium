@@ -23,6 +23,7 @@ import org.scalatest.FunSuite
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import com.verizon.bda.trapezium.framework.ApplicationManager
 
+
 /**
  * @author sumanth.venkatasubbaiah
  *         Test suite for BatchHandler

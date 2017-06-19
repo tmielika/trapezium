@@ -42,7 +42,7 @@ object TestBatchTxn1 extends BatchTransaction {
 
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
-    logger.info("Inside process of TestBatchTxn1")
+    logger.info("Inside process of TestBatchTxn1" + wfTime)
     require(df.size > 0)
     require(populateFromPreprocess == CONST_STRING)
     val inData = df("source1")
@@ -107,8 +107,7 @@ object TestBatchTxn3 extends BatchTransaction {
 object TestBatchTxn4 extends BatchTransaction {
   val logger = LoggerFactory.getLogger(this.getClass)
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
-
-    logger.info("Inside process of TestBatchTxn4")
+    logger.info("Inside process of TestBatchTxn4" + wfTime)
     require(df.size > 0)
     val inData = df("onlyDirTrue")
     inData
@@ -151,7 +150,7 @@ object TestBatchTxn5 extends BatchTransaction {
   val logger = LoggerFactory.getLogger(this.getClass)
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
-    logger.info("Inside process of TestBatchTxn4")
+    logger.info("Inside process of TestBatchTxn4" )
     require(df.size > 0)
     val inData = df.head._2
     inData.show()
