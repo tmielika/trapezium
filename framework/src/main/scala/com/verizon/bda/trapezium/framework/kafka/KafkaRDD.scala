@@ -33,37 +33,28 @@ private[framework] object KafkaRDD {
        val fromOffset = offsetRangeList(0).fromOffset
        logger.info ("zk fromOffset" + fromOffset)
       Some( KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](sparkContext,
-         getkafkaParam(appConfig.getEnv(),
-           appConfig.kafkaConfParam, kafkaTopicName), offsetRangeList.toArray) , fromOffset)
+         getkafkaParam(appConfig, kafkaTopicName), offsetRangeList.toArray) , fromOffset)
      } else {
        None
      }
   }
 
 
-  def getkafkaParam (env : String,
-                     kafkaConfParam: Config, kafkaTopicName: String) : Map[String, String] = {
+  def getkafkaParam (appConfig: ApplicationConfig, kafkaTopicName: String) : Map[String, String] = {
     val logger = LoggerFactory.getLogger(this.getClass)
+    val kafkaConfParam = appConfig.kafkaConfParam
 
     val kafkaParamBootStrap = {
-      if (env.equals("local")) {
+      if (appConfig.getEnv().equals("local")) {
         KafkaApplicationUtils.kafkaBrokers
       } else {
         kafkaConfParam.getString("bootstrap.servers")
       }
     }
-    val kafkaGroup = {
-      if (kafkaConfParam.hasPath("group.id")){
-        kafkaConfParam.getString("group.id")
-      } else {
-        kafkaTopicName + "groupid"
-
-      }
-    }
     logger.info ("KafkaApplicationUtils.kafkaBrokers" + kafkaParamBootStrap)
     val kafkaParamsMap = Map[String, String](
       "bootstrap.servers" -> kafkaParamBootStrap,
-      "group.id" -> kafkaGroup
+      "group.id" -> appConfig.persistSchema
     )
     kafkaParamsMap
   }
