@@ -126,7 +126,8 @@ object TestFileSplit extends BatchTransaction {
   override def processBatch(df: Map[String, DataFrame], wfTime: Time)
   : DataFrame = {
 
-    logger.info("Inside process of TestFileSplit")
+    logger.info("Inside process of TestFileSplit" + new Date (wfTime.getTime).toString)
+
     require(df.size > 0)
 
     val inData1 = df("testDataSplitFiles")
@@ -150,7 +151,7 @@ object TestBatchTxn5 extends BatchTransaction {
   val logger = LoggerFactory.getLogger(this.getClass)
   override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
 
-    logger.info("Inside process of TestBatchTxn4" )
+    logger.info("Inside process of TestBatchTxn4" + wfTime )
     require(df.size > 0)
     val inData = df.head._2
     inData.show()

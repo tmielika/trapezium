@@ -138,13 +138,16 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       workflowTimeToSave = fileSource._1
       val rddMap = fileSource._2._1
       if (fileSource._2._2.toString.equalsIgnoreCase("eventType")) {
+        logger.info("workflowTimeToSave " + workflowTimeToSave + "rddMap " +
+          rddMap.keySet.toString()  )
         if (rddMap.size > 0) {
           runSuccess = processAndPersist(workflowTimeToSave, rddMap)
         }
         val zkpath = ApplicationUtils.
           getCurrentWorkflowKafkaPath(appConfig, workFlowConfig.workflow, workFlowConfig)
-          ApplicationUtils.updateZkValue(zkpath,
+          ApplicationUtils.updateZkValue(zkpath + "/0",
             fileSource._2._3.toString, appConfig.zookeeperList )
+        logger.info("update zk " +zkpath + "/0" + " = " + fileSource._2._3.toString  )
 
       } else { if (fileSource._2._2.toString.equalsIgnoreCase("groupFile") ) {
         mode = fileSource._2.toString
