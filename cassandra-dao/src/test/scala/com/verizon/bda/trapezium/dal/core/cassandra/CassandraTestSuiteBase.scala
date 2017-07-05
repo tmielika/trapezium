@@ -14,6 +14,8 @@
 */
 package com.verizon.bda.trapezium.dal.core.cassandra
 
+import java.net.ServerSocket
+
 import com.datastax.driver.core.Cluster
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
@@ -23,11 +25,27 @@ import org.slf4j.LoggerFactory
   * Created by v468328 on 5/26/16.
   */
 trait CassandraTestSuiteBase extends FunSuite with BeforeAndAfterAll {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   override def beforeAll() {
     super.beforeAll()
+
+    var socket = new ServerSocket(0)
+    val nativeTransportPort = socket.getLocalPort
+    // closing the socket
+    socket.close()
+    System.setProperty("cassandra.native_transport_port", nativeTransportPort.toString)
+
+    socket = new ServerSocket(0)
+    val storagePort = socket.getLocalPort
+    // closing the socket
+    socket.close()
+    System.setProperty("cassandra.storage_port", storagePort.toString)
+
+    socket = new ServerSocket(0)
+    val rpcPort = socket.getLocalPort
+    // closing the socket
+    socket.close()
+    System.setProperty("cassandra.rpc_port", rpcPort.toString)
+
     EmbeddedCassandraServerHelper.startEmbeddedCassandra("another-cassandra.yaml");
   }
 
@@ -47,10 +65,12 @@ trait CassandraTestSuiteBase extends FunSuite with BeforeAndAfterAll {
   }
 
   def executeSetupScript(script: String): Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
+    val port = System.getProperty("cassandra.native_transport_port")
     try {
       val cluster: Cluster = Cluster.builder()
         .addContactPoint("localhost")
-        .withPort(9042)
+        .withPort(port.toInt)
         .build()
       cluster.connect().execute(script)
       logger.info(s"Executing cassandra ddl $script")

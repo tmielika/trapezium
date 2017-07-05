@@ -15,16 +15,13 @@
 package com.verizon.bda.trapezium.framework.kafka
 
 import java.io.File
-import java.util
+import java.net.ServerSocket
 import java.util.Properties
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.manager.ApplicationListener
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import kafka.admin.AdminUtils
-import kafka.common.{TopicAndPartition, KafkaException}
+import kafka.common.KafkaException
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.StringEncoder
 import kafka.server.{KafkaConfig, KafkaServer}
@@ -35,19 +32,14 @@ import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
 import org.slf4j.LoggerFactory
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.mutable.{MutableList => MList}
-import scala.collection.mutable.{Map => MMap}
 
 /**
  * @author Pankaj on 3/8/16.
  */
-class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
-
+trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
+  val kf_logger = LoggerFactory.getLogger(this.getClass)
   private var zkList: String = _
-  private var zk: EmbeddedZookeeper = _
+  var zk_kafka: EmbeddedZookeeper = _
   private val zkConnectionTimeout = 6000
   private val zkSessionTimeout = 6000
   private var kafkaBrokers: String = _
@@ -69,7 +61,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     kafkaBrokers = appConfig.kafkabrokerList
     zkList = appConfig.zookeeperList
 
-    logger.info("Kafka broker list " + kafkaBrokers)
+    kf_logger.info("Kafka broker list " + kafkaBrokers)
 
     // set up local Kafka cluster
     setupKafka
@@ -92,13 +84,21 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   private def setupKafka() {
 
     // Zookeeper server startup
-    zk = new EmbeddedZookeeper(s"$zkList")
+    zk_kafka = new EmbeddedZookeeper(s"$zkList")
+
+    // for local as well as jenkins build
+    if (ApplicationManager.getConfig().env == "local" ) {
+
+      // Use port that is available
+      zkList = EmbeddedZookeeper.zkConnectString
+    }
+
     // Get the actual zookeeper binding port
     zkReady = true
-    logger.info("==================== Zookeeper Started ====================")
+    kf_logger.info("==================== Zookeeper Started ====================")
 
     zkClient = new ZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout, ZKStringSerializer)
-    logger.info("==================== Zookeeper Client Created ====================")
+    kf_logger.info("==================== Zookeeper Client Created ====================")
 
     // Kafka broker startup
     var bindSuccess: Boolean = false
@@ -108,7 +108,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         brokerConf = new KafkaConfig(brokerProps)
         server = new KafkaServer(brokerConf)
         server.startup()
-        logger.info("==================== Kafka Broker Started ====================")
+        kf_logger.info("==================== Kafka Broker Started ====================")
         bindSuccess = true
       } catch {
         case e: KafkaException =>
@@ -123,7 +123,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
     Thread.sleep(1000)
-    logger.info("==================== Kafka + Zookeeper Ready ====================")
+    kf_logger.info("==================== Kafka + Zookeeper Ready ====================")
     brokerReady = true
   }
 
@@ -139,12 +139,12 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         val brokerProps = getBrokerConfig()
         brokerProps.put("broker.id", "1")
         brokerProps.put("port", brokerPort2.toString)
-        brokerProps.put("log.dir", "/tmp/kafka")
-        // brokerProps.put("log.dir", KafkaTestUtils.createTempDir().getAbsolutePath)
+        brokerProps.put("log.dir", "tmp/kafka")
+
         brokerConf2 = new KafkaConfig(brokerProps)
         server2 = new KafkaServer(brokerConf2)
         server2.startup()
-        logger.info("==================== Second Kafka Broker Started ====================")
+        kf_logger.info("==================== Second Kafka Broker Started ====================")
         bindSuccess = true
       } catch {
         case e: KafkaException =>
@@ -167,7 +167,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         server = new KafkaServer(brokerConf)
         */
         server.startup()
-        logger.info("==================== Kafka Broker Re-Started ====================")
+        kf_logger.info("==================== Kafka Broker Re-Started ====================")
         bindSuccess = true
       } catch {
         case e: KafkaException =>
@@ -182,7 +182,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
     Thread.sleep(1000)
-    logger.info("==================== Kafka + Zookeeper Ready Again ====================")
+    kf_logger.info("==================== Kafka + Zookeeper Ready Again ====================")
     brokerReady = true
   }
 
@@ -212,25 +212,11 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     ZooKeeperConnection.close
 
     // shutdown zookeeper
-    if (zk != null) {
-      zk.shutdown()
-      zk = null
+    if (zk_kafka != null) {
+      zk_kafka.shutdown()
+      zk_kafka = null
     }
 
-  }
-
-  def createTopic(topic: String, nparts: Int = 1) {
-    if (!AdminUtils.topicExists(zkClient, topic)) {
-
-      AdminUtils.createTopic(zkClient, topic, nparts, 1)
-      // wait until metadata is propagated
-      // waitUntilMetadataIsPropagated(topic, 0)
-      logger.info(s"==================== Topic $topic Created ====================")
-
-    } else {
-
-      logger.info(s"================= Topic $topic already exists ================")
-    }
   }
 
   private def sendMessages(topic: String, messageToFreq: Map[String, Int]) {
@@ -245,7 +231,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       new KeyedMessage[String, String](topic, null, _)
     }: _*)
     producer.close()
-    logger.info(s"=============== Sent Messages ===================")
+    kf_logger.info(s"=============== Sent Messages ===================")
   }
 
 
@@ -263,11 +249,29 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val props = new Properties()
     props.put("broker.id", "0")
     props.put("host.name", kafkaBrokerList(0).split(":")(0))
-    props.put("port", kafkaBrokerList(0).split(":")(1))
 
-    deleteRecursively( new File("/tmp/kafka"))
-    props.put("log.dir", "/tmp/kafka")
-    // props.put("log.dir", KafkaTestUtils.createTempDir().getAbsolutePath)
+    // for local as well as jenkins build
+    if (ApplicationManager.getConfig().env == "local" ) {
+
+      val socket = new ServerSocket(0)
+      val tempPort = socket.getLocalPort
+
+      // closing the socket
+      socket.close()
+      props.put("port", s"$tempPort")
+
+      kafkaBrokers = s"${kafkaBrokerList(0).split(":")(0)}:${tempPort}"
+
+      // this is needed so that App Mgr code has access to new port
+      KafkaApplicationUtils.kafkaBrokers = kafkaBrokers
+    } else {
+
+      props.put("port", kafkaBrokerList(0).split(":")(1))
+    }
+
+
+    deleteRecursively( new File("tmp/kafka"))
+    props.put("log.dir", "tmp/kafka")
     props.put("zookeeper.connect", zkAddress)
     props.put("log.flush.interval.messages", "1")
     props.put("replica.socket.timeout.ms", "1500")
@@ -294,6 +298,16 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
    }
    */
 
+  /**
+   * create topic
+   * @param topic
+   * @param nparts
+   */
+  def createTopic(topic: String, nparts: Int = 1): Unit = {
+
+    new KafkaApplicationUtils(zkClient, kafkaBrokers).createTopic(topic, nparts)
+  }
+
   def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]]): Unit = {
 
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
@@ -314,24 +328,19 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
+    val utils = new KafkaApplicationUtils(zkClient, kafkaBrokers)
+
+    // create topcis
+    utils.createTopics(workflowConfig)
     val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
-    val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
-
-    val topics: MList[String] = MList()
-    streamsInfo.asScala.foreach(streamInfo => {
-
-      val topicName = streamInfo.getString("topicName")
-      logger.debug("Kafka stream topic - " + topicName)
-
-      topics += topicName
-      createTopic(topicName)
-
-    })
 
     val currentTimeStamp = System.currentTimeMillis()
     ApplicationManager.updateWorkflowTime(currentTimeStamp)
 
-    val ssc = startKafkaWorkflow(topics)
+    val sparkConf = ApplicationManager.getSparkConf(appConfig)
+    val ssc = KafkaDStream.createStreamingContext(sparkConf)
+
+    utils.startKafkaWorkflow(workflowConfig, ssc)
 
     // start streaming
     ssc.start
@@ -340,7 +349,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
       input.foreach( seq => {
 
-        logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })
@@ -353,7 +362,7 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       kafkaConfig.getLong("batchTime") * 1000)
 
     if( ssc != null ) {
-      logger.info(s"Stopping streaming context from test Thread.")
+      kf_logger.info(s"Stopping streaming context from test Thread.")
       ssc.stop(true, false)
 
       // reset option
@@ -364,37 +373,84 @@ class KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
   }
 
+  /**
+   * Added method to test multiple kafka workflows reading from multiple Kafka topics
+   * @param workflowNames
+   * @param inputSeq
+   */
+  def setupMultipleWorkflowForMultipleTopics(workflowNames: List[String],
+                                     inputSeq: Seq[Seq[(String, Seq[String])]]): Unit = {
 
-  def startKafkaWorkflow(topics: MList[String]): StreamingContext = {
+    val appConfig = ApplicationManager.getConfig()
+    val workflowConfig = ApplicationManager.setWorkflowConfig(workflowNames(0))
 
-    // Load the config file
-    val applicationConfig = ApplicationManager.getConfig()
-    val workflowConfig = ApplicationManager.getWorkflowConfig()
+    val utils = new KafkaApplicationUtils(zkClient, kafkaBrokers)
 
-    val runMode = workflowConfig.runMode
-
+    // create topcis
+    utils.createTopics(workflowConfig)
     val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
-    val sparkConf = ApplicationManager.getSparkConf(applicationConfig)
 
+    val currentTimeStamp = System.currentTimeMillis()
+    ApplicationManager.updateWorkflowTime(currentTimeStamp)
+
+    val sparkConf = ApplicationManager.getSparkConf(appConfig)
     val ssc = KafkaDStream.createStreamingContext(sparkConf)
 
-    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
+    workflowNames.foreach( workflowName => {
+      val thread = new KafkaWorkflowThread(workflowName, ssc, utils)
+      thread.start()
+      do{
 
-    topics.foreach( topicName => {
-
-      val partitionOffset =
-        KafkaDStream.fetchPartitionOffsets(topicName, runMode, applicationConfig)
-      topicPartitionOffsets ++= partitionOffset
+        kf_logger.info(s"Waiting for workflow ${workflowName} to start...")
+        Thread.sleep(1000)
+      }while (!thread.isStarted)
     })
 
-    val dStreams = KafkaDStream.createDStreams(ssc, applicationConfig.kafkabrokerList,
-      kafkaConfig, topicPartitionOffsets.toMap, applicationConfig)
+    // start streaming
+    ssc.start
 
-    ApplicationManager.runStreamWorkFlow(dStreams)
+    inputSeq.foreach( input => {
 
-    // add streaming listener
-    val listener: ApplicationListener = new ApplicationListener(workflowConfig)
-    ssc.addStreamingListener(listener)
-    ssc
+      input.foreach( seq => {
+
+        kf_logger.info(s"Size of the input: ${seq._2.size}")
+        sendMessages(seq._1, seq._2.toArray)
+
+      })
+
+      Thread.sleep(kafkaConfig.getLong("batchTime") * 1000)
+
+    })
+
+    ssc.awaitTerminationOrTimeout(
+      kafkaConfig.getLong("batchTime") * 1000)
+
+    if( ssc != null ) {
+      kf_logger.info(s"Stopping streaming context from test Thread.")
+      ssc.stop(true, false)
+
+      // reset option
+      KafkaDStream.sparkcontext = None
+    }
+
+    assert (!ApplicationManager.stopStreaming)
+
   }
+
+}
+
+class KafkaWorkflowThread (workflowName: String,
+                           ssc: StreamingContext,
+                           utils: KafkaApplicationUtils) extends Thread {
+
+  var isStarted: Boolean = false
+
+  override def run(): Unit = {
+
+    val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
+    utils.startKafkaWorkflow(workflowConfig, ssc)
+
+    isStarted = true
+  }
+
 }

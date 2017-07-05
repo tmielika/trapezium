@@ -74,9 +74,9 @@ object ValidationConfig {
     sourceConfig
   }
 
-  def getSplitFile(appConfig : ApplicationConfig,
-                          workflowConfig: WorkflowConfig,
-                          sourceName : String) : Config = {
+  def getGroupFileConf(appConfig : ApplicationConfig,
+                       workflowConfig: WorkflowConfig,
+                       sourceName : String) : Config = {
 
     val runMode = workflowConfig.runMode
     val dataSource = workflowConfig.dataSource
@@ -113,7 +113,7 @@ object ValidationConfig {
       val source = sourceData.getString("name")
       if (source.equals(sourceName)) {
         try {
-          sourceConfig = sourceData.getConfig("splitfile")
+          sourceConfig = sourceData.getConfig("groupFile")
         }
         catch {
           case _: Throwable => sourceConfig = ConfigFactory.empty()

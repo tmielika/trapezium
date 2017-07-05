@@ -16,16 +16,17 @@ package com.verizon.bda.trapezium.framework.handler
 
 import java.sql.Time
 
-import com.typesafe.config.ConfigObject
-import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, ApplicationListener, WorkflowConfig}
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
-import com.verizon.bda.trapezium.framework.{ApplicationManager, StreamingTransaction}
-import com.verizon.bda.trapezium.validation.DataValidator
+import org.apache.spark.Accumulator
 import org.apache.spark.sql.Row
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-import org.slf4j.LoggerFactory;
 
+import com.typesafe.config.{Config, ConfigList, ConfigObject}
+import com.verizon.bda.trapezium.framework.{ApplicationManager, StreamingTransaction}
+import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig, ApplicationListener}
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.validation.{DataValidator, ValidationConfig, Validator}
+import org.slf4j.LoggerFactory
 import scala.collection.mutable.{Map => MMap}
 
 /**
@@ -44,11 +45,10 @@ import scala.collection.mutable.{Map => MMap}
  */
 
 private[framework] object StreamingHandler {
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   private var isShutdownHookAdded = false
   private var ssc: StreamingContext = null
   private var currentWorkflowTime: Time = _
-  val logger = LoggerFactory.getLogger(this.getClass);
 
   def addStreamListener(sc: StreamingContext,
                         workflowConfig: WorkflowConfig): Unit = {
@@ -126,7 +126,7 @@ private[framework] object StreamingHandler {
                 dStreams(inputStreamName)))
             } catch {
               case e: Throwable => {
-                logger.error("some error", e)
+                logger.error("some error", e.getMessage)
                 workflowDStreams += ((inputStreamName,
                   dStreams(inputStreamName)))
               }
@@ -191,7 +191,7 @@ private[framework] object StreamingHandler {
           } catch {
             case e: Throwable => {
 
-              logger.error("Exception ", e)
+              logger.error("Exception ", e.getMessage)
               workflowClassMap.foreach {
                 case (workflowClassName, workflowClass) => {
 
@@ -203,7 +203,8 @@ private[framework] object StreamingHandler {
                   } catch {
 
                     case ex: Throwable => {
-                      logger.error(s"Exception during rollback $workflowClassName :", ex)
+                      logger.error("Exception during rollback",
+                        s"$workflowClassName :${e.getMessage}")
                     }
                   }
                 }
@@ -219,7 +220,7 @@ private[framework] object StreamingHandler {
                 case ex: Throwable => {
 
                   logger.info(s"Consumed following exception because " +
-                    s"spark context was NOT stopped gracefully.", ex)
+                    s"spark context was NOT stopped gracefully. ${e.getMessage}")
                 }
               }
               finally {

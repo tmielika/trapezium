@@ -14,7 +14,6 @@
 */
 package com.verizon.bda.trapezium.validation
 
-
 import org.apache.spark.streaming.TestSuiteBase
 
 class BuildSchemaSuite extends TestSuiteBase {

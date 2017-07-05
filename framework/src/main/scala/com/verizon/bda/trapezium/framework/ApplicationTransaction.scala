@@ -45,18 +45,8 @@ trait BatchTransaction extends ApplicationTransaction {
   def processBatch(df: Map[String, DataFrame],
               workflowTime: Time): DataFrame
 
-  def persistBatch(df: DataFrame, batchTime: Time): Unit = {}
+  def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = None
 
   def rollbackBatch(batchTime: Time): Unit = {}
 }
 
-/**
- * ModelTransaction behavior
- * train model on batch using train(rdd): Use DAL to store the model
- * score model on batch using process(rdd)
- * score model on stream using process(dstream) through extending
- * StreamingApplicationTransaction
- */
-trait ModelTransaction extends BatchTransaction {
-  def train(df: Map[String, DataFrame], workflowTime: Time): Boolean
-}
