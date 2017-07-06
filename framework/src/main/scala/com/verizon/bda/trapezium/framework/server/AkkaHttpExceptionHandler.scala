@@ -24,14 +24,12 @@ import org.slf4j.LoggerFactory
   * Created by Jegan on 5/20/16.
   */
 class AkkaHttpExceptionHandler {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   // This could be overridden by verticals.
   def handler: ExceptionHandler = ExceptionHandler {
     case ex: Exception =>
       extractUri { uri =>
-        logger.error(s"Request to $uri could not be handled normally", ex)
+        logger.error(s"Request to $uri could not be handled normally", ex.getMessage)
         complete(HttpResponse(InternalServerError, entity = "Internal Server Error"))
       }
   }
