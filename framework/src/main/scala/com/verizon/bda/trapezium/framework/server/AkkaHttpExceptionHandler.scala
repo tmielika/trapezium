@@ -32,7 +32,7 @@ class AkkaHttpExceptionHandler {
     case ex: Exception =>
       extractUri { uri =>
         logger.error(s"Request to $uri could not be handled normally", ex)
-        complete(HttpResponse(InternalServerError, entity = "Interanl Server Error"))
+        complete(HttpResponse(InternalServerError, entity = "Internal Server Error"))
       }
   }
 }
