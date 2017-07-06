@@ -29,10 +29,8 @@ class TestHttpServlet2(sc: SparkContext) extends HttpServlet {
 
   import scala.xml.NodeSeq
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
-
+    val logger = LoggerFactory.getLogger(this.getClass)
     logger.info(s"Spark Test: ${sc.sparkUser},${sc.startTime}")
     val parameterNames = request.getParameterNames
 

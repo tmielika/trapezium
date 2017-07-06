@@ -28,14 +28,13 @@ import scala.io.Source
 
 class ValidatorSuite extends FunSuite with TestSuiteBase {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   val badRecordCount = 6L
   // tested for checkSpace,minLength,columnCheckFails,maxLength,checklongfail,checkIntFail
 
   val path = "src/test/data/hdfs/source3/file3.csv"
   val path1 = "src/test/data/hdfs/source4"
 
+  val logger = LoggerFactory.getLogger(this.getClass)
   test("Test startValidation : End to end validation module testing") {
     val rddRow = sc.textFile(path).map(x => Row(x))
     val recordCount = rddRow.count() - 1 // skip header

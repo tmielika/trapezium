@@ -34,9 +34,7 @@ import scala.collection.JavaConversions.asScalaBuffer
  */
 
 class DataValidator(sc: SparkContext) extends Serializable {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   var parser: CSVParser = _
   var delimiterLastTime: Char = ','
 
@@ -45,7 +43,8 @@ class DataValidator(sc: SparkContext) extends Serializable {
 
   def filterData(row: Row, column: List[String], dataType: List[String],
                  validation: Config, sFormat: SimpleDateFormat,
-                 delimiter: Char, numberOfColumn: Int): Option[Seq[Any]] = {
+                 delimiter: Char, numberOfColumn: Int,
+                 dropRowWithExtraColumn: Boolean): Option[Seq[Any]] = {
 
     if (parser == null || !delimiterLastTime.equals(delimiter)) {
       parser = new CSVParser(delimiter)
@@ -53,8 +52,14 @@ class DataValidator(sc: SparkContext) extends Serializable {
     }
 
     try {
-      val arrLine = parser.parseLine(row.getString(0))
-      if (ValidateColumn.validateNumberOfColumns(arrLine, numberOfColumn)) {
+      val arrLine = {
+        if (numberOfColumn == 1) {
+          Array(row.getString(0))
+        } else {
+          parser.parseLine(row.getString(0))
+        }
+      }
+      if (ValidateColumn.validateNumberOfColumns(arrLine, numberOfColumn, dropRowWithExtraColumn)) {
         Some(ValidateDataType.validate(arrLine, column, dataType, validation, sFormat, delimiter))
       } else {
         logger.warn("Expected records count failed. " +
@@ -67,7 +72,7 @@ class DataValidator(sc: SparkContext) extends Serializable {
     catch {
       case ex: Throwable =>
         logger.warn("Error in parsing line." + row.getString(0)
-          + ex.getStackTrace.take(200))
+          + ex.getMessage.take(200))
         None
     }
   }
@@ -100,6 +105,15 @@ class DataValidator(sc: SparkContext) extends Serializable {
     val validation = config.getConfig(Constants.Validation)
     val sFormat: SimpleDateFormat = new SimpleDateFormat(config.getString(Constants.DateFormat))
     val delimiter = config.getString(Constants.Delimiter).toCharArray
+    // This is added for droping rows from data if there is extra
+    // column in the data , this is optional
+    val dropRowWithExtraColumn = {
+      if (config.hasPath("dropRowWithExtraColumn")) {
+        config.getBoolean("dropRowWithExtraColumn")
+      } else {
+        false
+      }
+    }
     // TO DO: add the skip header feature from spark-csv in cleaner way
     // TO DO: Expose accumulators through
     val rowsSkippedHeader = rows.filter { row =>
@@ -114,8 +128,9 @@ class DataValidator(sc: SparkContext) extends Serializable {
 
     val rowsHandleSpecialCharacter = removeSpecialCharIfAny(rowsSkippedHeader, config)
     val validated = rowsHandleSpecialCharacter.flatMap { x => filterData(x, column, dataType,
-      validation, sFormat, delimiter(0), numberOfCol)
+      validation, sFormat, delimiter(0), numberOfCol, dropRowWithExtraColumn)
     }.map { x => accFinalCount.add(1); Row.fromSeq(x) }
+
     validated
   }
 
@@ -140,8 +155,6 @@ class DataValidator(sc: SparkContext) extends Serializable {
 }
 
 object DataValidator {
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   val dvMap = MMap[String, DataValidator]()
 
   def apply(sc: SparkContext): DataValidator = new DataValidator(sc)
@@ -156,6 +169,7 @@ object DataValidator {
   }
 
   def resetAccumulators: Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
     dvMap.foreach { case (sourceName, dv) =>
       dv.accRawTotalCount.value = 0
       dv.accFinalCount.value = 0
@@ -167,6 +181,7 @@ object DataValidator {
   }
 
   def printStats(): Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
     dvMap.foreach { case (sourceName, dv) =>
       logger.info(s"Batch stats counts for input source ${sourceName} " +
         s"input row count: ${dv.accRawTotalCount.value}, " +

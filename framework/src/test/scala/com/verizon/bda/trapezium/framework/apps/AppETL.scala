@@ -27,11 +27,8 @@ import org.slf4j.LoggerFactory
  * @author by Pankaj on 10/28/15.
  */
 object AppETL extends StreamingTransaction {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   var batchID = 0
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   private val CONST_STRING = "This has to be populated in the preprocess method"
   var populateFromPreprocess: String = _
 

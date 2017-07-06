@@ -69,6 +69,22 @@ class TestEndPoint4(as: ActorSystem) extends ActorServiceEndPoint(as) {
   }
 }
 
+class TestEndPoint5(as: ActorSystem) extends ActorServiceEndPoint(as) {
+  override def route: server.Route = {
+    path("actortestjson") {
+      get {
+        val actor = as.actorOf(Props[TestActor], "test-actor2")
+        actor ! "Hi"
+        val jsonResponse =
+         "[{ \"popularSite\": \"pillsbury.com\"," +
+          "\"rank\": 1, " + "}]";
+
+        complete(jsonResponse)
+      }
+    }
+  }
+}
+
 class TestActor extends Actor {
   override def receive: Receive = {
     case _ => {

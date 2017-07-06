@@ -20,12 +20,10 @@ import org.apache.spark.sql.Row
 import org.slf4j.LoggerFactory
 
 class DataValidatorSuite extends TestSuiteBase {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   val badRecordCount = 6L
   val path = "src/test/data/hdfs/source3"
   val validatorConfig = ValidationPreparer.getValidationConfig()
+  val logger = LoggerFactory.getLogger(this.getClass)
   var parser : CSVParser = null
 
   def setParser(delimter : Char) : Unit = {

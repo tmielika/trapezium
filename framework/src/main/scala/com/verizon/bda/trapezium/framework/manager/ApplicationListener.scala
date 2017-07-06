@@ -14,12 +14,13 @@
 */
 package com.verizon.bda.trapezium.framework.manager
 
+import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.kafka.KafkaDStream
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.streaming.scheduler._
-import org.slf4j.LoggerFactory;
+import org.slf4j.LoggerFactory
 
 /**
  * @author Pankaj on 9/2/15.
@@ -27,9 +28,8 @@ import org.slf4j.LoggerFactory;
 private[framework]
 class ApplicationListener(workflowConfig: WorkflowConfig) extends StreamingListener {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
   override def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted): Unit = {
-
+    val logger = LoggerFactory.getLogger(this.getClass)
     logger.info(s"Inside onBatchCompleted:" +
       s" ${batchCompleted.batchInfo.numRecords}" +
       s" ${batchCompleted.batchInfo.batchTime}")
@@ -61,26 +61,33 @@ class ApplicationListener(workflowConfig: WorkflowConfig) extends StreamingListe
   }
 
   override def onBatchStarted(batchStarted: StreamingListenerBatchStarted): Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
 
     logger.info(s"Inside onBatchStarted ${batchStarted.batchInfo.batchTime}")
+    // Validate license before running the batch
+    ApplicationManager.validateLicense()
+
   }
 
   override def onBatchSubmitted(batchSubmitted: StreamingListenerBatchSubmitted): Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
 
     logger.info(s"Inside onBatchSubmitted ${batchSubmitted.batchInfo.batchTime}")
   }
 
   override def onReceiverError(receiverError: StreamingListenerReceiverError): Unit = {
-
+    val logger = LoggerFactory.getLogger(this.getClass)
     logger.info("Inside onReceiverError")
   }
 
   override def onReceiverStarted(receiverStarted: StreamingListenerReceiverStarted): Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
 
     logger.info("Inside onReceiverStarted")
   }
 
   override def onReceiverStopped(receiverStopped: StreamingListenerReceiverStopped): Unit = {
+    val logger = LoggerFactory.getLogger(this.getClass)
 
     logger.info("Inside onReceiverStopped")
   }

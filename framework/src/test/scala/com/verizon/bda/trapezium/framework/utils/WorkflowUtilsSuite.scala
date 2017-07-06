@@ -77,4 +77,28 @@ class WorkflowUtilsSuite extends FunSuite with BeforeAndAfterAll with Logging {
 
   }
 
+  test("Get zkNode value"){
+    assert(WorkflowUtils.getAppProperty("/test/node") == null)
+
+    WorkflowUtils.setAppProperty("/test/node", "testNode")
+    assert(WorkflowUtils.getAppProperty("/test/node") == "testNode")
+
+    WorkflowUtils.setAppProperty(
+      "/test/node/for/different/schema",
+      "testNodeForDifferentSchema",
+      "testSchema")
+    assert(WorkflowUtils.getAppProperty("/test/node/for/different/schema") == null)
+    assert(WorkflowUtils.getAppProperty("/test/node/for/different/schema", "testSchema")
+      == "testNodeForDifferentSchema")
+
+    val workflowName = "batchWorkFlow"
+    val timeStamp = 1000000L
+    val config = ApplicationManager.getConfig()
+
+    assert(WorkflowUtils.getFrameworkProperty(workflowName) == null)
+    ApplicationUtils.updateCurrentWorkflowTime(workflowName, timeStamp, config.zookeeperList)
+
+    assert(WorkflowUtils.getFrameworkProperty(workflowName) == 1000000.toString)
+  }
+
 }

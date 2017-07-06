@@ -24,9 +24,10 @@ import org.slf4j.LoggerFactory
 
 class ValidateDataTypeSuite extends TestSuiteBase  with Serializable  {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
-  val parser = new CSVParser(',')
 
+    val parser = new CSVParser(',')
+
+  val logger = LoggerFactory.getLogger(this.getClass)
   val validatorConfig = ValidationPreparer.getValidationConfig()
 
   val goodRow = "1445263152,61,f1565533d2864e08,\"209.46.48.146\"," +

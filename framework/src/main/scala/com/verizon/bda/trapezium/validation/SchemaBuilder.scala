@@ -15,7 +15,6 @@
 package com.verizon.bda.trapezium.validation
 
 // scalastyle:off
-
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions.asScalaBuffer
@@ -30,10 +29,8 @@ import org.apache.spark.sql.types._
  *
  */
 object SchemaBuilder {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
-  /**
+    /**
    * Checks number of column with number of datatype mentioned in config files
    * @return Boolean
    */

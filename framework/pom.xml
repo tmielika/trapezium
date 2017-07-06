@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.verizon.bda</groupId>
 		<artifactId>trapezium-parent</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.1.0</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
         
@@ -18,9 +18,49 @@
 		<kafka.version>0.8.2.1</kafka.version>
 		<compiler.plugin.version>3.1</compiler.plugin.version>
 		<scoverage.plugin.version>1.0.0</scoverage.plugin.version>
+		<couch.mock.version>1.4.3</couch.mock.version>
 	</properties>
 
+    <profiles>
+        <profile>
+            <id>verizon</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <profile_name>verizon</profile_name>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.verizon.bda</groupId>
+                    <artifactId>license</artifactId>
+                    <version>0.1.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>opensource</id>
+            <properties>
+                <profile_name>opensource</profile_name>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.verizon.bda</groupId>
+                    <artifactId>license</artifactId>
+                    <version>0.0.1-STUB</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
 	<dependencies>
+
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20170516</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -100,6 +140,20 @@
 			<version>2.0.4</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.verizon.bda</groupId>
+			<artifactId>trapezium-couchbase-store</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.verizon.bda</groupId>
+			<artifactId>trapezium-couchbase-store</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 
 	</dependencies>
 

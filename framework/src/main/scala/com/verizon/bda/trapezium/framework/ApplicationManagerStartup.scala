@@ -25,13 +25,10 @@ import org.slf4j.LoggerFactory
  *         debasish83 common getProperties to read Java/Typesafe properties
  */
 trait ApplicationManagerStartup {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   def init(envMgr: String,
            configDirMgr: String,
            persistSchemaMgr: String)
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   def readProperties(configDir: String, propertyFile: String): Properties = {
     val properties = new Properties()
     if (configDir == null) {
