@@ -29,9 +29,8 @@ class AkkaHttpExceptionHandler {
   def handler: ExceptionHandler = ExceptionHandler {
     case ex: Exception =>
       extractUri { uri =>
-        logger.error(s"Request to $uri could not be handled normally",
-          ex.getMessage)
-        complete(HttpResponse(InternalServerError, entity = "Interanl Server Error"))
+        logger.error(s"Request to $uri could not be handled normally", ex.getMessage)
+        complete(HttpResponse(InternalServerError, entity = "Internal Server Error"))
       }
   }
 }
