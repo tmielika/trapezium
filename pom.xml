@@ -18,7 +18,6 @@
     <module>cassandra-dao</module>
     <module>sparkcassandra-connector</module>
     <module>couchbase-store</module>
-    <module>cache</module>
     <module>license-stub</module>
   </modules>
   
