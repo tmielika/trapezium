@@ -76,8 +76,9 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
         val dfMap = FileSourceGenerator.getDFFromStream(row, sc)
         val workflowTime = new Time(System.currentTimeMillis())
         logger.info("Kafka --> on offset" + rdd._2)
-        dataSources.put(workflowTime, (dfMap, "eventType", counter))
         counter = counter + 1
+        dataSources.put(workflowTime, (dfMap, "eventType", counter))
+
       })
     } else {
       logger.info("Kafka --> Data source is empty")
