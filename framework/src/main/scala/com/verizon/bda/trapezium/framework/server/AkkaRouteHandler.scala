@@ -25,7 +25,6 @@ import akka.http.scaladsl.model.{HttpHeader, HttpResponse}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
-import com.verizon.bda.trapezium.framework.server.directives.{CacheHTTPDirectives}
 import com.verizon.bda.trapezium.framework.server.utils.{AkkaRouterStartUp, EndPointUtils}
 import com.verizon.bda.trapezium.framework.utils.ReflectionSupport
 import org.apache.spark.SparkContext
@@ -51,14 +50,7 @@ class AkkaRouteHandler(sc: SparkContext, implicit val as: ActorSystem) extends R
     implicit val materializer = ActorMaterializer()
     pathPrefix(path) {
       handleExceptions(exceptionHandler) {
-        // respondWithHeader(RawHeader("Content-Type", "application/json charset=utf-8")) {
-         CacheHTTPDirectives.bdaCheckCache(endPoint, sc, materializer) {
-          // ctx => ctx.complete("")
-          // the route will be completed by bdaCheckCache directive otherwise we should hand over
-          // to next route.
-          ctx => ctx.reject()
-        }
-        //  }
+        endPoint.route
       }
 
     }
