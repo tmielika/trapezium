@@ -11,48 +11,43 @@ import org.apache.spark.sql.types._
  */
 class DocValueExtractor(leafReaders: Seq[LuceneReader],
                         converter: OLAPConverter) extends Serializable with Logging {
-  val types = converter.types
+  val schema = converter.schema
   val dimensions = converter.dimensions
-  val searchDimensions = converter.searchDimensions
+  val storedDimensions = converter.storedDimensions
+  val measures = converter.measures
   val ser = converter.ser
 
   private val dvMap: Map[String, DocValueAccessor] = if (leafReaders.length > 0) {
-    types.filterNot {
-      case (k, _) => searchDimensions.contains(k)
-    }.map { case (k, v) =>
-      // Dimensions have gone through DictionaryEncoding and uses sortedsetnumeric storage
-      val accessor = if (dimensions.contains(k)) {
-        DocValueAccessor(leafReaders, k, IntegerType, true, ser)
+    val fields = schema.filter(field => !dimensions.contains(field.name))
+    fields.map { case (field) =>
+      val fieldName = field.name
+      val fieldMultiValued = (field.dataType.isInstanceOf[ArrayType])
+      // Dimensions have gone through DictionaryEncoding and uses sorted-setnumeric storage
+      val accessor = if (storedDimensions.contains(fieldName)) {
+        DocValueAccessor(leafReaders, fieldName, IntegerType, true, ser)
       } else {
-        DocValueAccessor(leafReaders, k, v.dataType, v.multiValued, ser)
+        DocValueAccessor(leafReaders, fieldName, field.dataType, fieldMultiValued, ser)
       }
-      (k, accessor)
-    }
+      fieldName -> accessor
+    }.toMap
   } else {
     Map.empty[String, DocValueAccessor]
   }
-  
-  // TODO: Measure can be multi-valued as well. for first iteration of time series
-  // TODO: measures are considered to be single-valued
-  private def extractMeasure(docID: Int, column: String): Any = {
-    assert(!dimensions.contains(column), s"$column is not a measure")
-    val offset = dvMap(column).getOffset(docID)
-    assert(offset == 1, s"measure $column is a multi-value field with offset $offset")
-    dvMap(column).extract(docID, offset - 1)
-  }
 
-  private def extractDimension(docID: Int, column: String): Any = {
-    assert(dimensions.contains(column), s"$column is not a dimension")
+  private def extractStored(docID: Int, column: String): Any = {
     val offset = dvMap(column).getOffset(docID)
+    if (offset <= 0) return null
+    //multi-value dimension/measure
     if (offset > 1) Seq((0 until offset).map(dvMap(column).extract(docID, _)): _*)
-    else dvMap(column).extract(docID, offset - 1)
+    else dvMap(column).extract(docID, 0)
   }
 
+  // only storedDimensions and measures can be extracted
   def extract(columns: Seq[String], docID: Int): Row = {
     if (dvMap.size > 0) {
       val sqlFields = columns.map((column) => {
-        if (converter.dimensions.contains(column)) extractDimension(docID, column)
-        else if (converter.types.contains(column)) extractMeasure(docID, column)
+        if (storedDimensions.contains(column) || measures.contains(column))
+          extractStored(docID, column)
         else throw new LuceneDAOException(s"unsupported ${column} in doc value extraction")
       })
       Row.fromSeq(sqlFields)

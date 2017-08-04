@@ -8,6 +8,9 @@ import org.apache.spark.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
 import java.util.BitSet
+
+import org.apache.spark.sql.catalyst.InternalRow
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -60,8 +63,9 @@ class LuceneShard(reader: IndexReader,
   val qp = new QueryParser("content", analyzer)
 
   // Filter the time column for time series analysis
-  val timeColumns = converter.types.keys.filter { case column =>
-    converter.types(column).dataType == TimestampType
+  // time column should be a measure field
+  val timeColumns = converter.measures.seq.filter { case column =>
+    converter.schema(column).dataType == TimestampType
   }.toSeq
 
   assert(timeColumns.size <= 1, s"more than one timestamp columns not supported")

@@ -9,6 +9,7 @@ import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.index._
 import org.apache.lucene.index.IndexWriterConfig.OpenMode
 import org.apache.lucene.store.MMapDirectory
+import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
@@ -17,12 +18,14 @@ import org.apache.spark.storage.StorageLevel
 import java.sql.Time
 import java.io.File
 import org.apache.spark.util.{DalUtils, RDDUtils}
+import scala.collection.mutable
 import scala.util.Random
+import org.apache.spark.mllib.linalg.Vectors
 
 class LuceneDAO(val location: String,
-                val dimensions: Set[String],
-                val types: Map[String, LuceneType],
-                val searchDimensions: Set[String] = Set.empty,
+                val searchFields: Set[String],
+                val searchAndStoredFields: Set[String],
+                val storedFields: Set[String],
                 storageLevel: StorageLevel = StorageLevel.DISK_ONLY) extends Serializable {
   @transient lazy val log = Logger.getLogger(classOf[LuceneDAO])
   @transient private lazy val analyzer = new KeywordAnalyzer
@@ -32,21 +35,60 @@ class LuceneDAO(val location: String,
 
   val INDEX_PREFIX = "index"
   val DICTIONARY_PREFIX = "dictionary"
+  val SCHEMA_PREFIX = "schema"
 
-  @transient lazy val converter = OLAPConverter(dimensions, searchDimensions, types)
-  @transient private var _dictionary: DictionaryManager = _
+  val converter = OLAPConverter(searchFields, searchAndStoredFields, storedFields)
+  private var _dictionary: DictionaryManager = _
 
-  def encodeDictionary(df: DataFrame): DictionaryManager = {
-    val dm = new DictionaryManager
-    dimensions.foreach(f => {
+  def encodeDictionary(df: DataFrame): LuceneDAO = {
+    if (_dictionary != null) return this
+    _dictionary = new DictionaryManager
+    searchAndStoredFields.foreach(f => {
       val selectedDim =
-        if (types(f).multiValued) df.select(explode(df(f)))
-        else df.select(df(f))
-      // dimension that are null will be filtered out
+        if (df.schema(f).dataType.isInstanceOf[ArrayType]) {
+          df.select(explode(df(f)))
+        } else {
+          df.select(df(f))
+        }
       val filteredDim = selectedDim.rdd.map(_.getAs[String](0)).filter(_ != null)
-      dm.addToDictionary(f, filteredDim)
+      _dictionary.addToDictionary(f, filteredDim)
     })
-    dm
+    this
+  }
+
+  /**
+    * Udf to compute the indices and values for sparse vector.
+    * Here s is storedDimension and m is featureColumns mapped as Array
+    * corresponding to the dimensions. Support measures that are MapType
+    * with keys as the hierarchical dimension
+    */
+  val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
+                               m: mutable.WrappedArray[Map[String, Double]]) =>
+    val indVal = s.zip(m).flatMap { x =>
+      if (x._2 == null)
+        Map[Int, Double]()
+      else {
+        val output: Map[Int, Double] = x._2.map(kv => (_dictionary.indexOf(x._1, kv._1), kv._2))
+        output.filter(_._1 >= 0)
+      }
+    }.sortBy(_._1)
+    Vectors.sparse(_dictionary.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
+  }
+
+  /**
+    * 2 step process to generate feature vectors:
+    * Step 1: Collect all the featureColumns in arrFeatures that
+    * should go into feature vector.
+    * Step 2: Pass arrFeatures and the featureColumns to featureIndexUdf
+    * to generate the vector
+    */
+  def vectorize(df: DataFrame, vectorizedColumn: String,
+                dimension: Seq[String],
+                features: Seq[String]): DataFrame = {
+    val dfWithFeatures = df.withColumn("arrFeatures", array(features.map(df(_)): _*))
+    val vectorized = dfWithFeatures.withColumn(vectorizedColumn,
+      featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures")))
+    vectorized.drop("arrFeatures")
   }
 
   // TODO: If index already exist we have to merge dictionary and update indices
@@ -54,6 +96,7 @@ class LuceneDAO(val location: String,
     val locationPath = location.stripSuffix("/") + "/"
     val indexPath = locationPath + INDEX_PREFIX
     val dictionaryPath = locationPath + DICTIONARY_PREFIX
+    val schemaPath = locationPath + SCHEMA_PREFIX
 
     val path = new HadoopPath(locationPath)
     val conf = new Configuration
@@ -63,10 +106,10 @@ class LuceneDAO(val location: String,
       fs.delete(path, true)
     }
     fs.mkdirs(path)
+    encodeDictionary(dataframe)
 
-    _dictionary = encodeDictionary(dataframe)
-    val dictionaryBr = dataframe.rdd.context.broadcast(_dictionary)
-
+    val sc: SparkContext = dataframe.rdd.sparkContext
+    val dictionaryBr = dataframe.rdd.context.broadcast(dictionary)
     val parallelism = dataframe.rdd.context.defaultParallelism
     val inSchema = dataframe.schema
 
@@ -125,7 +168,9 @@ class LuceneDAO(val location: String,
 
     FileSystem.closeAll()
 
-    _dictionary.save(dictionaryPath)(dataframe.rdd.sparkContext)
+    dictionary.save(dictionaryPath)(sc)
+    // save the schema object
+    sc.parallelize(dataframe.schema, 1).saveAsObjectFile(schemaPath)
 
     log.info("Number of partitions: " + dataframe.rdd.getNumPartitions)
   }
@@ -136,6 +181,13 @@ class LuceneDAO(val location: String,
   def load(sc: SparkContext): Unit = {
     val indexPath = location.stripSuffix("/") + "/" + INDEX_PREFIX
     val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
+    val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
+
+    // load the schema object into RDD
+    val schemaRDD = sc.objectFile(schemaPath).map{x: Any => x.asInstanceOf[StructField]}
+    val schema = StructType(schemaRDD.collect)
+
+    converter.setSchema(schema)
 
     val indexDir = new HadoopPath(indexPath)
     val fs = FileSystem.get(indexDir.toUri, sc.hadoopConfiguration)
@@ -212,9 +264,9 @@ class LuceneDAO(val location: String,
     rows
   }
 
-  // search a query and retrieve for all dimensions + measures
-  def search(queryStr: String, sample: Double = 1.0): RDD[Row] = {
-    search(queryStr, types.keys.toSeq, sample)
+  //search a query and retrieve for all stored fields
+  def search(queryStr: String, sample: Double = 1.0) : RDD[Row] = {
+    search(queryStr, storedFields.toSeq ++ searchAndStoredFields.toSeq, sample)
   }
 
   private val aggFunctions = Set("sum", "count_approx", "count", "sketch")
@@ -366,7 +418,7 @@ class LuceneDAO(val location: String,
   }
 
   def facet(queryStr: String,
-            dimension: String): Map[String, Any] = {
+            dimension: String): Map[String, Long] = {
     if (shards == null) throw new LuceneDAOException(s"timeseries called with null shards")
 
     log.info(s"query ${queryStr} dimension ${dimension}")
@@ -392,9 +444,8 @@ class LuceneDAO(val location: String,
     val facets = results.eval().zipWithIndex
 
     val transformed = facets.map { case (value: Any, index: Int) =>
-      (dictionary.getFeatureName(dimOffset + index), value)
+      (dictionary.getFeatureName(dimOffset + index), value.asInstanceOf[Long])
     }.toMap
-
     transformed
   }
 }
