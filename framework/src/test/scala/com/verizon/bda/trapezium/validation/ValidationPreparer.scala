@@ -46,8 +46,8 @@ object ValidationPreparer extends Serializable {
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflow)
 
     val inputName = "testDataSplitFiles"
-    ValidationConfig.getSplitFile(appConfig, workflowConfig, inputName)
-    //    .asInstanceOf[Config].getConfig("splitfile")
+    ValidationConfig.getGroupFileConf(appConfig, workflowConfig, inputName)
+
 
   }
 

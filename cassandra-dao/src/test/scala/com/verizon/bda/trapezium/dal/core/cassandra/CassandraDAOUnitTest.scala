@@ -20,6 +20,7 @@ import com.verizon.bda.trapezium.dal.core.cassandra.utils.CassandraDAOUtils
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.sql.SQLContext
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import scala.collection.JavaConverters._
@@ -33,9 +34,10 @@ import scala.collection.JavaConverters._
   * extends SparkFunSuite with LocalSparkContext
   */
 class CassandraDAOUnitTest extends CassandraTestSuiteBase {
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   var ipDao: CassandraDAO = null
   var ipDaoTTL: CassandraDAO = null
+
   // TODO: can't seem to set host and other connection info after SparkContext is created
   val conf = new SparkConf().setAppName("CassandraSQL test").setMaster("local[1]").
     set("spark.driver.allowMultipleContexts", "true");
@@ -61,7 +63,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     * keyspaces, column familes and data
     */
   def setupDataInCassandra(): Unit = {
-
+    val logger = LoggerFactory.getLogger(this.getClass)
     try {
 
       executeSetupScript(String.format("CREATE KEYSPACE IF NOT EXISTS %s" +
@@ -88,16 +90,17 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
       ipDao = new CassandraDAO(ListBuffer("localhost"), "netintel", "ipreputation2");
       ipDaoTTL = new CassandraDAO(list, "netintel", "ipreputationTTL"
       );
+
       logger.info("ipDaoTTL = " + ipDaoTTL)
 
 
     }
     catch {
       case e: Exception => {
-        logger.error("exception we got is " , e.getMessage)
+        logger.info("exception we got is " , e.getMessage)
       }
       case err: Throwable => {
-        logger.error("exception we got is " , err.getMessage)
+        logger.info("exception we got is " , err.getMessage)
       }
     }
 
@@ -128,7 +131,6 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     *  It uses selected columns only.
     */
   test("Cassandra IP DAO Read test for selected columns") {
-  // def getColumns(cols: mutable.Buffer[String]): Select = {
     val buf: java.util.List[String] = new java.util.ArrayList[String]()
     buf.add("ipaddress")
     buf.add("color")
@@ -144,8 +146,6 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     // now check few fields to make sure that we have right elements.
     assert(row.getString("color").equals("red"))
     assert(row.getString("notes").equals("Aliens"))
-
-
   }
 
   /**

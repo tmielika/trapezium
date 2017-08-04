@@ -55,9 +55,8 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
     val path1 = "src/test/data/hdfs/source1/"
     val path2 = "src/test/data/hdfs/source2/"
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc, 1)
-    val rddMap = sources.next()
-    val dfMap = sources.next()._2
+    val sources = FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val dfMap = sources(0)._2._1
     assert(2 == dfMap.size)
     assert(dfMap.contains("source1"))
     assert(dfMap.contains("source2"))
@@ -100,8 +99,8 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
       fs.setTimes(new Path(destFile), MTIME, 1)
     }}
 
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc, 1)
-    val rddMap = sources.next()._2
+    val sources = FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val rddMap = sources(0)._2._1
 
     assert(1 == rddMap.size)
     assert(5 == rddMap("testDataInsideDirs").count)
@@ -109,29 +108,16 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
     fs.delete(new Path(tempDir), true)
   }
 
-  test("filesRDD method should return a null map when no files exist when reading list of files") {
+  test("filesRDD method should return a empty map when no files exist when reading list of files") {
 
     val workflowConfig = ApplicationManager.setWorkflowConfig("testWorkFlow1")
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
 
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc, 1)
-    val rddMap = sources.next()._2
+    val sources = new FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val rddMap = sources(0)._2._1
 
     assert(0 == rddMap.size)
     assert(!rddMap.contains("zeroFiles"))
-  }
-
-  test("Test onlydir = true with  numberofItr specified") {
-
-    val workflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
-    val Itr = 2
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc, Itr)
-    var outPutItr = 1
-    while (sources.hasNext()) {
-      sources.next()
-      outPutItr += 1
-    }
-    assert(Itr == outPutItr)
   }
 
 }

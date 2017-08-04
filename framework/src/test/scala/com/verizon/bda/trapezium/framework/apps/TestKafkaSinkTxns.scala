@@ -33,10 +33,8 @@ import org.slf4j.LoggerFactory
   * TestKafkaSinkTxn1 writes a DStream into a Kafka topic
   */
 object TestKafkaSinkTxn1 extends StreamingTransaction {
-
-  val logger = LoggerFactory.getLogger(this.getClass)
   var batchID = 0
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   override def preprocess(sc: SparkContext): Unit = {
     logger.info("Inside preprocess of TestKafkaSinkTxn1")
   }
@@ -72,7 +70,6 @@ object TestKafkaSinkTxn1 extends StreamingTransaction {
   * TestKafkaSinkTxn2 reads from the Kafka topic previously written
   */
 object TestKafkaSinkTxn2 extends StreamingTransaction {
-
   val logger = LoggerFactory.getLogger(this.getClass)
   override def processStream(dStreams: Map[String, DStream[Row]],
                              batchtime: Time): DStream[Row] = {

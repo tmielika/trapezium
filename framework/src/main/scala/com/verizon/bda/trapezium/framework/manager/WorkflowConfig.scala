@@ -27,15 +27,15 @@ import scala.collection.JavaConverters.asScalaBufferConverter
  */
 class WorkflowConfig
 (val workflow: String) extends Serializable{
-
   val logger = LoggerFactory.getLogger(this.getClass)
+
+
   val workflowConfig: Config = {
 
     val appConfig = ApplicationManager.getConfig()
 
     logger.info(s"Config directory is ${appConfig.configDir}")
     if (appConfig.configDir != null) {
-
       val workflowConfigFilePath = s"${appConfig.configDir}/${workflow}.conf"
       val workflowConfigFile: File = new File(workflowConfigFilePath)
       ConfigFactory.parseFile(workflowConfigFile)
@@ -45,142 +45,153 @@ class WorkflowConfig
   }.resolve()
 
   lazy val runMode = workflowConfig.getString("runMode")
+  lazy val singleRun =
+     {
+      if (workflowConfig.hasPath("singleRun")) {
+        workflowConfig.getString("singleRun").toBoolean
+      } else {
+        false
+      }
+     }
+
 
   lazy val dataSource =
-    try {
+        try {
 
-      workflowConfig.getString("dataSource")
-    } catch {
-      case ex: Throwable =>
+          workflowConfig.getString("dataSource")
+        } catch {
+          case ex: Throwable =>
 
-        logger.error("Invalid config file", s"dataSource must be present")
-        throw ex
-    }
-
-  lazy val syncWorkflow =
-    try {
-      workflowConfig.getString("syncWorkflow")
-    } catch {
-      case ex: Throwable => {
-        logger.warn(s"Config property dependentWorkflow not defined." +
-          s" This means ${workflow} does not depend on any other workflow.")
-        null
-      }
-    }
-
-  lazy val dependentWorkflows =
-    try {
-      workflowConfig.getConfig("dependentWorkflows").getStringList("workflows")
-    } catch {
-      case ex: Throwable => {
-        logger.warn(s"Config property dependentWorkflows not defined." +
-          s" This means ${workflow} does not depend on any other workflow.")
-        null
-      }
-    }
-
-
-  lazy val dependentFrequencyToCheck =
-    try {
-      workflowConfig.getConfig("dependentWorkflows").getLong("frequencyToCheck")
-    } catch {
-      case ex: Throwable => {
-        logger.warn(s"Config property frequencyToCheck not defined." +
-          s" This means ${workflow} does not depend on any other workflow.")
-        60000L
-      }
-    }
-
-  lazy val transactions =
-    try {
-      workflowConfig.getConfigList("transactions")
-    } catch {
-      case ex: Throwable =>
-
-        logger.error("Invalid config file",
-          s"At least one transaction must be specified for ${workflow}")
-        throw ex
-    }
-
-  lazy val hdfsStream =
-    try {
-      workflowConfig.getConfig("hdfsStream")
-    } catch {
-      case ex: Throwable =>
-        runMode match {
-          case "STREAM" => {
-            logger.error("Invalid config file", s"hdfsStream must be present for $runMode")
+            logger.error("Invalid config file", s"dataSource must be present")
             throw ex
-          }
-          case _ => {
+        }
 
-            logger.warn("Missing entry in config file",
-              s"hdfsStream is not present. Ignoring as it is not required in $runMode")
+      lazy val syncWorkflow =
+        try {
+          workflowConfig.getString("syncWorkflow")
+        } catch {
+          case ex: Throwable => {
+            logger.warn(s"Config property dependentWorkflow not defined." +
+              s" This means ${workflow} does not depend on any other workflow.")
+            null
           }
         }
-    }
 
-  lazy val kafkaTopicInfo =
-    try {
-      workflowConfig.getConfig("kafkaTopicInfo")
-    } catch {
-      case ex: Throwable =>
-        dataSource match {
-          case "KAFKA" => {
+      lazy val dependentWorkflows =
+        try {
+          workflowConfig.getConfig("dependentWorkflows").getStringList("workflows")
+        } catch {
+          case ex: Throwable => {
+            logger.warn(s"Config property dependentWorkflows not defined." +
+              s" This means ${workflow} does not depend on any other workflow.")
+            null
+          }
+        }
+
+
+      lazy val dependentFrequencyToCheck =
+        try {
+          workflowConfig.getConfig("dependentWorkflows").getLong("frequencyToCheck")
+        } catch {
+          case ex: Throwable => {
+            logger.warn(s"Config property frequencyToCheck not defined." +
+              s" This means ${workflow} does not depend on any other workflow.")
+            60000L
+          }
+        }
+
+      lazy val transactions =
+        try {
+          workflowConfig.getConfigList("transactions")
+        } catch {
+          case ex: Throwable =>
+
             logger.error("Invalid config file",
-              s"kafkaTopicInfo must be present for $dataSource")
+              s"At least one transaction must be specified for ${workflow}")
             throw ex
-          }
-          case _ => {
+        }
 
+      lazy val hdfsStream =
+        try {
+          workflowConfig.getConfig("hdfsStream")
+        } catch {
+          case ex: Throwable =>
+            runMode match {
+              case "STREAM" => {
+                logger.error("Invalid config file", s"hdfsStream must be present for $runMode")
+                throw ex
+              }
+              case _ => {
+
+                logger.warn("Missing entry in config file",
+                  s"hdfsStream is not present. Ignoring as it is not required in $runMode")
+              }
+            }
+        }
+
+      lazy val kafkaTopicInfo =
+        try {
+          workflowConfig.getConfig("kafkaTopicInfo")
+        } catch {
+          case ex: Throwable =>
+            dataSource match {
+              case "KAFKA" => {
+                logger.error("Invalid config file",
+                  s"kafkaTopicInfo must be present for $dataSource")
+                throw ex
+              }
+              case _ => {
+
+                logger.warn("Missing entry in config file",
+                  s"kafkaTopicInfo is not present. " +
+                    s"Ignoring as it is not required for ${dataSource}")
+              }
+            }
+        }
+
+      lazy val hdfsFileBatch =
+        try {
+          workflowConfig.getConfig("hdfsFileBatch")
+        } catch {
+          case ex: Throwable => {
             logger.warn("Missing entry in config file",
-              s"kafkaTopicInfo is not present. Ignoring as it is not required for ${dataSource}")
+              s"hdfsFileBatch is not present.")
           }
         }
-    }
 
-  lazy val hdfsFileBatch =
-    try {
-      workflowConfig.getConfig("hdfsFileBatch")
-    } catch {
-      case ex: Throwable => {
-        logger.warn("Missing entry in config file",
-          s"hdfsFileBatch is not present.")
-      }
-    }
-
-  lazy val httpServer =
-    try {
-      workflowConfig.getConfig("httpServer")
-    } catch {
-      case ex: Throwable => {
-        logger.warn("Missing entry in config file",
-          s"httpServer is not present.")
-        null
-      }
-    }
-
-  def fileFormat(inputName: String): String = {
-    var fileFormat = "text"
-    try {
-      val batchInfoList: ConfigList = hdfsFileBatch.asInstanceOf[Config].getList("batchInfo")
-      batchInfoList.asScala.foreach { batchConfig =>
-        val batchData = batchConfig.asInstanceOf[ConfigObject].toConfig
-        val name = batchData.getString("name")
-
-        if(name.equals(inputName)){
-
-          fileFormat = batchData.getString("fileFormat")
+      lazy val httpServer =
+        try {
+          workflowConfig.getConfig("httpServer")
+        } catch {
+          case ex: Throwable => {
+            logger.warn("Missing entry in config file",
+              s"httpServer is not present.")
+            null
+          }
         }
+
+      def fileFormat(inputName: String): String = {
+        var fileFormat = "text"
+        try {
+          val batchInfoList: ConfigList = hdfsFileBatch.asInstanceOf[Config].getList("batchInfo")
+          batchInfoList.asScala.foreach { batchConfig =>
+            val batchData = batchConfig.asInstanceOf[ConfigObject].toConfig
+            val name = batchData.getString("name")
+
+            if(name.equals(inputName)){
+
+              fileFormat = batchData.getString("fileFormat")
+            }
+          }
+        } catch {
+
+          case ex: Throwable => {
+
+            logger.warn(s"No file format present. Using default text")
+
+          }
+        }
+        fileFormat
       }
-    } catch {
 
-      case ex: Throwable => {
-
-        logger.warn(s"No file format present. Using default text")
-
-      }
-    }
-    fileFormat
-  }
 }

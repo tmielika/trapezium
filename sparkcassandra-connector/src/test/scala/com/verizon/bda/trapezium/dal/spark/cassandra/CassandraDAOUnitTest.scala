@@ -18,6 +18,7 @@ import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.{SparkConf, SparkContext}
+import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
 import com.verizon.bda.trapezium.dal.core.cassandra.CassandraTestSuiteBase
 
@@ -30,15 +31,10 @@ import com.verizon.bda.trapezium.dal.core.cassandra.CassandraTestSuiteBase
   * with tables in netintel keyspace.
   */
 class CassandraDAOUnitTest extends CassandraTestSuiteBase {
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   var ipDao: CassandraDAO = null
-  // TODO: can't seem to set host and other connection info after SparkContext is created
-  val conf = new SparkConf().setAppName("CassandraSQL test").setMaster("local[1]")
-    .set("spark.cassandra.connection.host", "localhost")
-    .set("spark.driver.allowMultipleContexts", "true")
-
-  implicit val sc = new SparkContext(conf)
-  implicit var sqlContext: CassandraSQLContext = new CassandraSQLContext(sc)
+  implicit var sc: SparkContext = _
+  implicit var sqlContext: CassandraSQLContext = _
 
   val daoTestSchema = StructType(
     Seq(StructField("ipaddress", LongType, true),
@@ -49,11 +45,25 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
       StructField("processdate", DateType, true),
       StructField("notes", StringType, true)));
 
-  val cassandraDAOUtils: CassandraDAOUtils = new CassandraDAOUtils(
-    List("localhost"), "netintel", "ipreputation2", sqlContext);
+  var cassandraDAOUtils: CassandraDAOUtils = _
 
   override def beforeAll() {
     super.beforeAll()
+
+    val port = System.getProperty("cassandra.native_transport_port")
+
+    // TODO: can't seem to set host and other connection info after SparkContext is created
+    val conf = new SparkConf().setAppName("CassandraSQL test").setMaster("local[1]")
+      .set("spark.cassandra.connection.host", "localhost")
+      .set("spark.cassandra.connection.port", port)
+      .set("spark.driver.allowMultipleContexts", "true")
+
+    sc = new SparkContext(conf)
+    sqlContext = new CassandraSQLContext(sc)
+
+    cassandraDAOUtils = new CassandraDAOUtils(
+      List("localhost"), "netintel", "ipreputation2", sqlContext);
+
     setupDataInCassandra();
   }
 

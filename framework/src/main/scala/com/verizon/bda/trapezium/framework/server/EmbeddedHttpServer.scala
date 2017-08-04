@@ -14,14 +14,16 @@
 */
 package com.verizon.bda.trapezium.framework.server
 
+import java.net.ServerSocket
 import javax.servlet.http.HttpServlet
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigObject}
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import org.apache.spark.SparkContext
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
@@ -36,6 +38,26 @@ import scala.concurrent.Future
   * Created by Jegan on 5/20/16.
   */
 sealed trait EmbeddedHttpServer {
+  val logger = LoggerFactory.getLogger(this.getClass)
+  // exposed
+  private var bindPort: Int = _
+
+  def getBindPort(): Int = {
+    bindPort
+  }
+
+  def setBindPort (port: Int): Unit = {
+
+    if (bindPort == 0) {
+
+      logger.info(s"bind port set to $bindPort")
+      bindPort = port
+    } else {
+
+      logger.warn(s"You can't set bind port again.")
+
+    }
+  }
 
   def init(config: Config)
 
@@ -46,7 +68,6 @@ sealed trait EmbeddedHttpServer {
 
 class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
 
-  val logger = LoggerFactory.getLogger(this.getClass)
   implicit lazy val actorSystem = ActorSystem("AkkaHttpServer")
   implicit lazy val materializer = ActorMaterializer()
 
@@ -58,6 +79,8 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
   // TODO: Do we need to load this class from config so verticals can define their own handlers?
   val exceptionHandler = AkkaHttpExceptionHandler.handler
 
+
+  // scalastyle:on
   override def init(config: Config): Unit = {
     val routeHandler = new AkkaRouteHandler(sc, actorSystem)
     config.getList("endPoints").asScala.foreach(ep => {
@@ -65,19 +88,39 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
       val path = config.getString("path")
       val className = config.getString("className")
       logger.debug(s"Loading the endpoint $className")
+      // for every path we need to define  a catchable get and set route.
+      // The first route is get and second is set
       val route = routeHandler.defineRoute(path, className)
       routes += route
+
     })
   }
 
   override def start(config: Config): Unit = {
     val host = config.getString("hostname")
-    val port = config.getInt("port")
+
+    val localBindPort =
+    // for local as well as jenkins build
+      if (ApplicationUtils.env == "local" ){
+
+        val socket = new ServerSocket(0)
+        val tempPort = socket.getLocalPort
+
+        // closing the socket
+        socket.close()
+
+        tempPort
+      } else {
+
+        config.getInt("port")
+      }
+    logger.info(s"bind port $localBindPort")
+    setBindPort(localBindPort)
 
     // Compose all routes defined by the verticals.
     val route = compose(routes.toList)
 
-    bindingFuture = Http().bindAndHandle(route, host, port)
+    bindingFuture = Http().bindAndHandle(route, host, localBindPort)
   }
 
   override def stop(stopSparkContext: Boolean = false): Unit = {
@@ -87,7 +130,6 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
 
     bindingFuture.flatMap(_.unbind())
       .onComplete(_ => actorSystem.shutdown())
-
   }
 
   def compose(routes: List[Route]): Route = routes.reduce((r1, r2) => r1 ~ r2)
@@ -100,7 +142,26 @@ class JettyServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHt
   override def init(config: Config): Unit = {
     val context = new ServletContextHandler(ServletContextHandler.SESSIONS)
     context.setContextPath(serverConfig.getString("contextPath"))
-    server = new Server(serverConfig.getInt("port"))
+
+    val localBindPort =
+      // for local as well as jenkins build
+      if (ApplicationUtils.env == "local" ){
+
+        val socket = new ServerSocket(0)
+        val tempPort = socket.getLocalPort
+
+        // closing the socket
+
+        socket.close()
+        tempPort
+      } else {
+
+        serverConfig.getInt("port")
+      }
+    logger.info(s"bind port $localBindPort")
+
+    setBindPort(localBindPort)
+    server = new Server(localBindPort)
 
     server.setHandler(context)
 
@@ -125,8 +186,8 @@ class JettyServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHt
     if ( stopSparkContext && !sc.isStopped ){
       sc.stop
     }
-    server.stop()
 
+    server.stop()
   }
 }
 

@@ -20,14 +20,13 @@ import org.apache.spark.sql.{Row, DataFrame}
 import org.apache.spark.sql.SQLContext
 import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
+
 /**
   * Created by v468328 on 2/29/16.
   */
 class CassandraDAOUtils(val hostList: ListBuffer[String],
                         val schmea: String, val table: String) extends Serializable {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   val daoTestSchema = StructType(
     Seq(StructField("ipaddress", LongType, true),
       StructField("processdate", DateType, true),
@@ -78,7 +77,7 @@ class CassandraDAOUtils(val hostList: ListBuffer[String],
   }
 
   def persistRecords(rowWalker: Iterator[Row]): Unit = {
-
+    val logger = LoggerFactory.getLogger(this.getClass)
     logger.info("reached inside persist record ")
     val basicDAO = new CassandraDAO(hostList, schmea, table);
     logger.info("reached inside persist record after creating DAO")
@@ -101,7 +100,7 @@ class CassandraDAOUtils(val hostList: ListBuffer[String],
     map.put("ttl", ttl.asInstanceOf[Integer])
     val cassandraConfig: CassandraConfig = new CassandraConfig(map);
 
-    val basicDAO = new CassandraDAO(hostList, schmea, table, cassandraConfig);
+    val basicDAO = new CassandraDAO(hostList, schmea, table, true, cassandraConfig);
     logger.info("reached inside persist record after creating DAO")
     val rowListWalker: Iterator[List[Object]] = rowWalker.map(x => transformToList(x));
 

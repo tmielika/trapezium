@@ -38,6 +38,7 @@ class HdfsDStreamSuite extends FunSuite with BeforeAndAfterAll { self: Suite =>
     val checkPointDirectory = workflowConfig.hdfsStream.asInstanceOf[Config]
       .getString("checkpointDirectory")
     ssc = HdfsDStream.createStreamingContext(0, checkPointDirectory, sparkConf)
+    ApplicationManager.setHadoopConf(ssc.sparkContext, appConfig)
   }
 
   override def afterAll() {
@@ -54,5 +55,9 @@ class HdfsDStreamSuite extends FunSuite with BeforeAndAfterAll { self: Suite =>
   test("Create DStream Test") {
     val dStreams = HdfsDStream.createDStreams(ssc)
     assert(dStreams("hdfsStream") != null)
+  }
+
+  test("Setting Hadoop Conf in Streaming Mode Test") {
+    assert(ssc.sparkContext.hadoopConfiguration.get("parquet.enable.summary-metadata") == "false")
   }
 }

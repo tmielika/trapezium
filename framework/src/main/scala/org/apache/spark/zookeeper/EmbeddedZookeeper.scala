@@ -14,7 +14,8 @@
 */
 package org.apache.spark.zookeeper
 
-import java.net.InetSocketAddress
+import java.net.{ServerSocket, InetSocketAddress}
+import com.verizon.bda.trapezium.framework.ApplicationManager
 import org.apache.spark.util.Utils
 import org.apache.zookeeper.server.{NIOServerCnxnFactory, ZooKeeperServer}
 import scala.util.Random
@@ -29,11 +30,24 @@ class EmbeddedZookeeper(val zkConnect: String) {
   val logDir = Utils.createTempDir()
 
   val zookeeper = new ZooKeeperServer(snapshotDir, logDir, 500)
-  val (ip, port) = {
-    val splits = zkConnect.split(":")
-    (splits(0), splits(1).toInt)
-  }
+
+  val splits = zkConnect.split(":")
+  val ip = splits(0)
+  var port = splits(1).toInt
+
   val factory = new NIOServerCnxnFactory()
+
+  // for local as well as jenkins build
+  if (ApplicationManager.getConfig().env == "local" ) {
+
+    val socket = new ServerSocket(0)
+    port = socket.getLocalPort
+
+    // closing the socket
+    socket.close()
+    EmbeddedZookeeper.zkConnectString = s"$ip:$port"
+  }
+
   factory.configure(new InetSocketAddress(ip, port), 16)
   factory.startup(zookeeper)
 
@@ -44,5 +58,10 @@ class EmbeddedZookeeper(val zkConnect: String) {
     Utils.deleteRecursively(snapshotDir)
     Utils.deleteRecursively(logDir)
   }
+}
+
+object EmbeddedZookeeper {
+
+  var zkConnectString: String = _
 }
 

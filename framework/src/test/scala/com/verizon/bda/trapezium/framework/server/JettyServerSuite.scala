@@ -27,9 +27,7 @@ import org.slf4j.LoggerFactory
  * Created by Pankaj on 5/3/16.
  */
 class JettyServerSuite extends FunSuite with BeforeAndAfter {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   var appConfig: ApplicationConfig = _
   var zk: EmbeddedZookeeper = null
 
@@ -55,7 +53,7 @@ class JettyServerSuite extends FunSuite with BeforeAndAfter {
     if( ApplicationManager.getEmbeddedServer != null) {
 
       logger.info(s"Stopping embedded server")
-      ApplicationManager.getEmbeddedServer.stop()
+      ApplicationManager.getEmbeddedServer.stop(true)
     }
   }
 
@@ -65,13 +63,24 @@ class JettyServerSuite extends FunSuite with BeforeAndAfter {
     ApplicationManager.main(args)
 
     val client = new HttpClient
-    val method1 = new PostMethod("http://localhost:8090/1")
-    val method2 = new PostMethod("http://localhost:8090/2")
+
+    val port = ApplicationManager.getEmbeddedServer.getBindPort
+    val method1 = new PostMethod(s"http://localhost:${port}/1")
+    val method2 = new PostMethod(s"http://localhost:${port}/2")
 
     client.executeMethod(method1)
     assert(method1.getResponseBodyAsString.contains("Servlet 1"))
 
     client.executeMethod(method2)
     assert(method2.getResponseBodyAsString.contains("Servlet 2"))
+  }
+
+  test("setBindPort tests"){
+
+    val port = ApplicationManager.getEmbeddedServer.getBindPort
+
+    ApplicationManager.getEmbeddedServer.setBindPort(port + 1)
+
+    assert(port == ApplicationManager.getEmbeddedServer.getBindPort )
   }
 }
