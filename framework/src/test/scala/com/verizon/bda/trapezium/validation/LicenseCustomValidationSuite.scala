@@ -3,7 +3,10 @@ package com.verizon.bda.trapezium.validation
 import java.io.IOException
 
 import com.verizon.bda.license._
+import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import org.apache.spark.streaming.TestSuiteBase
+import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.apache.zookeeper.ZooDefs.Ids
 import org.apache.zookeeper.ZooKeeper.States
 import org.apache.zookeeper.{CreateMode, KeeperException, ZooKeeper}
@@ -13,6 +16,12 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
 
   val logger = LoggerFactory.getLogger(this.getClass)
   var zk: ZooKeeper = null
+  var appConfig: ApplicationConfig = _
+
+  override def beforeAll() {
+    super.beforeAll()
+    appConfig = ApplicationManager.getConfig()
+  }
 
   def hexStringToByteArray(s: String): Array[Byte] = {
     var len = s.length
@@ -41,10 +50,17 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
       "c698177018b0df68dd867ebc5e0554fd53ea47d34b3d5054d22ef06b8e063692d4d5ab26e92f48bd39f0fa23f2"
 
     var b = hexStringToByteArray(sampleLicense)
-    val zk = connectToZk("127.0.0.1:2181")
+    val zk = connectToZk(appConfig.zookeeperList)
 
     try {
       zk.delete("/bda/licenses/api", 0)
+    }
+    catch {
+      case ex: KeeperException =>
+        logger.error("Directory is not presented ", ex)
+    }
+
+    try {
       zk.delete("/bda/licenses/platform", 0)
     }
     catch {
@@ -52,10 +68,12 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
         logger.error("Directory is not presented ", ex)
     }
 
+    // zk.create("/bda", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+    // zk.create("/bda/licenses", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
     zk.create("/bda/licenses/platform", b, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
     zk.create("/bda/licenses/api", b, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
 
-    LicenseLib.init("127.0.0.1:2181")
+    LicenseLib.init(appConfig.zookeeperList)
 
     val platform = LicenseLib.isValid(LicenseType.PLATFORM)
     val api = LicenseLib.isValid(LicenseType.API)
@@ -81,10 +99,17 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
            false for license validity checks
          */
 
-    val zk = connectToZk("127.0.0.1:2181")
+    val zk = connectToZk(appConfig.zookeeperList)
 
     try {
       zk.delete("/bda/licenses/api", 0)
+    }
+    catch {
+      case ex: KeeperException =>
+        logger.error("Directory is not presented ", ex)
+    }
+
+    try {
       zk.delete("/bda/licenses/platform", 0)
     }
     catch {
@@ -92,7 +117,7 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
         logger.error("Directory is not presented ", ex)
     }
 
-    LicenseLib.init("127.0.0.1:2181")
+    LicenseLib.init(appConfig.zookeeperList)
 
     val platform = LicenseLib.isValid(LicenseType.PLATFORM)
     val api = LicenseLib.isValid(LicenseType.API)
@@ -109,7 +134,7 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
     val ZkConnectTimeout: Int = 6000
     try {
         if (zk == null) {
-          zk = new ZooKeeper("127.0.0.1:2181", ZkConnectTimeout, new ZookeeperWatcher)
+          zk = new ZooKeeper(zkServers, ZkConnectTimeout, new ZookeeperWatcher)
         }
         if (zk == null) {
           logger.error("Failed to connect to Zookeeper at " + zkServers, "")
@@ -122,7 +147,7 @@ class LicenseCustomValidationSuite extends TestSuiteBase {
       while ( {
         !(zk.getState == States.CONNECTED)
       }) {
-        print("Connecting to Zookeeper...")
+        logger.info("Connecting to Zookeeper...")
         try
           Thread.sleep(1000L)
         catch {
