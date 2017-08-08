@@ -48,8 +48,11 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   val simpleFormat = new SimpleDateFormat("yyyy-MM-dd")
   val logger = LoggerFactory.getLogger(this.getClass)
   override def run(): Unit = {
+    val startTime = System.currentTimeMillis()
+    var endTime :Long= System.currentTimeMillis() // Overriding
     try {
       logger.info("workflow name" + workFlowConfig.workflow)
+
       // Check if license is valid
       ApplicationManager.validateLicense()
 
@@ -62,6 +65,8 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
           logger.info(s"Running BatchHandler in mode: $batchMode")
           handleWorkFlow
           stopContext
+          endTime = System.currentTimeMillis()
+          printLogger(startTime, endTime)
           logger.info(s"batch completed for this run.")
           }
           case _ => {
@@ -73,9 +78,49 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       case e: Throwable =>
         e.printStackTrace()
         logger.error(s"Error in running the workflow", e.getMessage)
+        printLoggerError(startTime, endTime)
         notifyError(e)
     }
   }
+
+
+  def printLogger(startTime:Long, endTime : Long): Unit ={
+    commonStatus(startTime,endTime)
+    logger.info(s" Job Summary Status : Passed" )
+    val hdfsBatchConfig = workFlowConfig.hdfsFileBatch.asInstanceOf[Config]
+    val batchInfoList = hdfsBatchConfig.getList("batchInfo")
+    batchInfoList.asScala.foreach { batchConfig =>
+      val batchData: Config = batchConfig.asInstanceOf[ConfigObject].toConfig
+      val name = batchData.getString("name")
+      val dataDir = FileSourceGenerator.getDataDir(appConfig, batchData)
+      logger.info(s" Job Summary File Source name : $name" )
+      logger.info(s" Job Summary File Source path : $dataDir" )
+    }
+
+  }
+
+
+  def commonStatus(startTime:Long, endTime : Long) : Unit ={
+
+    logger.info(s" Job Summary Workflow Name : ${workFlowConfig.workflow}" )
+    logger.info(s" Job Summary AppName : ${appConfig.appName}" )
+    logger.info(s" Job Summary Job_Date : ${new Date(System.currentTimeMillis())}" )
+    logger.info(s" Job Summary Start Time : ${startTime}" )
+    logger.info(s" Job Summary End Time : ${endTime}" )
+    val diff = endTime - startTime
+    val diffSeconds = diff / 1000 % 60;
+    val diffMinutes = diff / (60 * 1000) % 60;
+    val diffhours = diff / (60 * 60 * 1000) % 60;
+    logger.info(s" Job Summary Duration : $diffhours:$diffMinutes:$diffSeconds")
+    logger.info(s" Job Summary Duration : $diffhours:$diffMinutes:$diffSeconds")
+  }
+
+
+  def printLoggerError(startTime:Long, endTime : Long) : Unit ={
+    commonStatus(startTime, endTime)
+    logger.info(s" Job Summary Status : failed" )
+  }
+
 
   def createContext : SparkContext = {
     logger.info("getting context")
