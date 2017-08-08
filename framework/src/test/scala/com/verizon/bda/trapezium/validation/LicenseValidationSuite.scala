@@ -1,4 +1,4 @@
-package com.verizon.bda.trapezium.validation
+package com.verizon.bda.trapezium.framework
 
 import java.io.IOException
 
@@ -13,6 +13,7 @@ import org.apache.zookeeper.{CreateMode, ZooKeeper}
 import org.slf4j.LoggerFactory
 import org.apache.zookeeper.KeeperException
 import com.verizon.bda.license.ZookeeperClient
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 
 class LicenseValidationSuite extends TestSuiteBase {
@@ -56,35 +57,12 @@ class LicenseValidationSuite extends TestSuiteBase {
 
     val zk1 = connectToZk("localhost:" + port)
 
-    try
-      zk1.delete("/bda/licenses/platform/orion_customer1", 0)
-    catch {
-      case e: KeeperException =>
-        logger.error("Directory is not presented ", e)
-    }
+    val zkPath: String = "/bda/licenses/platform/orion_customer1"
+    ApplicationUtils.checkPath(zk1, zkPath)
 
-    try
-      zk1.create("/bda", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    catch {
-      case e: KeeperException =>
-        logger.error("Directory already presented /bda ", e)
-    }
-    try
-      zk1.create("/bda/licenses", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    catch {
-      case e: KeeperException =>
-        logger.error("Directory already presented /bda/licenses ", e)
-    }
-    try
-      zk1.create("/bda/licenses/platform", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    catch {
-      case e: KeeperException =>
-        logger.error("Directory already presented /bda/licenses/platform ", e)
-    }
-    try
-      zk1.create("/bda/licenses/platform/orion_customer1", b,
-        Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    catch {
+    try {
+      zk1.setData(zkPath, b, -1)
+    } catch {
       case e: KeeperException =>
         logger.error("Directory is not presented ", e)
     }
