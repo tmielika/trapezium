@@ -3,11 +3,7 @@ package com.verizon.bda.trapezium.framework
 import java.io.IOException
 
 import com.verizon.bda.license._
-import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.ApplicationManager.{appConfig, validLicense}
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
-import org.apache.spark.streaming.TestSuiteBase
-import org.apache.zookeeper.ZooDefs.Ids
 import org.apache.zookeeper.ZooKeeper.States
 import org.apache.zookeeper.{CreateMode, ZooKeeper}
 import org.slf4j.LoggerFactory
@@ -15,8 +11,9 @@ import org.apache.zookeeper.KeeperException
 import com.verizon.bda.license.ZookeeperClient
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
+import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
-class LicenseValidationSuite extends TestSuiteBase {
+class LicenseValidationSuite extends FunSuite with BeforeAndAfterAll {
 
   val logger = LoggerFactory.getLogger(this.getClass)
 
@@ -25,7 +22,6 @@ class LicenseValidationSuite extends TestSuiteBase {
   var zookeeperClient : ZookeeperClient = _
 
   override def beforeAll() {
-    super.beforeAll()
     appConfig = ApplicationManager.getConfig()
     zookeeperClient = new ZookeeperClient("localhost:2181")
   }
@@ -55,9 +51,10 @@ class LicenseValidationSuite extends TestSuiteBase {
 
     val port = zookeeperClient.getDynamicPort
 
-    val zk1 = connectToZk("localhost:" + port)
+    val zk1 = zookeeperClient.connect("localhost:" + port)
 
     val zkPath: String = "/bda/licenses/platform/orion_customer1"
+
     ApplicationUtils.checkPath(zk1, zkPath)
 
     try {
@@ -72,36 +69,6 @@ class LicenseValidationSuite extends TestSuiteBase {
     val validLicense = LicenseLib.isValid(LicenseType.PLATFORM)
     logger.info("validLicense =" + validLicense)
     assert(validLicense == true)
-  }
-
-  def connectToZk(zkServers: String) : ZooKeeper = {
-    val ZkConnectTimeout: Int = 2400000
-    try {
-      if (zk == null) {
-        zk = new ZooKeeper(zkServers, ZkConnectTimeout, new ZookeeperWatcher)
-      }
-      if (zk == null) {
-        logger.error("Failed to connect to Zookeeper at " + zkServers, "")
-      }
-    } catch {
-      case var3: IOException =>
-        logger.error("Failed to connect to Zookeeper", var3.getStackTrace)
-        throw new LicenseException("Failed to connect to Zookeeper")
-    }
-    while ( {
-      !(zk.getState == States.CONNECTED)
-    }) {
-      logger.info("Connecting to Zookeeper...")
-      try
-        Thread.sleep(1000L)
-      catch {
-        case var2: InterruptedException =>
-          logger.error("Interrupted while waiting to connect to Zookeeper", var2.getStackTrace)
-          throw new LicenseException("Unable to connect to Zookeeper")
-      }
-    }
-    logger.info("Connected to Zookeeper")
-    zk
   }
 
   override def afterAll() {
