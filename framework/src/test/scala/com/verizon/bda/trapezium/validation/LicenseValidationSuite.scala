@@ -53,7 +53,7 @@ class LicenseValidationSuite extends FunSuite with BeforeAndAfterAll {
 
     val zk1 = zookeeperClient.connect("localhost:" + port)
 
-    val zkPath: String = "/bda/licenses/platform/orion_customer1"
+    val zkPath: String = "/bda/licenses/platform/local"
 
     ApplicationUtils.checkPath(zk1, zkPath)
 
