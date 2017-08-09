@@ -10,7 +10,7 @@
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 
-    <artifactId>license</artifactId>
+    <artifactId>trapezium-license</artifactId>
     <packaging>jar</packaging>
     <name>License Library Stub</name>
         

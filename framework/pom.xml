@@ -34,7 +34,7 @@
                 <dependency>
                     <groupId>com.verizon.bda</groupId>
                     <artifactId>license</artifactId>
-					<version>${trapezium.version}</version>
+                    <version>0.1.0</version>
                 </dependency>
             </dependencies>
         </profile>
@@ -47,7 +47,7 @@
                 <dependency>
                     <groupId>com.verizon.bda</groupId>
                     <artifactId>license</artifactId>
-					<version>${trapezium.version}</version>
+                    <version>0.0.1-STUB</version>
                 </dependency>
             </dependencies>
         </profile>

@@ -49,7 +49,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   val logger = LoggerFactory.getLogger(this.getClass)
   override def run(): Unit = {
     val startTime = System.currentTimeMillis()
-    var endTime :Long= System.currentTimeMillis() // Overriding
+    var endTime : Long = System.currentTimeMillis() // Overriding
     try {
       logger.info("workflow name" + workFlowConfig.workflow)
 
@@ -84,8 +84,8 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
 
-  def printLogger(startTime:Long, endTime : Long): Unit ={
-    commonStatus(startTime,endTime)
+  def printLogger(startTime : Long, endTime : Long) : Unit = {
+    commonStatus(startTime, endTime)
     logger.info(s" Job Summary Status : Passed" )
     val hdfsBatchConfig = workFlowConfig.hdfsFileBatch.asInstanceOf[Config]
     val batchInfoList = hdfsBatchConfig.getList("batchInfo")
@@ -100,8 +100,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
 
-  def commonStatus(startTime:Long, endTime : Long) : Unit ={
-
+  def commonStatus(startTime : Long, endTime : Long) : Unit = {
     logger.info(s" Job Summary Workflow Name : ${workFlowConfig.workflow}" )
     logger.info(s" Job Summary AppName : ${appConfig.appName}" )
     logger.info(s" Job Summary Job_Date : ${new Date(System.currentTimeMillis())}" )
@@ -116,7 +115,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
 
-  def printLoggerError(startTime:Long, endTime : Long) : Unit ={
+  def printLoggerError(startTime : Long, endTime : Long) : Unit = {
     commonStatus(startTime, endTime)
     logger.info(s" Job Summary Status : failed" )
   }
