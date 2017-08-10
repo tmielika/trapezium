@@ -24,9 +24,7 @@
     <profiles>
         <profile>
             <id>verizon</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
+
             <properties>
                 <profile_name>verizon</profile_name>
             </properties>
@@ -40,14 +38,17 @@
         </profile>
         <profile>
             <id>opensource</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
             <properties>
                 <profile_name>opensource</profile_name>
             </properties>
             <dependencies>
                 <dependency>
                     <groupId>com.verizon.bda</groupId>
-                    <artifactId>license</artifactId>
-                    <version>0.0.1-STUB</version>
+                    <artifactId>trapezium-license</artifactId>
+					<version>1.2.0-SNAPSHOT</version>
                 </dependency>
             </dependencies>
         </profile>
