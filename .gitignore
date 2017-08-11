@@ -29,6 +29,6 @@ Thumbs.db
 # Reference:
 # https://gist.github.com/octocat/9257657
 
-
+**/target/**
 
 *metastore_db/
