@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="trapezium-cache" />
+        <module name="trapezium-cassandra-dao" />
+        <module name="trapezium-couchbase-store" />
+        <module name="trapezium-dal" />
+        <module name="trapezium-framework" />
+        <module name="trapezium-sparkcassandra-connector" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="trapezium-cache" target="1.8" />
+      <module name="trapezium-cassandra-dao" target="1.8" />
+      <module name="trapezium-couchbase-store" target="1.8" />
+      <module name="trapezium-dal" target="1.8" />
+      <module name="trapezium-framework" target="1.8" />
+      <module name="trapezium-parent" target="1.5" />
+      <module name="trapezium-sparkcassandra-connector" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

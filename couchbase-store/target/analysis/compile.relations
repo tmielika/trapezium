@@ -1,0 +1,31 @@
+products:
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/ConfigHelper.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/ConfigHelper.class
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/CouchBaseStoreImpl$$anonfun$getMulti$1.class
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/CouchBaseStoreImpl$$anonfun$transform$1.class
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/CouchBaseStoreImpl$$anonfun$transform$2.class
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/CouchBaseStoreImpl$$anonfun$transform$3.class
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.class
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchConnection.scala -> couchbase-store/target/scala-2.10/classes/com/verizon/bda/trapezium/store/CouchConnection.class
+binary dependencies:
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/ConfigHelper.scala -> /Library/Java/JavaVirtualMachines/jdk1.8.0_121.jdk/Contents/Home/jre/lib/rt.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> /Library/Java/JavaVirtualMachines/jdk1.8.0_121.jdk/Contents/Home/jre/lib/rt.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> /Users/poosave/.m2/repository/com/couchbase/client/couchbase-client/1.4.5/couchbase-client-1.4.5.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> /Users/poosave/.m2/repository/com/typesafe/config/1.2.1/config-1.2.1.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> /Users/poosave/.m2/repository/com/verizon/bda/trapezium-dal/1.1.0-SNAPSHOT/trapezium-dal-1.1.0-SNAPSHOT.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> /Users/poosave/.m2/repository/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> /Users/poosave/.m2/repository/org/slf4j/slf4j-api/1.7.15/slf4j-api-1.7.15.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> cache/target/trapezium-cache-1.1.0.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchConnection.scala -> /Library/Java/JavaVirtualMachines/jdk1.8.0_121.jdk/Contents/Home/jre/lib/rt.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchConnection.scala -> /Users/poosave/.m2/repository/com/couchbase/client/couchbase-client/1.4.5/couchbase-client-1.4.5.jar
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchConnection.scala -> /Users/poosave/.m2/repository/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5.jar
+source dependencies:
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchConnection.scala
+external dependencies:
+class names:
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/ConfigHelper.scala -> com.verizon.bda.trapezium.store.ConfigHelper
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> com.verizon.bda.trapezium.store.CouchBaseStoreImpl
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> com.verizon.bda.trapezium.store.CouchBaseStoreImpl$$anonfun$getMulti$1
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> com.verizon.bda.trapezium.store.CouchBaseStoreImpl$$anonfun$transform$1
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> com.verizon.bda.trapezium.store.CouchBaseStoreImpl$$anonfun$transform$2
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchBaseStoreImpl.scala -> com.verizon.bda.trapezium.store.CouchBaseStoreImpl$$anonfun$transform$3
+   couchbase-store/src/main/scala/com/verizon/bda/trapezium/store/CouchConnection.scala -> com.verizon.bda.trapezium.store.CouchConnection
