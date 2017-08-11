@@ -27,7 +27,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.sql.DataFrame
 import org.joda.time.LocalDateTime
 import org.slf4j.LoggerFactory
+import scala.StringBuilder
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
 import com.verizon.bda.trapezium.framework.utils.Waiter
 
@@ -48,8 +50,11 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   val simpleFormat = new SimpleDateFormat("yyyy-MM-dd")
   val logger = LoggerFactory.getLogger(this.getClass)
   override def run(): Unit = {
+    val startTime = System.currentTimeMillis()
+    var endTime : Long = System.currentTimeMillis() // Overriding
     try {
       logger.info("workflow name" + workFlowConfig.workflow)
+
       // Check if license is valid
       ApplicationManager.validateLicense()
 
@@ -62,6 +67,8 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
           logger.info(s"Running BatchHandler in mode: $batchMode")
           handleWorkFlow
           stopContext
+          endTime = System.currentTimeMillis()
+          printLogger(startTime, endTime)
           logger.info(s"batch completed for this run.")
           }
           case _ => {
@@ -73,9 +80,55 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       case e: Throwable =>
         e.printStackTrace()
         logger.error(s"Error in running the workflow", e.getMessage)
+        endTime = System.currentTimeMillis()
+        printLoggerError(startTime, endTime)
         notifyError(e)
     }
   }
+
+
+  def printLogger(startTime : Long, endTime : Long) : Unit = {
+
+    logger.info(s" Job Summary Status : Passed" )
+    val hdfsBatchConfig = workFlowConfig.hdfsFileBatch.asInstanceOf[Config]
+    val batchInfoList = hdfsBatchConfig.getList("batchInfo")
+    var inputNamePath : mutable.StringBuilder = new StringBuilder("[")
+    batchInfoList.asScala.foreach { batchConfig =>
+      val batchData: Config = batchConfig.asInstanceOf[ConfigObject].toConfig
+      val dataDir = FileSourceGenerator.getDataDir(appConfig, batchData)
+      inputNamePath.append(s"{path: $dataDir}")
+    }
+
+
+    val diff = endTime - startTime
+    val diffSeconds = diff / 1000 % 60;
+    val diffMinutes = diff / (60 * 1000) % 60;
+    val diffhours = diff / (60 * 60 * 1000) % 60;
+    logger.info(s"Run complete for appname=${workFlowConfig.workflow}" +
+      s",job_date=${new Date(System.currentTimeMillis())}" +
+      s",status=Passed" +
+      s",starttime=${new Date(startTime)}" +
+      s",endtime=${new Date(endTime)}" +
+      s",duration=$diffhours:$diffMinutes:$diffSeconds" +
+      s",input=$inputNamePath")
+
+  }
+
+
+  def printLoggerError(startTime : Long, endTime : Long) : Unit = {
+    val diff = endTime - startTime
+    val diffSeconds = diff / 1000 % 60;
+    val diffMinutes = diff / (60 * 1000) % 60;
+    val diffhours = diff / (60 * 60 * 1000) % 60;
+    logger.info(s"Run complete for appname=${workFlowConfig.workflow}" +
+      s",job_date=${new Date(System.currentTimeMillis())}" +
+      s",status=failed" +
+      s",starttime=${new Date(startTime)}" +
+      s",endtime=${new Date(endTime)}" +
+      s",duration=$diffhours:$diffMinutes:$diffSeconds")
+
+  }
+
 
   def createContext : SparkContext = {
     logger.info("getting context")

@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.verizon.bda.apisvcs</groupId>
     <artifactId>api-akkahttp</artifactId>
-    <version>0.0.1</version>
+    <version>1.2.0-SNAPSHOT</version>
    <name>Akka http api services</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
