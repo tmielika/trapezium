@@ -5,7 +5,7 @@
     <parent>
       <groupId>com.verizon.bda</groupId>
       <artifactId>trapezium-parent</artifactId>
-        <version>1.1.0</version>
+        <version>1.2.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -17,7 +17,7 @@
          <dependency>
             <groupId>com.verizon.bda</groupId>
             <artifactId>trapezium-dal</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.0-SNAPSHOT</version>
              <exclusions>
                  <exclusion>
                      <artifactId>guava</artifactId>
@@ -52,13 +52,13 @@
             <artifactId>trapezium-cassandra-dao</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>1.1.0</version>
+            <version>1.2.0-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>com.verizon.bda</groupId>
             <artifactId>trapezium-cassandra-dao</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.0-SNAPSHOT</version>
         </dependency>
         
         <!-- Testing dependencies  -->
@@ -75,6 +75,4 @@
             </exclusions>
         </dependency>
     </dependencies>
-
-
 </project>
