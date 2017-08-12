@@ -48,13 +48,12 @@ object KafkaUtil {
       val latest = allLatest(currentTopicPartition)
       val offset = {
         if (earliest._2 < lastOffset){
-
           logger.info(s"Earliest Kafka offset is ${earliest._2} and Zookeeper offset value " +
             s"is $lastOffset, so taking Zookeeper offset $lastOffset for streaming.")
           lastOffset
         }
         else {
-          logger.warn(s"Zookeeper offset value $lastOffset is smaller than earliest Kafka " +
+          logger.info(s"Zookeeper offset value $lastOffset is smaller than earliest Kafka " +
             s"offset ${earliest._2}, so taking Kafka offset ${earliest._2} for streaming.")
           // update zk
           ApplicationUtils.updateZookeeperValue(new StringBuilder(zkNode).append("/")
@@ -73,8 +72,6 @@ object KafkaUtil {
       s" ${topicPartitions.values.mkString(",")}")
     offsetRangeList
   }
-
-
 
 
 }

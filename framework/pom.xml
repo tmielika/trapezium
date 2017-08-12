@@ -21,6 +21,39 @@
 		<couch.mock.version>1.4.3</couch.mock.version>
 	</properties>
 
+    <profiles>
+        <profile>
+            <id>verizon</id>
+
+            <properties>
+                <profile_name>verizon</profile_name>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.verizon.bda</groupId>
+                    <artifactId>license</artifactId>
+                    <version>0.1.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>opensource</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+            <properties>
+                <profile_name>opensource</profile_name>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.verizon.bda</groupId>
+                    <artifactId>trapezium-license</artifactId>
+					<version>1.2.0-SNAPSHOT</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
 	<dependencies>
 
 		<dependency>
@@ -111,18 +144,16 @@
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
 			<artifactId>trapezium-couchbase-store</artifactId>
-			<version>1.2.0-SNAPSHOT</version>
+			<version>${trapezium.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
 			<artifactId>trapezium-couchbase-store</artifactId>
-			<version>1.2.0-SNAPSHOT</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+			<version>${trapezium.version}</version>
 		</dependency>
-
-
 	</dependencies>
 
 	<build>
