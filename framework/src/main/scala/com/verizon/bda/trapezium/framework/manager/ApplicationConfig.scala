@@ -15,8 +15,9 @@
 package com.verizon.bda.trapezium.framework.manager
 
 import java.io.File
+
 import com.typesafe.config.{Config, ConfigFactory}
-import kafka.common.TopicAndPartition
+import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
 
 /**
@@ -118,7 +119,7 @@ class ApplicationConfig
   lazy val fileSystemPrefix = config.getString("fileSystemPrefix")
 
   val streamtopicpartionoffset =
-    new collection.mutable.HashMap[String, Map[TopicAndPartition, (Long, Long)]]()
+    new scala.collection.mutable.HashMap[String, Map[TopicPartition, (Long, Long)]]()
 
 
   lazy val sparkConfParam =

@@ -38,15 +38,18 @@
 package org.apache.spark.streaming
 
 import java.io.{IOException, ObjectInputStream}
+
+import org.apache.spark.SparkContext
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.{DStream, ForEachDStream, InputDStream}
 import org.apache.spark.streaming.scheduler._
-import org.apache.spark.util.{TestUtils, TestManualClock, Utils}
-import org.apache.spark.{Logging, SparkConf, SparkContext}
+import org.apache.spark.util.{TestManualClock, TestUtils, Utils}
 import org.scalatest.concurrent.Eventually.timeout
 import org.scalatest.concurrent.PatienceConfiguration
-import org.scalatest.time.{Seconds => ScalaTestSeconds, Span}
+import org.scalatest.time.{Span, Seconds => ScalaTestSeconds}
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Suite}
+
 import scala.collection.mutable.{ArrayBuffer, SynchronizedBuffer}
 import scala.language.implicitConversions
 import scala.reflect.ClassTag

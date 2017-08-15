@@ -15,7 +15,7 @@
 package com.verizon.bda.trapezium.framework.server
 
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig}
+import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import org.apache.commons.httpclient.HttpClient
 import org.apache.commons.httpclient.methods.PostMethod
@@ -26,7 +26,8 @@ import org.slf4j.LoggerFactory
 /**
  * Created by Pankaj on 5/3/16.
  */
-class JettyServerSuite extends FunSuite with BeforeAndAfter {
+class
+JettyServerSuite extends FunSuite with BeforeAndAfter {
   val logger = LoggerFactory.getLogger(this.getClass)
   var appConfig: ApplicationConfig = _
   var zk: EmbeddedZookeeper = null

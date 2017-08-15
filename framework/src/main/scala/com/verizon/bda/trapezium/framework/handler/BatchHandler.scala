@@ -17,19 +17,19 @@ package com.verizon.bda.trapezium.framework.handler
 import java.sql.Time
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, Timer, TimerTask}
+
 import com.typesafe.config.{Config, ConfigList, ConfigObject}
 import com.verizon.bda.trapezium.framework.kafka.KafkaSink
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
+import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, Waiter}
 import com.verizon.bda.trapezium.framework.{ApplicationManager, BatchTransaction}
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.DataFrame
-import org.joda.time.LocalDateTime
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable.{Map => MMap}
-import com.verizon.bda.trapezium.framework.utils.Waiter
 
 
 /**
@@ -71,7 +71,6 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         }
     } catch {
       case e: Throwable =>
-        e.printStackTrace()
         logger.error(s"Error in running the workflow", e.getMessage)
         notifyError(e)
     }
@@ -193,7 +192,6 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         else logger.warn("No new RDD in this batch run.")
       }
     }
-      //
     })
 
     (workflowTimeToSave, runSuccess, mode)

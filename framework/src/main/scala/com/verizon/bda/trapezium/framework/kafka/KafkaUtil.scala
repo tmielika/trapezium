@@ -1,12 +1,14 @@
 package com.verizon.bda.trapezium.framework.kafka
 
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
+import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
-import org.slf4j.LoggerFactory
-import scala.collection.JavaConverters.asScalaBufferConverter
-import org.apache.spark.streaming.kafka.{OffsetRange}
-import org.apache.zookeeper.{ZooKeeper}
 import kafka.common.TopicAndPartition
+import org.apache.kafka.common.TopicPartition
+import org.apache.spark.streaming.kafka010.OffsetRange
+import org.apache.zookeeper.ZooKeeper
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConverters.asScalaBufferConverter
 /**
   * Created by v708178 on 6/6/17.
   */
@@ -19,7 +21,7 @@ object KafkaUtil {
   List[OffsetRange] = {
 
     var offsetRangeList: List[OffsetRange] = Nil
-    val topicPartitions = new collection.mutable.HashMap[TopicAndPartition, Long]()
+    val topicPartitions = new scala.collection.mutable.HashMap[TopicAndPartition, Long]()
     val allTopicEarliest =
       KafkaDStream.getAllTopicPartitions(appConfig.kafkabrokerList, kafkaTopicName)
     val allLatest = KafkaDStream.getAllTopicPartitionsLatest(appConfig.kafkabrokerList,
@@ -43,7 +45,7 @@ object KafkaUtil {
        0L
       }
     }
-      val currentTopicPartition = new TopicAndPartition(kafkaTopicName, new String(partition).toInt)
+      val currentTopicPartition = new TopicPartition(kafkaTopicName, new String(partition).toInt)
       val earliest = allTopicEarliest(currentTopicPartition)
       val latest = allLatest(currentTopicPartition)
       val offset = {
@@ -64,7 +66,7 @@ object KafkaUtil {
 
       logger.info(s"Offset used for streaming " +
         s"for ${kafkaTopicName}.${partition} --> ${offset} to ${latest._2}")
-      val offsetRange: OffsetRange = OffsetRange.create(currentTopicPartition, offset, latest._2)
+      val offsetRange: OffsetRange = OffsetRange.create(currentTopicPartition.topic, currentTopicPartition.partition, offset, latest._2)
       offsetRangeList = offsetRangeList :+ offsetRange
     }
 

@@ -1,25 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>com.verizon.bda</groupId>
-		<artifactId>trapezium-parent</artifactId>
-		<version>1.1.0</version>
-		<relativePath>../pom.xml</relativePath>
-	</parent>
-        
-	<artifactId>trapezium-framework</artifactId>
-	<packaging>jar</packaging>
-	<name>Trapezium framework library</name>
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.verizon.bda</groupId>
+        <artifactId>trapezium-parent</artifactId>
+        <version>1.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
 
-	<properties>
-		<kafka.version>0.8.2.1</kafka.version>
-		<compiler.plugin.version>3.1</compiler.plugin.version>
-		<scoverage.plugin.version>1.0.0</scoverage.plugin.version>
-		<couch.mock.version>1.4.3</couch.mock.version>
-	</properties>
+    <artifactId>trapezium-framework</artifactId>
+    <packaging>jar</packaging>
+    <name>Trapezium framework library</name>
+
+    <properties>
+        <trapezium.spark.version>2.1.0</trapezium.spark.version>
+        <kafka.version>0.10.2.0</kafka.version>
+        <compiler.plugin.version>3.1</compiler.plugin.version>
+        <scoverage.plugin.version>1.0.0</scoverage.plugin.version>
+        <couch.mock.version>1.4.3</couch.mock.version>
+    </properties>
 
     <profiles>
         <profile>
@@ -53,112 +54,149 @@
         </profile>
     </profiles>
 
-	<dependencies>
+    <dependencies>
+        <!--<dependency>
+            <groupId>com.verizon.bda.apisvcs</groupId>
+            <artifactId>commons-api</artifactId>
+            <version>0.0.1</version>
+        </dependency>-->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20170516</version>
+        </dependency>
 
-		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20170516</version>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <version>${trapezium.spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-hive_${scala.binary.version}</artifactId>
+            <version>${trapezium.spark.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.twitter</groupId>
+                    <artifactId>parquet-hadoop-bundle</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-streaming_${scala.binary.version}</artifactId>
+            <version>${trapezium.spark.version}</version>
+        </dependency>
 
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-core_${scala.binary.version}</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-hive_${scala.binary.version}</artifactId>
-			<version>${spark.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-streaming_${scala.binary.version}</artifactId>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-hadoop</artifactId>
+            <version>1.8.1</version>
+        </dependency>
 
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-sql_${scala.binary.version}</artifactId>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-column</artifactId>
+            <version>1.8.1</version>
+        </dependency>
 
-		<dependency>
-			<groupId>com.typesafe</groupId>
-			<artifactId>config</artifactId>
-			<version>1.2.1</version>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <version>2.1.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.parquet</groupId>
+                    <artifactId>parquet-hadoop-bundle</artifactId>
+                </exclusion>
 
-		<dependency>
-			<groupId>com.github.scopt</groupId>
-			<artifactId>scopt_2.10</artifactId>
-			<version>3.4.0</version>
-		</dependency>
+                <exclusion>
+                    <groupId>org.apache.parquet</groupId>
+                    <artifactId>parquet-column</artifactId>
+                </exclusion>
+            </exclusions>
 
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
-			<version>${kafka.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.zookeeper</groupId>
-					<artifactId>zookeeper</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-streaming-kafka_${scala.binary.version}</artifactId>
-			<version>${spark.version}</version>
-			<scope>provided</scope>
-		</dependency>
+        </dependency>
 
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-servlet</artifactId>
-			<version>9.2.16.v20160414</version>
-		</dependency>
+        <dependency>
+            <groupId>com.typesafe</groupId>
+            <artifactId>config</artifactId>
+            <version>1.2.1</version>
+        </dependency>
 
-		<dependency>
-			<groupId>com.databricks</groupId>
-			<artifactId>spark-avro_2.10</artifactId>
-			<version>2.0.1</version>
-		</dependency>
+        <dependency>
+            <groupId>com.github.scopt</groupId>
+            <artifactId>scopt_2.10</artifactId>
+            <version>3.4.0</version>
+        </dependency>
 
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-experimental_2.10</artifactId>
-			<version>2.0.4</version>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka_2.10</artifactId>
+            <version>${kafka.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-streaming-kafka-0-10_${scala.binary.version}</artifactId>
+            <version>${trapezium.spark.version}</version>
+            <scope>provided</scope>
+        </dependency>
 
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-spray-json-experimental_2.10</artifactId>
-			<version>2.0.4</version>
-		</dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-servlet</artifactId>
+            <version>9.2.16.v20160414</version>
+        </dependency>
 
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-testkit-experimental_2.10</artifactId>
-			<version>2.0.4</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.verizon.bda</groupId>
-			<artifactId>trapezium-couchbase-store</artifactId>
-			<version>1.1.0</version>
-		</dependency>
+        <dependency>
+            <groupId>com.databricks</groupId>
+            <artifactId>spark-avro_2.10</artifactId>
+            <version>3.2.0</version>
+        </dependency>
 
-		<dependency>
-			<groupId>com.verizon.bda</groupId>
-			<artifactId>trapezium-couchbase-store</artifactId>
-			<version>1.1.0</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-experimental_2.10</artifactId>
+            <version>2.0.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-spray-json-experimental_2.10</artifactId>
+            <version>2.0.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-testkit-experimental_2.10</artifactId>
+            <version>2.0.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.verizon.bda</groupId>
+            <artifactId>trapezium-couchbase-store</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.verizon.bda</groupId>
+            <artifactId>trapezium-couchbase-store</artifactId>
+            <version>1.1.0</version>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
 
 
-	</dependencies>
+    </dependencies>
 
-	<build>
-		<outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
-		<testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-	</build>
+    <build>
+        <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
+        <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
+    </build>
 </project>
