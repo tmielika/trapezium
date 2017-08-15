@@ -299,12 +299,10 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     var brokerAddr = brokerConf.hostName + ":" + brokerConf.port
     if (brokerConf2 != null) brokerAddr += "," + brokerConf2.hostName + ":" + brokerConf2.port
     val props = new Properties()
-//    props.put("metadata.broker.list", brokerAddr)
+
     props.put("bootstrap.servers", brokerAddr)
-//    props.put("serializer.class", classOf[StringEncoder].getName)
     props.put("value.serializer", classOf[StringSerializer].getName)
     props.put("key.serializer", classOf[StringSerializer].getName)
-
 
     props
   }
