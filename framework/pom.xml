@@ -154,8 +154,6 @@
 			<type>test-jar</type>
 			<version>${trapezium.version}</version>
 		</dependency>
-
-
 	</dependencies>
 
 	<build>
