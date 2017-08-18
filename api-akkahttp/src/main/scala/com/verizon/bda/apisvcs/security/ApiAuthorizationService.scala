@@ -2,7 +2,6 @@ package com.verizon.bda.apisvcs.security
 
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
-import com.verizon.bda.commons.serviceapis.security.BDAAuthSvcManager
 import org.slf4j.LoggerFactory
 
 import scala.util.Try
@@ -40,7 +39,6 @@ class ApiAuthorizationService {
       logger.info("authorization data map size : " + (if (authData != null) authData.size else 0  ))
       var validClient : Boolean = false
       var authdata : Any = null
-      val apiSvcAuth = BDAAuthSvcManager.getApiSvcsAuthorizer(authSvcProviderType)
       val keyslist = authorizationDataAccessKeys()
       val clientdata = getAuthorizationElementsFromAuthData(authData, keyslist)
 
@@ -48,8 +46,6 @@ class ApiAuthorizationService {
 
          val authdatakey = keyslist(0)
          val authheaderdata = clientdata.get(authdatakey).get
-         authdata = apiSvcAuth.getClientAuthorizationProfile(
-            authheaderdata)
          if(authdata != null) validClient = true
 
       }
@@ -85,6 +81,5 @@ class ApiAuthorizationService {
       keysList
 
    }
-
 
 }

@@ -1,6 +1,5 @@
 package com.verizon.bda.apisvcs.security
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
-import com.verizon.bda.commons.serviceapis.security.BDAAuthorizationService
 import org.slf4j.LoggerFactory
 
 /**

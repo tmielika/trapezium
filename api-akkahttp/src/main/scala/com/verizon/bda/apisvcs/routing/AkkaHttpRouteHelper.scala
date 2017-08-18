@@ -152,14 +152,15 @@ trait AkkaHttpRouteHelper extends Directives {
     var authorizer : ApiAuthorizationService = null
     if (routeAuthorizer.equals( FEDERATED_AUTHORIZER_CONFIG ) ){
       logger.info("setting up route authorizer from configuration : " +  routeAuthorizer)
-      if("samplesvcs".equals(publishEndpoint)) {
+     // if("samplesvcs".equals(publishEndpoint)) {
         logger.info("setting up route authorizer for samplesvcs")
         authorizer = new FederatedAuthorizerSvc
-      }
-    } else {
-      authorizer = new ApiAuthorizationService()
-      authorizer.setAuthSvcProivderType(routeAuthorizer)
+     // }
     }
+//    else {
+//      authorizer = new ApiAuthorizationService()
+//      authorizer.setAuthSvcProivderType(routeAuthorizer)
+//    }
       authorizer
 
   }

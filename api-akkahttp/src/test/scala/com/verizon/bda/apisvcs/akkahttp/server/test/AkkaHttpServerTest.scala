@@ -10,7 +10,6 @@ import com.verizon.bda.apisvcs.utils.test.ApiServicesTestConstatns._
 import com.verizon.bda.apisvcs.akkahttp.serveices.test.TestEndpointService
 import com.verizon.bda.apisvcs.utils.HttpServicesConstants._
 import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
-import com.verizon.bda.wso2impl.util.JWTParseHelper
 import org.slf4j.LoggerFactory
 import org.apache.commons.httpclient.HttpClient
 import org.apache.commons.httpclient.methods.{FileRequestEntity, GetMethod, PostMethod, StringRequestEntity}
@@ -67,8 +66,11 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
       APISVCS_TESTENDPOINT1_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(WSO2_AUTHORIZATION_DATA_KEY,
+    postmethod.setRequestHeader(VZ_DATE_HEADER_KEY,
       JWT_ASSERTION_TOKEN)
+    postmethod.setRequestHeader(VZ_AUTHORIZATION_HEADER_KEY,
+      JWT_ASSERTION_TOKEN)
+
     val postdatastr = "test request test api resource of test end point one"
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")
     postmethod.setRequestEntity(reqentity)
@@ -93,8 +95,11 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
       APISVCS_TESTENDPOINT1_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(WSO2_AUTHORIZATION_DATA_KEY,
+    postmethod.setRequestHeader(VZ_DATE_HEADER_KEY,
       JWT_ASSERTION_TOKEN)
+    postmethod.setRequestHeader(VZ_AUTHORIZATION_HEADER_KEY,
+      JWT_ASSERTION_TOKEN)
+
     val postdatastr = "test request test api resource of test end point two"
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")
     postmethod.setRequestEntity(reqentity)
@@ -118,32 +123,13 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
       APISVCS_TESTENDPOINT1_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(WSO2_AUTHORIZATION_DATA_KEY,
+    postmethod.setRequestHeader(VZ_DATE_HEADER_KEY,
       FAILED_JWT_ASSERTION_TOKEN)
     val postdatastr = "test request test api resource of test end point two"
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")
     postmethod.setRequestEntity(reqentity)
     val rescode = client.executeMethod(postmethod)
     assert(200  != rescode)
-
-  }
-
-
-  test("jwt token parse testing") {
-    logger.info("Testing jwt token parsing ")
-    try {
-      val helper = new JWTParseHelper();
-      val jwtdata = helper.parseJWTData(JWT_ASSERTION_TOKEN);
-      assert(null != jwtdata)
-      assert(jwtdata.size() == 13)
-
-    } catch {
-      case e: Exception => {
-        logger.error("parse test failed", e)
-        fail()
-      }
-
-    }
 
   }
 
