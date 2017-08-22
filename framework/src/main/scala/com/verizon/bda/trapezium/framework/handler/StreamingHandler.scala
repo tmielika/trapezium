@@ -187,6 +187,13 @@ private[framework] object StreamingHandler {
             workflowClass.persistStream(rdd, new Time(time.milliseconds))
             DataValidator.printStats()
           } catch {
+            case c: java.lang.InterruptedException => {
+              /**
+                * happens when the spark context is stopped while the graph is still being processed
+                * Should we do something here ?
+                */
+              logger.error("Ignoring the interrrupted exception from the spark framework stop")
+            }
             case e: Throwable => {
 
               logger.error("Exception ", e.getMessage)
