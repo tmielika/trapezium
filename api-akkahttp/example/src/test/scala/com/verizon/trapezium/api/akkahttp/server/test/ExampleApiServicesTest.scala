@@ -1,20 +1,20 @@
-package com.verizon.bda.apisvcs.akkahttp.server.test
+package com.verizon.trapezium.api.akkahttp.server.test
 
 import java.util
 
-import com.verizon.bda.apisvcs.{ApiHttpServices, SampleRouteHttpServices}
-import com.verizon.bda.apisvcs.akkahttp.server.ApiAkkaHttpServer
-import com.verizon.bda.apisvcs.utils.HttpServicesUtils._
-import org.slf4j.LoggerFactory
-import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
-import org.scalatest.junit.JUnitRunner
-import com.verizon.bda.apisvcs.utils.SampleHttpSvcsConstans._
-import com.verizon.bda.apisvcs.test.utils.ExampleSvcsTestUtils._
-import com.verizon.bda.apisvcs.utils.HttpServicesConstants.{WSO2_AUTHORIZATION_DATA_KEY => _, _}
+import com.verizon.trapezium.api.akkahttp.ApiHttpServices
+import com.verizon.trapezium.api.akkahttp.utils.HttpServicesUtils._
+import com.verizon.trapezium.api.SampleRouteHttpServices
+import com.verizon.trapezium.api.akkahttp.server.ApiAkkaHttpServer
+import com.verizon.trapezium.api.akkahttp.utils.HttpServicesConstants.{WSO2_AUTHORIZATION_DATA_KEY => _}
+import com.verizon.trapezium.api.test.utils.ExampleSvcsTestUtils._
+import com.verizon.trapezium.api.utils.SampleHttpSvcsConstans._
 import org.apache.commons.httpclient.HttpClient
 import org.apache.commons.httpclient.methods.{PostMethod, StringRequestEntity}
-
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.slf4j.LoggerFactory
 import scala.concurrent.ExecutionContext.Implicits.global
 
 

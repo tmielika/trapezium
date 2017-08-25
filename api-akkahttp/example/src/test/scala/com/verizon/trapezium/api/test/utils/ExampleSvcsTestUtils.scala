@@ -1,4 +1,4 @@
-package com.verizon.bda.apisvcs.test.utils
+package com.verizon.trapezium.api.test.utils
 
 import java.io.FileNotFoundException
 

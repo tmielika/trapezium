@@ -1,4 +1,4 @@
-package com.verizon.bda.apisvcs.utils
+package com.verizon.trapezium.api.utils
 
 import com.typesafe.config.ConfigFactory
 

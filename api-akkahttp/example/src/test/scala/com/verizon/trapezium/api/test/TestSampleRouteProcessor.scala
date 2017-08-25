@@ -1,11 +1,12 @@
-package com.verizon.bda.apisvcs.test
+package com.verizon.trapezium.api.test
 
 import akka.util.ByteString
-import com.verizon.bda.apisvcs.SampleRouteProcessor
-import org.slf4j.LoggerFactory
+import com.verizon.trapezium.api.SampleRouteProcessor
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.slf4j.LoggerFactory
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by chundch on 5/1/17.
@@ -34,7 +35,6 @@ class TestSampleRouteProcessor extends FunSuite with BeforeAndAfterAll {
   test("validate process ") {
 
     logger.info("Testing process method")
-    import scala.concurrent.ExecutionContext.Implicits.global
     val sampleRouteServices = new SampleRouteProcessor
     val path = "test"
     val pathVersion = "v1"

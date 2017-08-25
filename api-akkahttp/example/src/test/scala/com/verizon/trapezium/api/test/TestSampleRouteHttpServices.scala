@@ -1,10 +1,12 @@
-package com.verizon.bda.apisvcs.test
+package com.verizon.trapezium.api.test
 
-import com.verizon.bda.apisvcs.SampleRouteHttpServices
-import org.slf4j.LoggerFactory
+import com.verizon.trapezium.api.SampleRouteHttpServices
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.slf4j.LoggerFactory
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 /**
   * Created by chundch on 5/1/17.
@@ -32,7 +34,6 @@ class TestSampleRouteHttpServices extends FunSuite with BeforeAndAfterAll {
   test("validate getProcessors ") {
 
     logger.info("Testing getProcessors")
-    import scala.concurrent.ExecutionContext.Implicits.global
     val sampleRouteServices = new SampleRouteHttpServices
 
     val noOfProcessors = 2

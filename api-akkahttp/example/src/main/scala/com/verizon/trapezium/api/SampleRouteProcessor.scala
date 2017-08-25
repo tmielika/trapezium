@@ -1,9 +1,9 @@
-package com.verizon.bda.apisvcs
+package com.verizon.trapezium.api
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.util
 
-import com.verizon.bda.apiservices.ApiSvcProcessor
+import com.verizon.trapezium.api.ApiSvcProcessor
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
