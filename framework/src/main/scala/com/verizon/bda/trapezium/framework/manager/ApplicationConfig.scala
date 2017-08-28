@@ -15,6 +15,7 @@
 package com.verizon.bda.trapezium.framework.manager
 
 import java.io.File
+
 import com.typesafe.config.{Config, ConfigFactory}
 import kafka.common.TopicAndPartition
 import org.slf4j.LoggerFactory
@@ -27,12 +28,20 @@ import org.slf4j.LoggerFactory
 class ApplicationConfig
 (val env: String, val configDir: String, val uid: String) extends Serializable {
 
-  private val config: Config = if (configDir != null) {
-    val configFilePath = s"${configDir}/${env}_app_mgr.conf"
-    val configFile: File = new File(configFilePath)
-    ConfigFactory.parseFile(configFile)
-  } else {
-    ConfigFactory.load(s"${env}_app_mgr.conf")
+
+  private val config: Config = resolveConfig(s"${env}_app_mgr.conf")
+
+  def resolveConfig(fileName: String) = {
+    if (configDir != null) {
+
+      val configFilePath = s"${configDir}/$fileName"
+      val configFile: File = new File(configFilePath)
+      ConfigFactory.parseFile(configFile).resolve()
+
+    } else {
+
+      ConfigFactory.load(fileName).resolve()
+    }
   }
 
   val logger = LoggerFactory.getLogger(this.getClass)
