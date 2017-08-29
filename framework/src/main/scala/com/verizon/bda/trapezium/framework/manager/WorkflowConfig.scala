@@ -54,6 +54,35 @@ class WorkflowConfig
       }
      }
 
+  /**
+    * possible values - NATIVE/ CUSTOM
+    */
+  lazy val bridgeType =
+  {
+    if (workflowConfig.hasPath("bridgeType")) {
+      workflowConfig.getString("bridgeType")
+    } else {
+      "CUSTOM"
+    }
+  }
+
+  lazy val pollTime =
+  {
+    val defaultPollTime =  100 //in millisecs
+    if (workflowConfig.hasPath("kafka.pollTime")) {
+      try {
+        workflowConfig.getString("kafka.pollTime").toInt
+      }catch {
+        case ex: Exception => {
+          logger.warn(s" Invalid vaue for 'pollTime' - ${workflowConfig.getString("kafka.pollTime")}. Setting default pollTime as ${defaultPollTime}")
+          defaultPollTime
+        }
+      }
+    } else {
+      logger.debug("Setting default pollTime for kafka config")
+      defaultPollTime
+    }
+  }
 
   lazy val dataSource =
         try {

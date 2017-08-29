@@ -302,6 +302,7 @@ object ApplicationManager {
 //    TODO: MaheshS - switch over to custom streams
     val dStreams = KafkaDStream.createDStreams(
       ssc,
+      workflowConfig,
       kafkaBrokerList,
       kafkaConfig,
       topicPartitionOffsets.toMap,
@@ -315,6 +316,7 @@ object ApplicationManager {
 
     val dStreams = KafkaDStream.createDStreams(
       ssc,
+      workflowConfig,
       kafkaBrokerList,
       kafkaConfig,
       topicPartitionOffsets.toMap,
@@ -336,7 +338,7 @@ object ApplicationManager {
 
     streamsInfo.asScala.foreach(streamInfo => {
       val topicName = streamInfo.getString("topicName")
-      val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
+      val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName,  appConfig)
       topicPartitionOffsets ++= partitionOffset
     })
     (kafkaConfig, kafkaBrokerList, topicPartitionOffsets)

@@ -18,15 +18,14 @@ import java.io.FileNotFoundException
 import java.sql.Time
 
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationTransaction, ApplicationManagerStartup, StreamingTransaction}
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import com.verizon.bda.trapezium.framework.{ApplicationManagerStartup, ApplicationTransaction}
+import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerStartup, ApplicationTransaction}
 import org.apache.zookeeper.ZooDefs.Ids
 import org.apache.zookeeper.{CreateMode, ZooKeeper}
 import org.slf4j.LoggerFactory
-import scala.collection.mutable.{Map => MMap}
 
+import scala.collection.mutable.{Map => MMap}
 import scala.reflect.runtime._
 
 /**
@@ -412,21 +411,37 @@ private[framework] object ApplicationUtils {
                                   topicName: String,
                                   workflowConfig: WorkflowConfig): String = {
 
-    buildKafkaZkPath( appConfig, topicName, workflowConfig.workflow)
+    getCurrentWorkflowKafkaPath( appConfig, topicName, workflowConfig.workflow)
   }
+
+  def getCurrentWorkflowKafkaPath(appConfig: ApplicationConfig,
+                                  topicName: String,
+                                  workflow: String): String = {
+
+    buildKafkaZkPath( appConfig, topicName, workflow)
+  }
+
 
   def getDependentWorkflowKafkaPath(appConfig: ApplicationConfig,
                                     topicName: String,
                                     workflowConfig: WorkflowConfig): Option[String] = {
 
-    if (workflowConfig.syncWorkflow != null) {
+    getDependentWorkflowKafkaPath(appConfig,topicName,workflowConfig.syncWorkflow)
+  }
 
-      Option(buildKafkaZkPath(appConfig, topicName, workflowConfig.syncWorkflow))
+  def getDependentWorkflowKafkaPath(appConfig: ApplicationConfig,
+                                    topicName: String,
+                                    workflow: String): Option[String] = {
+
+    if (workflow != null) {
+
+      Option(buildKafkaZkPath(appConfig, topicName, workflow))
     } else {
 
       None
     }
   }
+
 
   def buildKafkaZkPath(appConfig: ApplicationConfig,
                        topicName: String,

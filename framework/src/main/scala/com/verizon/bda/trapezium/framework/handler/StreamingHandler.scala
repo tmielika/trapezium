@@ -196,7 +196,7 @@ private[framework] object StreamingHandler {
             }
             case e: Throwable => {
 
-              logger.error("Exception ", e.getMessage)
+              logger.error("Exception ", e)
               workflowClassMap.foreach {
                 case (workflowClassName, workflowClass) => {
 

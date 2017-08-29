@@ -53,11 +53,11 @@ class KafkaApplicationUtils(zkClient: ZkUtils, kafkaBrokers: String) {
       val topicName = streamInfo.getString("topicName")
 
       val partitionOffset =
-        KafkaDStream.fetchPartitionOffsets(topicName, runMode, applicationConfig)
+        KafkaDStream.fetchPartitionOffsets(topicName, applicationConfig)
       topicPartitionOffsets ++= partitionOffset
     })
 
-    val dStreams = KafkaDStream.createDStreams(ssc, kafkaBrokers,
+    val dStreams = KafkaDStream.createDStreams(ssc, workflowConfig, kafkaBrokers,
       kafkaConfig, topicPartitionOffsets.toMap, applicationConfig)
 
     ApplicationManager.runStreamWorkFlow(dStreams)

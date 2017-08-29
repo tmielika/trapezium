@@ -9,15 +9,17 @@ import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.mutable.{Map => MMap}
 /**
   * Created by v708178 on 6/6/17.
   */
 object KafkaUtil {
   val logger = LoggerFactory.getLogger(this.getClass)
-  def getOffsetsRange( zk: ZooKeeper,
-                       zkNode: String,
-                       kafkaTopicName: String,
-                       appConfig: ApplicationConfig):
+
+  def getOffsetsRange(zk: ZooKeeper,
+                      zkNode: String,
+                      kafkaTopicName: String,
+                      appConfig: ApplicationConfig):
   List[OffsetRange] = {
 
     var offsetRangeList: List[OffsetRange] = Nil
@@ -28,12 +30,12 @@ object KafkaUtil {
       kafkaTopicName)
     val partitions =
       try {
-       zk.getChildren(zkNode, false).asScala
-    } catch {
-      case ex: Exception => {
-        List("0")
+        zk.getChildren(zkNode, false).asScala
+      } catch {
+        case ex: Exception => {
+          List("0")
+        }
       }
-    }
     logger.info(s"Zookeeper partitions for $kafkaTopicName are ${partitions.mkString(",")}")
     for (partition <- partitions.sortWith(_.compareTo(_) < 0)) {
       val lastOffset =
@@ -42,14 +44,14 @@ object KafkaUtil {
             .append(partition).toString(), false, null)).toLong
         } catch {
           case ex: Exception => {
-       0L
-      }
-    }
+            0L
+          }
+        }
       val currentTopicPartition = new TopicPartition(kafkaTopicName, new String(partition).toInt)
       val earliest = allTopicEarliest(currentTopicPartition)
       val latest = allLatest(currentTopicPartition)
       val offset = {
-        if (earliest._2 < lastOffset){
+        if (earliest._2 < lastOffset) {
           logger.info(s"Earliest Kafka offset is ${earliest._2} and Zookeeper offset value " +
             s"is $lastOffset, so taking Zookeeper offset $lastOffset for streaming.")
           lastOffset
@@ -74,6 +76,7 @@ object KafkaUtil {
       s" ${topicPartitions.values.mkString(",")}")
     offsetRangeList
   }
+
 
 
 }

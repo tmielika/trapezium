@@ -36,6 +36,12 @@
                     <groupId>com.verizon.bda</groupId>
                     <artifactId>license</artifactId>
                     <version>0.1.0</version>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>com.vz.logger</groupId>
+                            <artifactId>BDALogger</artifactId>
+                        </exclusion>
+                    </exclusions>
                 </dependency>
             </dependencies>
         </profile>
@@ -49,7 +55,14 @@
                     <groupId>com.verizon.bda</groupId>
                     <artifactId>license</artifactId>
                     <version>0.0.1-STUB</version>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>com.vz.logger</groupId>
+                            <artifactId>BDALogger</artifactId>
+                        </exclusion>
+                    </exclusions>
                 </dependency>
+
             </dependencies>
         </profile>
     </profiles>
