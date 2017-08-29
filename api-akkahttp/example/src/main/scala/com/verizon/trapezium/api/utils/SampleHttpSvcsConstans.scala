@@ -17,7 +17,9 @@ object SampleHttpSvcsConstans {
   val SAMPLE_HTTP_SERVICE_BINDING_PORT = APP_CONFIGURATION.getInt(
     "apisvcs.examplesvcs.bindingport")
 
-  lazy val WSO2_AUTHORIZATION_DATA_KEY = "X-JWT-Assertion"
+  lazy val SAMPLE_SVCS_DATE_HEADER_KEY = "x-vz-date"
+  lazy val SAMPLE_SVCS_AUTHORIZATION_HEADER_KEY = "Authorization"
+
 
   val SAMPLE_HTTP_SERVICE_RESOURCE = APP_CONFIGURATION.getString(
     "apisvcs.endpoint.examplesvcs.resource")

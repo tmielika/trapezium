@@ -9,9 +9,9 @@
     </parent>
 
     <groupId>com.verizon.trapezium.api</groupId>
-    <artifactId>api</artifactId>
+    <artifactId>trapezium-api</artifactId>
     <version>1.2.0-SNAPSHOT</version>
-   <name>Verizon Trapezium api library</name>
+   <name>Trapezium api library</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

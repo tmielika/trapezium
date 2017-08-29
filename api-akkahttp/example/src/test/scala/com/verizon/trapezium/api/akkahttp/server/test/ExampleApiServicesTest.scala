@@ -31,6 +31,8 @@ class ExampleApiServicesTest extends FunSuite with BeforeAndAfterAll {
   var apiServer: ApiAkkaHttpServer = null
   val JWTTOKEN_DATA_FILE_PATH = "src/test/data/"
   val JWTTOKEN_DATA_FILE = "wso2_assertiontoken.txt"
+  val SAMPLE_SVC_HEADER_DATE_DATA = "2017-08-28 15:40"
+  val SAMPLE_SVC_AUTHZ_DATA = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImF"
   var JWT_ASSERTION_TOKEN : String = null
   val hostname: String = "10.20.210.68" // getHostName
   var svcsToPublish : util.HashMap[String, ApiHttpServices] =
@@ -63,8 +65,10 @@ class ExampleApiServicesTest extends FunSuite with BeforeAndAfterAll {
       SAMPLE_HTTP_SERVICE_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(WSO2_AUTHORIZATION_DATA_KEY,
-      JWT_ASSERTION_TOKEN)
+    postmethod.setRequestHeader(SAMPLE_SVCS_DATE_HEADER_KEY,
+      SAMPLE_SVC_HEADER_DATE_DATA)
+    postmethod.setRequestHeader(SAMPLE_SVCS_AUTHORIZATION_HEADER_KEY,
+      SAMPLE_SVC_AUTHZ_DATA)
     val postdatastr = "test request test example service sample resource "
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")
     postmethod.setRequestEntity(reqentity)
