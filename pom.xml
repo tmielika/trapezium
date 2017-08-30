@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.verizon.bda</groupId>
   <artifactId>trapezium-parent</artifactId>
-  <version>1.2.0-SNAPSHOT</version>
+  <version>1.2.0</version>
   <packaging>pom</packaging>
   <name>Verizon BDA Trapezium Parent POM</name>
   <prerequisites>
@@ -22,7 +22,7 @@
   </modules>
   
   <properties>
-    <trapezium.version>1.2.0-SNAPSHOT</trapezium.version>
+    <trapezium.version>1.2.0</trapezium.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>

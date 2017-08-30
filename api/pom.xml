@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.verizon.bda.apisvcs</groupId>
     <artifactId>commons-api</artifactId>
-    <version>1.2.0-SNAPSHOT</version>
+    <version>1.2.0</version>
    <name>Verizon commons-api library</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
