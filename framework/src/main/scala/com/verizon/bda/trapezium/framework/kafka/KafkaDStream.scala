@@ -115,14 +115,12 @@ private[framework] object KafkaDStream {
 
       }
 
-
-
       val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
       // convert dstream of String into Row
       if (dStreamOffset != null) {
         val dStreamRow = dStreamOffset.transform((rdd) => {
 
-          logger.info(s" Count : ${rdd.count()}")
+          logger.info(s" Transform Count : ${rdd.count()}")
           val rowRDD = rdd.map(line => {
             logger.info(s"${line.value().toString}")
             Row(line.value().toString)
@@ -130,10 +128,31 @@ private[framework] object KafkaDStream {
           rowRDD
         })
 
-        //TODO: Solve the HasOffsetRanges on Rdd and Remove this condition
+        /**
+          * FIXME: Find a better way for the offset calculation
+          * For now, iterate over all the elements and find the min and max per partition
+          */
+        dStreamOffset.foreachRDD( rdd => {
+          rdd.foreach(record => {
+            val key = new TopicPartition(record.topic, record.partition)
+            val prt = topicpartitions.get(key)
+            if(!prt.isEmpty) {
+              topicpartitions(key) =  ( Math.min(prt.get._1 , record.offset()) , Math.max(prt.get._2 , record.offset()))
+            }
+            else
+              topicpartitions(key) =  ( record.offset() , record.offset() )
+          })
+
+          logger.info(s"Topic partitions  =  ${topicpartitions.size}")
+          appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
+
+        })
+
+        //This block goes away once the [FIXME]  above is resolved
         if (false) {
           dStreamOffset.foreachRDD { rdd =>
             var rddcount = 0L;
+
             val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
             for (o <- offsetRanges) {
               topicpartitions += (new TopicPartition(o.topic, o.partition)

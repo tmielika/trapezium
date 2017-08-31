@@ -132,8 +132,8 @@ object KafkaTxn5 extends StreamingTransaction {
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
     if (batchID < 4) {
       val count = rdd.count()
+      logger.info(s"Invoked ${batchID} times with count ${count} [expected = 499 or count 0]")
       require(count == 499 || count == 0)
-      logger.info(s"Invoked $batchID times with count $count")
     }
     batchID += 1
   }

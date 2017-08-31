@@ -28,8 +28,10 @@ object CustomKafkaSparkDStream {
     new CustomInputStream[K, V](ssc, consumerConfig,  appConfig, workflowName, syncWorkflow)
   }
 
+  // --------- START : Block manager based IMPL---------
+
   /**
-    * A customInputDStream. To be enhanced later based on the need such as rate controllers, block creations, etc.
+    * A customInputDStream. To be enhanced based on the need such as rate controllers, block creations, RDD etc.
     * @param ssc
     * @param consumerConfig
     * @param appConfig
@@ -52,9 +54,13 @@ object CustomKafkaSparkDStream {
       * @return
       */
     override def compute(validTime: Time): Option[RDD[ConsumerRecord[K, V]]] = {
+
       val rdd = super.compute(validTime)
       rdd
     }
+
+
+
   }
 
   class MyKafkaConsumer[K: ClassTag, V: ClassTag](ssc: StreamingContext,

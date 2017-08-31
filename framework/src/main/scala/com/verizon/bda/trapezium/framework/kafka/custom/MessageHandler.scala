@@ -1,9 +1,11 @@
 package com.verizon.bda.trapezium.framework.kafka.custom
 
+import java.lang.Long
 import java.util
 
 import com.verizon.bda.trapezium.framework.kafka.consumer.IMessageHandler
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords}
+import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -16,7 +18,10 @@ class MessageHandler[K: ClassTag, V: ClassTag](blockWriter : IBlockWriter[K,V] )
 
   lazy val logger = LoggerFactory.getLogger(this.getClass)
 
-  override def handleMessage(consumerRecords: ConsumerRecords[K, V]): Unit = {
+  override def handleMessage(consumerRecords: ConsumerRecords[K, V],
+                             begOffsets: util.Map[TopicPartition, Long],
+                             untilOffsets: util.Map[TopicPartition, Long],
+                             latestOffsets: util.Map[TopicPartition, Long]): Unit = {
 
     if(consumerRecords.count() == 0)
       return
@@ -37,4 +42,5 @@ class MessageHandler[K: ClassTag, V: ClassTag](blockWriter : IBlockWriter[K,V] )
     logger.info(s"Received messages = ${records.size()}")
     records.iterator().asScala.foreach( record => blockWriter.store(record))
   }
+
 }
