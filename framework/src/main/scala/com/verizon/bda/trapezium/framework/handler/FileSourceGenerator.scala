@@ -139,7 +139,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             logger.info("fileSplit running for date " + sDate + " , files are " +
               files.toString())
             workflowTime = getWorkFlowTime(sDate, currentWorkflowTime)
-            val dataMap = addDF(sc, files.toString().split(","), batchData)
+            val dataMap = addDF(sc, files.toString().split(","), batchData, dataDir)
             val existingDataMap = dataSources.get(workflowTime)
             if (existingDataMap != null) {
               logger.info(s"Entry exists for this workflow time ${existingDataMap}")
@@ -158,7 +158,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             s": ${batchFiles.size}")
           if (batchFiles.size > 0) {
             logger.info(s"list of files for this run " + batchFiles.mkString(","))
-            val dataMap = addDF(sc, batchFiles, batchData)
+            val dataMap = addDF(sc, batchFiles, batchData, dataDir)
             dataSourcesNoSplit ++= dataMap
           }
         }
@@ -180,16 +180,20 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
   import DynamicSchemaHelper.generateDataFrame
   def  addDF (sc: SparkContext,
               input: Array[String],
-              batchData: Config): MMap[String, DataFrame] = synchronized {
+              batchData: Config, basePath : String): MMap[String, DataFrame] = synchronized {
 
     var dataMap = MMap[String, DataFrame]()
 
     val name = batchData.getString("name")
+    val readFullDataSet = batchData.getString("readFullDataset")
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
-
-        dataMap += ((name, SQLContext.getOrCreate(sc).read.parquet(input: _*)))
+       if (readFullDataSet.equals("readFullDataSet")) {
+         dataMap += ((name, SQLContext.getOrCreate(sc).read.option("basePath", basePath).parquet(input: _*)))
+       } else {
+         dataMap += ((name, SQLContext.getOrCreate(sc).read.parquet(basePath)))
+       }
       }
       case "AVRO" => {
         logger.info(s"input source is Avro")
