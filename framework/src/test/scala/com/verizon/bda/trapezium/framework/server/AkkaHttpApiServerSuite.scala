@@ -32,30 +32,20 @@ import org.slf4j.LoggerFactory
   * Created by Pankaj on 8/10/16.
   * Modified by Faraz 0n 08/10/16
   */
-@Ignore class AkkaHttpApiServerSuite extends FunSuite with BeforeAndAfterAll {
+@Ignore class AkkaHttpApiServerSuite extends HttpServerSuiteBase with BeforeAndAfterAll {
   val logger = LoggerFactory.getLogger(this.getClass)
-
-  var appConfig: ApplicationConfig = _
-  var zk: EmbeddedZookeeper = null
 
   val args = Array("--workflow", "akkaHttpApiServer")
 
   override def beforeAll(): Unit = {
-    appConfig = ApplicationManager.getConfig()
 
-    // set up ZooKeeper Server
-    zk = new EmbeddedZookeeper(appConfig.zookeeperList.split(",")(0))
+    super.beforeAll()
     ApplicationManager.main(args)
   }
 
   override def afterAll: Unit = {
-    // Close ZooKeeper connections
-    ZooKeeperConnection.close
 
-    if (zk != null) {
-      zk.shutdown()
-      zk = null
-    }
+    super.beforeAll()
 
     // stop HTTP server if started
     if (ApplicationManager.getEmbeddedServer != null) {

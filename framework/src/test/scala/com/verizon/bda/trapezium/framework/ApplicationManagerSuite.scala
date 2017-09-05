@@ -161,6 +161,17 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
       appConfig )(sc)
   }
 
+  test("read test local envconf file with environment values ") {
+
+    val field = System.getenv().getClass.getDeclaredField("m")
+    field.setAccessible(true)
+    val map = field.get(System.getenv()).asInstanceOf[java.util.Map[java.lang.String, java.lang.String]]
+    map.put("dbname", "palomar")
+
+    var dbname = appConfig.resolveConfig("localtest_app_mgr.conf")
+    assert(dbname.getString("persistSchema") == "palomar")
+  }
+
   test("runBatchWorkFlow should successfully onlyDir = false then run only based on maxIters") {
     createFiles
 

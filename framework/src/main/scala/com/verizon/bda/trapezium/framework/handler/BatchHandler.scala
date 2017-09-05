@@ -32,7 +32,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
 import com.verizon.bda.trapezium.framework.utils.Waiter
-
+import org.slf4j.LoggerFactory
 
 /**
  * @author sumanth.venkatasubbaiah Handles the batch workflows
