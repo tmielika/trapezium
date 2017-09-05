@@ -185,12 +185,19 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
     var dataMap = MMap[String, DataFrame]()
 
     val name = batchData.getString("name")
-    val readFullDataSet = batchData.getString("readFullDataset")
+    val readFullDataSet = {
+      if (batchData.hasPath("readFullDataset")) {
+        batchData.getString("readFullDataset")
+      } else {
+        "false"
+      }
+    }
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
-       if (readFullDataSet.equals("readFullDataSet")) {
-         dataMap += ((name, SQLContext.getOrCreate(sc).read.option("basePath", basePath).parquet(input: _*)))
+       if (readFullDataSet.equals("false")) {
+         dataMap += ((name, SQLContext.getOrCreate(sc).read.option("basePath",
+           basePath).parquet(input: _*)))
        } else {
          dataMap += ((name, SQLContext.getOrCreate(sc).read.parquet(basePath)))
        }
