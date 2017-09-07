@@ -41,7 +41,9 @@ object KafkaDStreamFactory {
     val pollTime = workflowConfig.pollTime
     val kafkaConfig = new ConsumerConfig(props, topicSet, pollTime)
 
+
     CustomKafkaSparkDStream.createDStream(ssc,kafkaConfig, appConfig, workflowConfig.workflow, workflowConfig.syncWorkflow)
+
   }
 
 

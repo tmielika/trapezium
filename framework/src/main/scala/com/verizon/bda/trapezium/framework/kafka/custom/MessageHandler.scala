@@ -26,19 +26,19 @@ class MessageHandler[K: ClassTag, V: ClassTag](blockWriter : IBlockWriter[K,V] )
     if(consumerRecords.count() == 0)
       return
 
-    blockWriter.init()
+    blockWriter.init(begOffsets,untilOffsets,latestOffsets)
 
     val partitions = consumerRecords.partitions()
     val iterator = partitions.iterator().asScala
 
     //Parallelize processing messages based on the number of partitions
-    iterator.toStream.par.foreach(topicPartition => storeRecords(consumerRecords.records(topicPartition)))
+    iterator.toStream.par.foreach(topicPartition => push(consumerRecords.records(topicPartition)))
 
     blockWriter.complete()
   }
 
   // retain order within a partition
-  def storeRecords(records: util.List[ConsumerRecord[K, V]]): Unit = {
+  def push(records: util.List[ConsumerRecord[K, V]]): Unit = {
     logger.info(s"Received messages = ${records.size()}")
     records.iterator().asScala.foreach( record => blockWriter.store(record))
   }

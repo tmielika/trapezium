@@ -1,7 +1,12 @@
 package com.verizon.bda.trapezium.framework.kafka.custom
 
+import java.lang.Long
+import java.util
+import java.util.{Collections, UUID}
+
 import com.verizon.bda.trapezium.framework.kafka.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.TopicPartition
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -13,7 +18,7 @@ import scala.reflect.ClassTag
 object BlockWriterFactory {
 
   def createDefaultBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: ConsumerConfig,
-                                                         writeBlock: (ArrayBuffer[ConsumerRecord[K, V]]) => Unit)
+                                                         writeBlock: (ArrayBuffer[ConsumerRecord[K, V]], BlockMetadata) => Unit)
   : IBlockWriter[K, V] = {
 
     new CountBasedBlockWriter[K,V](consumerConfig,writeBlock)
@@ -28,14 +33,24 @@ object BlockWriterFactory {
   * @tparam V
   */
 private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: ConsumerConfig,
-                                                    writeBlock: (ArrayBuffer[ConsumerRecord[K, V]]) => Unit)
+                                                    writeBlock: (ArrayBuffer[ConsumerRecord[K, V]], BlockMetadata) => Unit)
   extends IBlockWriter[K, V] {
 
   var blockCache = scala.collection.mutable.Map[(String, Int), ArrayBuffer[ConsumerRecord[K, V]]]()
+  var begOffsets: util.Map[TopicPartition, Long] = Collections.emptyMap()
+  var untilOffsets: util.Map[TopicPartition, Long] = Collections.emptyMap()
+  var latestOffsets: util.Map[TopicPartition, Long] = Collections.emptyMap()
+  var id :UUID = _
 
-  override def init(): Unit = {
-    //  nothing to initialize
+   def init(begOffsets: util.Map[TopicPartition, Long],
+                    untilOffsets: util.Map[TopicPartition, Long],
+                    latestOffsets: util.Map[TopicPartition, Long]): Unit = {
+    id = UUID.randomUUID();
     blockCache.clear()
+    this.begOffsets= begOffsets
+    this.untilOffsets = untilOffsets
+    this.latestOffsets = latestOffsets
+
   }
 
   /**
@@ -51,31 +66,44 @@ private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: Co
 
     if (partitionedRecords.isEmpty) {
       val block  = ArrayBuffer[ConsumerRecord[K, V]](consumerRecord)
-      blockCache(key) = block
+      blockCache.+(key-> block)
     } else {
       val block: ArrayBuffer[ConsumerRecord[K, V]] = blockCache(key)
       //write back and flush when the threshold is reached
       if (consumerConfig.getMaxRecordCount() > 1  &&  block.size >= consumerConfig.getMaxRecordCount()) {
-        flushBlock(block)
+        flushBlock(false,block)
       } else {
         blockCache(key) = block.:+(consumerRecord)
       }
     }
   }
 
-  private def flushBlock(block: ArrayBuffer[ConsumerRecord[K, V]]): Unit = {
+  private def flushBlock(isLastSegment: Boolean, block: ArrayBuffer[ConsumerRecord[K, V]]): Unit = {
 
+    /**
+      * Enrich only last block with additional metadata instead of all blocks to reduce redundancies
+      */
+    if(isLastSegment){
+      val blockMetadata = new BlockMetadata(id.toString, this.begOffsets,this.untilOffsets, this.latestOffsets)
+      writeBlock(block , blockMetadata)
+    }
+    else{
 
-    if (block.isEmpty)
-      return
+      val blockMetadata = new BlockMetadata(id.toString, Collections.emptyMap(),Collections.emptyMap() , Collections.emptyMap() )
+      writeBlock(block , blockMetadata)
+    }
 
-    writeBlock(block)
     block.clear()
   }
 
   def complete(): Unit = {
-    //      clear the rest of the records accumulated in cache
-    blockCache.foreach(records => flushBlock(records._2))
-  }
+    //      flush rest of the records accumulated in cache - if no records then empty set will be sent for flushBlock
+    blockCache.foreach(records => flushBlock(true,records._2))
 
+//    Clear the state
+    blockCache.clear()
+    this.begOffsets = Collections.emptyMap()
+    this.untilOffsets = Collections.emptyMap()
+    this.latestOffsets = Collections.emptyMap()
+  }
 }

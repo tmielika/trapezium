@@ -5,7 +5,7 @@ import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.streaming.dstream.ReceiverInputDStream
+import org.apache.spark.streaming.dstream.{CustomKafkaReceiverInputDStream, ReceiverInputDStream}
 import org.apache.spark.streaming.receiver.Receiver
 import org.apache.spark.streaming.{StreamingContext, Time}
 import org.slf4j.LoggerFactory
@@ -28,7 +28,7 @@ object CustomKafkaSparkDStream {
     new CustomInputStream[K, V](ssc, consumerConfig,  appConfig, workflowName, syncWorkflow)
   }
 
-  // --------- START : Block manager based IMPL---------
+  // --------- START : Block manager based IMPL ---------
 
   /**
     * A customInputDStream. To be enhanced based on the need such as rate controllers, block creations, RDD etc.
@@ -43,7 +43,7 @@ object CustomKafkaSparkDStream {
                                                     appConfig: ApplicationConfig,
                                                     workflowName: String,
                                                     syncWorkflow: String)
-    extends ReceiverInputDStream[ConsumerRecord[K, V]](ssc) {
+    extends CustomKafkaReceiverInputDStream[ConsumerRecord[K, V]](ssc) {
 
     override def getReceiver(): Receiver[ConsumerRecord[K, V]] =
       new MyKafkaConsumer[K, V](ssc, consumerConfig,  appConfig,workflowName, syncWorkflow)
@@ -59,8 +59,6 @@ object CustomKafkaSparkDStream {
       rdd
     }
 
-
-
   }
 
   class MyKafkaConsumer[K: ClassTag, V: ClassTag](ssc: StreamingContext,
@@ -74,23 +72,25 @@ object CustomKafkaSparkDStream {
 
     var balancedKafkaConsumer:BalancedKafkaConsumer[K, V] = _
 
+
+
     /**
       * stores in to the Spark block manager as a consumer record to keep consistent
       * with the KafkaUtil.createDStream() API.
       * At the same time keep the ArrayBuffer to represent the block of messages for
       * reliability as per spark
       */
-    def storeRecord(record: ArrayBuffer[ConsumerRecord[K, V]]): Unit = {
+    def storeRecord(record: ArrayBuffer[ConsumerRecord[K, V]],
+                    blockMetadata : BlockMetadata) : Unit = {
 
       //TODO: Change to Debug before checkin
       logger.info(s"storing [${record.size}]  messages")
-
-      store(record)
+      store(record, blockMetadata)
     }
 
     override def onStart(): Unit = {
       logger.info(s"Starting the reciver @ ${this.streamId}")
-      val blockWriter: IBlockWriter[K, V] =  BlockWriterFactory.createDefaultBlockWriter(consumerConfig,storeRecord)
+      val blockWriter:IBlockWriter[K,V]= BlockWriterFactory.createDefaultBlockWriter[K,V](consumerConfig, storeRecord)
       balancedKafkaConsumer = new BalancedKafkaConsumer[K, V](
         consumerConfig,
         new ZkBasedOffsetManager( appConfig, workflowName, syncWorkflow),

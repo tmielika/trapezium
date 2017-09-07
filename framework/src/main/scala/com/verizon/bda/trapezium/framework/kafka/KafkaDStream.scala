@@ -115,7 +115,7 @@ private[framework] object KafkaDStream {
 
       }
 
-      val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
+
       // convert dstream of String into Row
       if (dStreamOffset != null) {
         val dStreamRow = dStreamOffset.transform((rdd) => {
@@ -128,40 +128,18 @@ private[framework] object KafkaDStream {
           rowRDD
         })
 
-        /**
-          * FIXME: Find a better way for the offset calculation
-          * For now, iterate over all the elements and find the min and max per partition
-          */
-        dStreamOffset.foreachRDD( rdd => {
-          rdd.foreach(record => {
-            val key = new TopicPartition(record.topic, record.partition)
-            val prt = topicpartitions.get(key)
-            if(!prt.isEmpty) {
-              topicpartitions(key) =  ( Math.min(prt.get._1 , record.offset()) , Math.max(prt.get._2 , record.offset()))
-            }
-            else
-              topicpartitions(key) =  ( record.offset() , record.offset() )
-          })
+        val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
+        dStreamOffset.foreachRDD { rdd =>
+          var rddcount = 0L;
 
-          logger.info(s"Topic partitions  =  ${topicpartitions.size}")
-          appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
-
-        })
-
-        //This block goes away once the [FIXME]  above is resolved
-        if (false) {
-          dStreamOffset.foreachRDD { rdd =>
-            var rddcount = 0L;
-
-            val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
-            for (o <- offsetRanges) {
-              topicpartitions += (new TopicPartition(o.topic, o.partition)
-                -> (o.fromOffset, o.untilOffset))
-              rddcount += (o.untilOffset - o.fromOffset)
-            }
-            appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
-            logger.info(s"Row Count ${rddcount}")
+          val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          for (o <- offsetRanges) {
+            topicpartitions += (new TopicPartition(o.topic, o.partition)
+              -> (o.fromOffset, o.untilOffset))
+            rddcount += (o.untilOffset - o.fromOffset)
           }
+          appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
+          logger.info(s"Row Count ${rddcount}")
         }
 
         val validatedDStream = Validator.getValidatedStream (streamname, dStreamRow, streamInfo)
@@ -175,6 +153,7 @@ private[framework] object KafkaDStream {
           rowRDD
         })
         dStreamBeginning.foreachRDD { rdd =>
+          val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
           var rddcount = 0L;
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           for (o <- offsetRanges) {

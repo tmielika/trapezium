@@ -18,6 +18,8 @@ import scala.reflect.ClassTag
   * NOTE: Keep this independent of [Spark]
   * A kafka consumer that seeks offsets when the partitions for the current consumer are switched.
   * It uses the message handler to pass on the consumer records of Kafka as a call back to the handler
+  * if no message handler is specified then its upto clients to make calls to poll and collect
+  * the records for a given poll
   *
   * Created by sankma8 on 8/3/17.
   */
@@ -36,6 +38,9 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
 
   private val consumer = new KafkaConsumer[K, V](config.getConsumerProperties())
 
+  /**
+    * All operations on the consumer is single threaded
+    */
   private val executor: ExecutorService = Executors.newSingleThreadExecutor
 
   private val pollProc = new Callable[Option[PollResult[K, V]]] {
@@ -47,7 +52,7 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
           pollResult = requestPoll()
         } catch {
           case ex: Exception => {
-            ex.printStackTrace()
+            logger.error("Failed during poll call.", ex)
           }
         }
       }
@@ -60,12 +65,11 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     override def run(): Unit = {
 
       try {
-        //          Default closeout time is fine
+//       Default closeout time is fine
         consumer.close()
       } catch {
         case ex: Exception => {
-
-          ex.printStackTrace()
+          logger.error("Failed to close the consumer.", ex)
         }
       }
       finally {
@@ -80,8 +84,15 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     val begOffsets = consumer.beginningOffsets(records.partitions())
     val untilOffsets: java.util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
     records.partitions().asScala.par.foreach(tp => {
-      untilOffsets.put(tp, consumer.position(tp))
+      try {
+        val position = consumer.position(tp)
+        untilOffsets.put(tp, position)
+      } catch {
+        case ex: Exception  =>
+          logger.error(s"cannot obtain position for topic partition - ${tp.toString}",ex)
+      }
     })
+
     val endOffsets = consumer.endOffsets(records.partitions())
     return new PollResult(records, begOffsets, untilOffsets, endOffsets)
   }
@@ -124,7 +135,7 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     return maybeResult
   }
 
-  def startConsumer(): Unit = {
+  private def startConsumer(): Unit = {
 
     if (offsetManager == null) {
       logger.warn("No offsetManager is set. The consumer will not support seeking offsets")
@@ -136,23 +147,16 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     }
 
     if (isMessageTargetDefined) {
-/*
-      val sesPool = Executors.newSingleThreadScheduledExecutor()
-      sesPool.scheduleAtFixedRate(new Runnable {
-        override def run(): Unit = {
-          while (!stopped.get() && ! executor.isShutdown) {
-            executor.submit(pollProc)
-          }
-
-        }},0, 10, TimeUnit.MILLISECONDS)
-*/
       loopingPoll()
     }
   }
 
-  def isMessageTargetDefined(): Boolean = messageHandler!=null
+  private def isMessageTargetDefined(): Boolean = messageHandler!=null
 
-  def loopingPoll(): Unit = {
+  /**
+    * A simple no-fuss implementation to poll and give call backs
+    */
+  private def loopingPoll(): Unit = {
 
     executor.execute(new Runnable {
 
