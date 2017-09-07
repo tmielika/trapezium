@@ -110,7 +110,7 @@ abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingConte
 
 
   /**
-    * computes the highest offset ranges that the RDD represents
+    * computes the OffsetRange instances for the current RDD represents
     * @param blockInfos
     * @return
     */
@@ -128,27 +128,35 @@ abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingConte
         //        Check and take the largest offset only
         val currentOffsets = blockMetadata.getUntilOffsets()
         for ((k, v) <- currentOffsets) {
-          val uOffset = if (v > untilOffsets.get(k)) v else untilOffsets.get(k)
+          var uOffset = v
+          val previousUOffset = untilOffsets.get(k)
+          if(previousUOffset!=null)
+            uOffset = if (v > previousUOffset) v else previousUOffset
+
           untilOffsets.put(k, uOffset)
         }
 
         //        Check and take the largest offset only
         val beginningOffsets = blockMetadata.getBeginningOffsets()
         for ((k, v) <- beginningOffsets) {
-          val bgOffset = if (v < begOffsets.get(k)) v else begOffsets.get(k)
+
+          var bgOffset = v
+          val previousBegOffset =  begOffsets.get(k)
+          if(previousBegOffset!=null)
+           bgOffset =  if (v < previousBegOffset) v else previousBegOffset
           begOffsets.put(k, bgOffset)
         }
       }
 
     })
 
-//  STEP 2 : create the offset ranges for the curent set
+//  STEP 2 : create the offset ranges for the current set
     for((k,v) <- untilOffsets) {
 //      val topic: String,
 //      val partition: Int,
 //      val fromOffset: Long,
 //      val untilOffset: Long
-      val range = new OffsetRange(k.topic(), k.partition(), begOffsets.get(k), untilOffsets.get(k) )
+      val range = OffsetRange.create(k.topic(), k.partition(), begOffsets.get(k), untilOffsets.get(k) )
       range +: offsetRanges
     }
 

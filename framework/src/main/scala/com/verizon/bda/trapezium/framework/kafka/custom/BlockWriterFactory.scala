@@ -7,6 +7,7 @@ import java.util.{Collections, UUID}
 import com.verizon.bda.trapezium.framework.kafka.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -35,6 +36,9 @@ object BlockWriterFactory {
 private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: ConsumerConfig,
                                                     writeBlock: (ArrayBuffer[ConsumerRecord[K, V]], BlockMetadata) => Unit)
   extends IBlockWriter[K, V] {
+
+
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   var blockCache = scala.collection.mutable.Map[(String, Int), ArrayBuffer[ConsumerRecord[K, V]]]()
   var begOffsets: util.Map[TopicPartition, Long] = Collections.emptyMap()
@@ -66,7 +70,7 @@ private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: Co
 
     if (partitionedRecords.isEmpty) {
       val block  = ArrayBuffer[ConsumerRecord[K, V]](consumerRecord)
-      blockCache.+(key-> block)
+      blockCache.put(key,block)
     } else {
       val block: ArrayBuffer[ConsumerRecord[K, V]] = blockCache(key)
       //write back and flush when the threshold is reached
@@ -80,6 +84,7 @@ private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: Co
 
   private def flushBlock(isLastSegment: Boolean, block: ArrayBuffer[ConsumerRecord[K, V]]): Unit = {
 
+    logger.info(s"Segment ${isLastSegment}. Flushing the block - ${block.size}")
     /**
       * Enrich only last block with additional metadata instead of all blocks to reduce redundancies
       */
@@ -101,7 +106,6 @@ private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: Co
     blockCache.foreach(records => flushBlock(true,records._2))
 
 //    Clear the state
-    blockCache.clear()
     this.begOffsets = Collections.emptyMap()
     this.untilOffsets = Collections.emptyMap()
     this.latestOffsets = Collections.emptyMap()
