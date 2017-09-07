@@ -20,13 +20,15 @@
     <module>couchbase-store</module>
     <module>license-stub</module>
     <module>simulation</module>
+    <module>api</module>
+    <module>api-akkahttp</module>
   </modules>
   
   <properties>
     <trapezium.version>1.2.0-SNAPSHOT</trapezium.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <java.version>1.7</java.version>
+    <java.version>1.8</java.version>
     <maven.version>3.3.3</maven.version>
     <log4j.version>1.2.17</log4j.version>
     <hadoop.version>2.2.0</hadoop.version>
@@ -38,7 +40,7 @@
     <scala.version>2.10.5</scala.version>
     <scala.binary.version>2.10</scala.binary.version>
     <spark.version>1.6.0</spark.version>
-    <lucene.version>5.5.0</lucene.version>
+    <lucene.version>6.5.1</lucene.version>
     <guava.version>18.0</guava.version>
     <snappy.version>1.1.1.7</snappy.version>
     <joda.version>2.5</joda.version>
@@ -533,7 +535,7 @@
         <version>0.7.0</version>
         <configuration>
           <verbose>false</verbose>
-          <failOnViolation>true</failOnViolation>
+          <failOnViolation>false</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
           <failOnWarning>true</failOnWarning>
           <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
