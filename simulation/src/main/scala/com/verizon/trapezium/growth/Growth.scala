@@ -14,66 +14,15 @@
 */
 package com.verizon.trapezium.growth
 
-import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
-import org.apache.spark.sql.{DataFrame}
-import org.apache.spark.sql.functions._
-import org.slf4j.LoggerFactory
-import collection.JavaConverters._
-import scala.reflect.runtime._
-
-
+import org.apache.spark.sql.UserDefinedFunction
 /**
- * Created by parmana on 10/6/16.
- */
-class Growth(df: DataFrame, workflowConfig: WorkflowConfig) extends DefaultUdfs {
-  val logger = LoggerFactory.getLogger(this.getClass)
+  * Created by venkatesh on 10/6/16.
+  */
+trait Growth[T] {
 
-  def growth(): SaveGrowth = {
-    try {
-      val conf = workflowConfig.workflowConfig.getConfig("dataSliceInfo")
-      df.printSchema()
-      df.show(false)
-      val growthcol = conf.getStringList("growthcol").asScala.toArray
-      val growthcolType = conf.getStringList("growthColTypes").asScala.toArray
-      val repetition = conf.getInt("repetition")
-      //      var df1: DataFrame = df
-      val rangeUdf = udf((repetition: Int) => List.tabulate(repetition)(i => i))
-      var datagrowth: DataFrame = df.withColumn("rand", rangeUdf(lit(repetition)))
-        .withColumn("rand", explode(col("rand")))
-      for ((inputCol, dataType) <- (growthcol zip growthcolType)) {
+  def customUDF: UserDefinedFunction
 
-        def listGeneratorUdf = dataType.toLowerCase match {
-          case "string" =>
-            udf(
-              closureFuncForString)
-          case "int" =>
-            udf(closureFuncForInt)
-          case "double" =>
-            udf(closureFuncForDouble)
-          case "long" =>
-            udf(closureFuncForDouble)
-          case _ => {
-            val clazz = customObject(dataType)
-            clazz.asInstanceOf[CustomGrowth[clazz.type]].customUDF
-          }
-        }
-        datagrowth = datagrowth.withColumn(inputCol,
-          listGeneratorUdf(datagrowth(inputCol), datagrowth("rand")))
-      }
-      datagrowth = datagrowth.drop("rand")
-      return new SaveGrowth(datagrowth  , workflowConfig)
-     } catch {
-      case ex: Exception => {
-
-        logger.error("Error occured while growing the data", ex.printStackTrace())
-      }
-    }
-    null
-  }
-  private def customObject(dataType: String) = {
-    val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
-    val module = runtimeMirror.staticModule(dataType)
-    val obj = runtimeMirror.reflectModule(module)
-    obj.instance.asInstanceOf[CustomType]
-  }
+  protected def customFunction(input: T, iterationCount: Int): T
 }
+
+trait CustomType {}

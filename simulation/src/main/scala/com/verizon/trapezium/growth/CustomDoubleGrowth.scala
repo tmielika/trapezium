@@ -19,7 +19,7 @@ import org.apache.spark.sql.UserDefinedFunction
 /**
   * Created by venkatesh on 10/6/16.
   */
-trait CustomDoubleGrowth extends CustomGrowth[Double] with Serializable {
+trait DoubleGrowth extends Growth[Double] with Serializable {
 
   import org.apache.spark.sql.functions._
 

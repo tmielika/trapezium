@@ -21,7 +21,7 @@ import org.apache.spark.sql.UserDefinedFunction
   * Created by venkatesh on 10/5/16.
   */
 
-trait CustomStringGrowth extends CustomGrowth[String] with Serializable with CustomType {
+trait StringGrowth extends Growth[String] with Serializable with CustomType {
 
   import org.apache.spark.sql.functions._
 

@@ -15,13 +15,13 @@
 package com.verizon.trapezium.example
 
 
-import com.verizon.trapezium.growth.CustomStringGrowth
+import com.verizon.trapezium.growth.{StringGrowth}
 
 /**
   * Created by venkatesh on 10/6/16.
   */
 object SampleStringGrowth
-  extends CustomStringGrowth {
+  extends StringGrowth {
   override def customFunction(input: String, iterationCount: Int): String = {
     input + iterationCount
   }

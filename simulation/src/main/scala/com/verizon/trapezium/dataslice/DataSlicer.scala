@@ -18,7 +18,7 @@ import java.sql.Time
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.{Trigger, ApplicationManager, BatchTransaction}
-import com.verizon.trapezium.growth.{Slice, Growth}
+import com.verizon.trapezium.growth.{GrowthImpl, Slice, Growth}
 import com.verizon.trapezium.utils.Util
 import org.apache.spark.sql.DataFrame
 import org.slf4j.LoggerFactory
@@ -59,13 +59,13 @@ object DataSlicer  extends BatchTransaction {
    sqlContext.udf.register("quantizeUdf" , Util.quantizeUdf(_: String , _: Long))
    if (runmode.contains("slice") && runmode.contains("growth")){
      logger.info("mode is slice and growth")
-     new Growth(df, workflowConfig).growth().slice().saveToHdfs()
+     new GrowthImpl(df, workflowConfig).growth().slice().saveToHdfs()
    } else if (runmode.contains("slice")){
      logger.info("mode is slice")
      new Slice(df, workflowConfig).slice().saveToHdfs()
    } else if (runmode.contains("growth")){
      logger.info("mode is slice")
-     new Growth(df, workflowConfig).growth().saveToHdfs()
+     new GrowthImpl(df, workflowConfig).growth().saveToHdfs()
    } else {
      logger.error("Please specify the correct mode valid modes are : " +
        " slice,growth", "Please " +

@@ -19,7 +19,7 @@ import org.apache.spark.sql.UserDefinedFunction
 /**
   * Created by venkatesh on 10/6/16.
   */
-trait CustomIntGrowth extends CustomGrowth[Int] with Serializable with CustomType {
+trait IntGrowth extends Growth[Int] with Serializable with CustomType {
 
   import org.apache.spark.sql.functions._
 

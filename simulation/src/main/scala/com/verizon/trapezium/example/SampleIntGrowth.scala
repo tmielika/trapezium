@@ -15,14 +15,14 @@
 package com.verizon.trapezium.example
 
 
-import com.verizon.trapezium.growth.CustomIntGrowth
+import com.verizon.trapezium.growth.{IntGrowth}
 
 
 /**
   * Created by venkatesh on 10/5/16.
   */
 object SampleIntGrowth
-  extends CustomIntGrowth {
+  extends IntGrowth {
   override def customFunction(input: Int, iterationCount: Int): Int = {
     input * 10 + iterationCount
   }
