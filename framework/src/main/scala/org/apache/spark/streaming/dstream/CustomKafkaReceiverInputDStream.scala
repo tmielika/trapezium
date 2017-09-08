@@ -135,26 +135,33 @@ abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingConte
     //    STEP 1 : Collect all highest untilOffsets and lowest beginning offsets
     blockInfos.foreach(block => {
 
-      val blockMetadata = block.metadataOption.get.asInstanceOf[BlockMetadata]
-      //        Check and take the largest offset only
-      val currentOffsets = blockMetadata.getUntilOffsets()
-      for ((k, v) <- currentOffsets) {
-        var uOffset = v
-        val previousUOffset = untilOffsets.get(k)
-        if (previousUOffset != null)
-          uOffset = if (v > previousUOffset) v else previousUOffset
 
-        untilOffsets.put(k, uOffset)
-      }
+      val metaDataOption = block.metadataOption
+      if (metaDataOption.isDefined) {
 
-      //        Check and take the smallest beginning offset for a partition
-      val beginningOffsets = blockMetadata.getBeginningOffsets()
-      for ((k, v) <- beginningOffsets) {
-        var bgOffset = v
-        val previousBegOffset = begOffsets.get(k)
-        if (previousBegOffset != null)
-          bgOffset = if (v < previousBegOffset) v else previousBegOffset
-        begOffsets.put(k, bgOffset)
+        val blockMetadata = metaDataOption.get.asInstanceOf[BlockMetadata]
+
+        //     Check and take the largest offset for untilOffset. Watermarked offsets are the
+        //     last part of the block that hold the untilOffsets
+        val currentOffsets = blockMetadata.getUntilOffsets()
+        for ((k, v) <- currentOffsets) {
+          var uOffset = v
+          val previousUOffset = untilOffsets.get(k)
+          if (previousUOffset != null)
+            uOffset = if (v > previousUOffset) v else previousUOffset
+
+          untilOffsets.put(k, uOffset)
+        }
+
+        //        Check and take the smallest beginning offset for a partition
+        val beginningOffsets = blockMetadata.getBeginningOffsets()
+        for ((k, v) <- beginningOffsets) {
+          var bgOffset = v
+          val previousBegOffset = begOffsets.get(k)
+          if (previousBegOffset != null)
+            bgOffset = if (v < previousBegOffset) v else previousBegOffset
+          begOffsets.put(k, bgOffset)
+        }
       }
 
     })

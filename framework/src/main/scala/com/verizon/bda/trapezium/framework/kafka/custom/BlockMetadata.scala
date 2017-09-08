@@ -10,11 +10,15 @@ import java.util
 class BlockMetadata(batchId: String,
                     beginningOffsets: util.Map[TopicPartition, java.lang.Long],
                     untilOffsets: util.Map[TopicPartition, java.lang.Long],
-                    lastOffsets: util.Map[TopicPartition, java.lang.Long])
+                    lastOffsets: util.Map[TopicPartition, java.lang.Long],
+                    topic:String,
+                    partition: Int)
 extends Serializable {
 
   def getBatchId():String = batchId
   def getBeginningOffsets(): util.Map[TopicPartition, java.lang.Long] = beginningOffsets
   def getUntilOffsets(): util.Map[TopicPartition, java.lang.Long] =  untilOffsets
   def getLastOffsets(): util.Map[TopicPartition, java.lang.Long] = lastOffsets
+  def getTopic() : String = topic
+  def getPartition(): Int = partition
 }
