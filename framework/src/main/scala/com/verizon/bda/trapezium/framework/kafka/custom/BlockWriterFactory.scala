@@ -98,10 +98,10 @@ private class PartitionAndCountBasedBlockWriter[K: ClassTag, V: ClassTag](consum
       _begOffsets.put(partition, this.begOffsets.get(partition))
 
       val _untilOffsets: util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
-      _begOffsets.put(partition, this.untilOffsets.get(partition))
+      _untilOffsets.put(partition, this.untilOffsets.get(partition))
 
       val _latestOffsets: util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
-      _begOffsets.put(partition, this.latestOffsets.get(partition))
+      _latestOffsets.put(partition, this.latestOffsets.get(partition))
 
       val blockMetadata = new BlockMetadata(id.toString, _begOffsets, _untilOffsets, _latestOffsets, key._1, key._2)
       writeBlock(block, blockMetadata)
