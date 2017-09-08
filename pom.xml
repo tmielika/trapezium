@@ -19,6 +19,7 @@
     <module>sparkcassandra-connector</module>
     <module>couchbase-store</module>
     <module>license-stub</module>
+    <module>simulation</module>
     <module>api</module>
     <module>api-akkahttp</module>
   </modules>
