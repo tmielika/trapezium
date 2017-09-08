@@ -4,6 +4,7 @@ import org.apache.kafka.common.TopicPartition
 import java.util
 
 /**
+  * A metadata for the the block added to spark that includes offset details
   * Created by sankma8 on 9/6/17.
   */
 class BlockMetadata(batchId: String,

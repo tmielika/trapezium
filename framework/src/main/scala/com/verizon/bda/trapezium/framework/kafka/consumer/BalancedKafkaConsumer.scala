@@ -81,7 +81,19 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
   private def requestPoll() : PollResult[K,V] = {
     val records = consumer.poll(config.getPollTime())
     logger.info(s"Record count =  ${records.count()}")
-    val begOffsets = consumer.beginningOffsets(records.partitions())
+    val begOffsets: util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition,Long]()
+
+    /** NOTE:  The API  'consumer.beginningOffsets(records.partitions())' gives the beg offsets with respect to the
+      * topic partition offsets saved in server and not from the latest poll call. We have to grab it from the
+      * polled messages.
+      * Since the messages within the partitions are ordered - take the first item and mark its index as he beginning
+      */
+    records.partitions().asScala.foreach(parts => {
+      val list = records.records(parts)
+      if(list!=null && !list.isEmpty)
+        begOffsets.put(parts, records.records(parts).get(0).offset())
+    })
+
     val untilOffsets: java.util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
     records.partitions().asScala.par.foreach(tp => {
       try {

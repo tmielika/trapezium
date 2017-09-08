@@ -129,6 +129,7 @@ private[framework] object KafkaDStream {
         })
 
         val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
+
         dStreamOffset.foreachRDD { rdd =>
           var rddcount = 0L;
 
@@ -139,6 +140,7 @@ private[framework] object KafkaDStream {
             rddcount += (o.untilOffset - o.fromOffset)
           }
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
+
           logger.info(s"Row Count ${rddcount}")
         }
 

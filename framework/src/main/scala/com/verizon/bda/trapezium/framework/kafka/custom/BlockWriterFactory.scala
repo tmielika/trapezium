@@ -85,19 +85,8 @@ private class CountBasedBlockWriter[K: ClassTag, V: ClassTag](consumerConfig: Co
   private def flushBlock(isLastSegment: Boolean, block: ArrayBuffer[ConsumerRecord[K, V]]): Unit = {
 
     logger.info(s"Segment ${isLastSegment}. Flushing the block - ${block.size}")
-    /**
-      * Enrich only last block with additional metadata instead of all blocks to reduce redundancies
-      */
-    if(isLastSegment){
-      val blockMetadata = new BlockMetadata(id.toString, this.begOffsets,this.untilOffsets, this.latestOffsets)
-      writeBlock(block , blockMetadata)
-    }
-    else{
-
-      val blockMetadata = new BlockMetadata(id.toString, Collections.emptyMap(),Collections.emptyMap() , Collections.emptyMap() )
-      writeBlock(block , blockMetadata)
-    }
-
+    val blockMetadata = new BlockMetadata(id.toString, this.begOffsets, this.untilOffsets, this.latestOffsets)
+    writeBlock(block, blockMetadata)
     block.clear()
   }
 

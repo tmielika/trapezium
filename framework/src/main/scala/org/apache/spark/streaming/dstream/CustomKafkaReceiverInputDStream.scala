@@ -12,6 +12,7 @@ import org.apache.spark.streaming.rdd.WriteAheadLogBackedBlockRDD
 import org.apache.spark.streaming.scheduler.ReceivedBlockInfo
 import org.apache.spark.streaming.util.WriteAheadLogUtils
 import org.apache.spark.streaming.{StreamingContext, Time}
+import scala.collection.mutable.ArrayBuffer
 
 import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
@@ -23,11 +24,12 @@ import scala.reflect.ClassTag
   *
   * Created by sankma8 on 9/3/17.
   */
-abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingContext) extends ReceiverInputDStream[T](_ssc){
+abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingContext) extends ReceiverInputDStream[T](_ssc) {
 
 
   /**
     * The below code is copied and adapted for our Hasoffset requirement
+    *
     * @param time
     * @param blockInfos
     * @return
@@ -40,20 +42,28 @@ abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingConte
     val hasOffsetRanges = computeUntilOffsets(blockInfos)
 
     if (blockInfos.nonEmpty) {
-      val blockIds = blockInfos.map { _.blockId.asInstanceOf[BlockId] }.toArray
+      val blockIds = blockInfos.map {
+        _.blockId.asInstanceOf[BlockId]
+      }.toArray
 
       // Are WAL record handles present with all the blocks
-      val areWALRecordHandlesPresent = blockInfos.forall { _.walRecordHandleOption.nonEmpty }
+      val areWALRecordHandlesPresent = blockInfos.forall {
+        _.walRecordHandleOption.nonEmpty
+      }
 
       if (areWALRecordHandlesPresent) {
         // If all the blocks have WAL record handle, then create a WALBackedBlockRDD
-        val isBlockIdValid = blockInfos.map { _.isBlockIdValid() }.toArray
-        val walRecordHandles = blockInfos.map { _.walRecordHandleOption.get }.toArray
+        val isBlockIdValid = blockInfos.map {
+          _.isBlockIdValid()
+        }.toArray
+        val walRecordHandles = blockInfos.map {
+          _.walRecordHandleOption.get
+        }.toArray
         /**
           * FIX: Adapted the type with HasOffsetRanges
           */
         new WriteAheadLogBackedBlockRDD[T](
-          ssc.sparkContext, blockIds, walRecordHandles, isBlockIdValid)  with HasOffsetRanges {
+          ssc.sparkContext, blockIds, walRecordHandles, isBlockIdValid) with HasOffsetRanges {
 
           override def offsetRanges: Array[OffsetRange] = hasOffsetRanges
         }
@@ -111,56 +121,51 @@ abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingConte
 
   /**
     * computes the OffsetRange instances for the current RDD represents
+    *
     * @param blockInfos
     * @return
     */
-  private def computeUntilOffsets(blockInfos: Seq[ReceivedBlockInfo]) : Array[OffsetRange]  = {
-    val offsetRanges = Array[OffsetRange]()
+  private def computeUntilOffsets(blockInfos: Seq[ReceivedBlockInfo]): Array[OffsetRange] = {
+    val offsetRanges = ArrayBuffer[OffsetRange]()
+
 
     var untilOffsets: util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
     var begOffsets: util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
 
-//    STEP 1 : Collect all highest untilOffsets and lowest beginning offsets
+    //    STEP 1 : Collect all highest untilOffsets and lowest beginning offsets
     blockInfos.foreach(block => {
 
       val blockMetadata = block.metadataOption.get.asInstanceOf[BlockMetadata]
-      if (blockMetadata.getUntilOffsets() != null && !blockMetadata.getUntilOffsets().isEmpty) {
-        //        Check and take the largest offset only
-        val currentOffsets = blockMetadata.getUntilOffsets()
-        for ((k, v) <- currentOffsets) {
-          var uOffset = v
-          val previousUOffset = untilOffsets.get(k)
-          if(previousUOffset!=null)
-            uOffset = if (v > previousUOffset) v else previousUOffset
+      //        Check and take the largest offset only
+      val currentOffsets = blockMetadata.getUntilOffsets()
+      for ((k, v) <- currentOffsets) {
+        var uOffset = v
+        val previousUOffset = untilOffsets.get(k)
+        if (previousUOffset != null)
+          uOffset = if (v > previousUOffset) v else previousUOffset
 
-          untilOffsets.put(k, uOffset)
-        }
+        untilOffsets.put(k, uOffset)
+      }
 
-        //        Check and take the largest offset only
-        val beginningOffsets = blockMetadata.getBeginningOffsets()
-        for ((k, v) <- beginningOffsets) {
-
-          var bgOffset = v
-          val previousBegOffset =  begOffsets.get(k)
-          if(previousBegOffset!=null)
-           bgOffset =  if (v < previousBegOffset) v else previousBegOffset
-          begOffsets.put(k, bgOffset)
-        }
+      //        Check and take the smallest beginning offset for a partition
+      val beginningOffsets = blockMetadata.getBeginningOffsets()
+      for ((k, v) <- beginningOffsets) {
+        var bgOffset = v
+        val previousBegOffset = begOffsets.get(k)
+        if (previousBegOffset != null)
+          bgOffset = if (v < previousBegOffset) v else previousBegOffset
+        begOffsets.put(k, bgOffset)
       }
 
     })
 
-//  STEP 2 : create the offset ranges for the current set
-    for((k,v) <- untilOffsets) {
-//      val topic: String,
-//      val partition: Int,
-//      val fromOffset: Long,
-//      val untilOffset: Long
-      val range = OffsetRange.create(k.topic(), k.partition(), begOffsets.get(k), untilOffsets.get(k) )
-      range +: offsetRanges
+    //  STEP 2 : create the offset ranges for the current set
+    for ((k, v) <- untilOffsets) {
+      val range = OffsetRange.create(k.topic(), k.partition(), begOffsets.get(k), untilOffsets.get(k))
+      offsetRanges += range
     }
 
-    offsetRanges
+    offsetRanges.toArray
   }
 
 
