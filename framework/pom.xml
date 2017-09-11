@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.verizon.bda</groupId>
 		<artifactId>trapezium-parent</artifactId>
-		<version>1.2.0-SNAPSHOT</version>
+		<version>1.4.0-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
         
@@ -35,6 +35,29 @@
                     <version>0.1.0</version>
                 </dependency>
             </dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.6</version>
+						<configuration>
+							<descriptors>
+								<descriptor>licence.xml</descriptor>
+							</descriptors>
+						</configuration>
+						<executions>
+							<execution>
+								<id>exec2</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+				</plugins>
+			</build>
         </profile>
         <profile>
             <id>opensource</id>
@@ -51,6 +74,29 @@
 					<version>${trapezium.version}</version>
                 </dependency>
             </dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.6</version>
+						<configuration>
+							<descriptors>
+								<descriptor>licence.xml</descriptor>
+							</descriptors>
+						</configuration>
+						<executions>
+							<execution>
+								<id>exec1</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+				</plugins>
+			</build>
         </profile>
     </profiles>
 

@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.verizon.bda</groupId>
   <artifactId>trapezium-parent</artifactId>
-  <version>1.2.0-SNAPSHOT</version>
+  <version>1.4.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Verizon BDA Trapezium Parent POM</name>
   <prerequisites>
@@ -19,6 +19,9 @@
     <module>sparkcassandra-connector</module>
     <module>couchbase-store</module>
     <module>license-stub</module>
+    <module>simulation</module>
+    <module>api</module>
+    <module>api-akkahttp</module>
   </modules>
   
   <properties>
