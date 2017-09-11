@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/cache" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/cassandra-dao" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/couchbase-store" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/dal" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/framework" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/sparkcassandra-connector" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/advertising" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/advertising/result-file-generator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/assembly" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/assembly/api-assembly" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/assembly/etl-assembly" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/commons" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/indexer" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/indexer/search-indexer" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/integration-tester" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/analyzer" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/api" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/meta-store" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/hbase-query-generator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/lucene-query-generator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/query-generator-commons" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/sql-query-generator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-approximates-aggregator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/clm" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/location-static-joiner" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/midm-location-joiner" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/staticdatajoiner" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/subscriber-profile" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/user-features" charset="UTF-8" />
+  </component>
+</project>

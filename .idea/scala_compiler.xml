@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <profile name="Maven 1" modules="trapezium-framework,trapezium-dal,trapezium-cassandra-dao,trapezium-sparkcassandra-connector,trapezium-parent,trapezium-couchbase-store,trapezium-cache,user-features,commons,advertising,midm-location-joiner,etl-assembly,result-file-generator,subscriber-profile-aggregator,lucene-query-generator,integration-tester,location-static-joiner,indexer,subscriber-profile,assembly,query-generator-commons,subscriber-approximates-aggregator,analyzer,clm,search-indexer,query-processor,staticdatajoiner,hbase-query-generator,query-generator,api,api-assembly,palomar,sql-query-generator">
+      <option name="deprecationWarnings" value="true" />
+      <option name="uncheckedWarnings" value="true" />
+      <option name="featureWarnings" value="true" />
+    </profile>
+    <profile name="Maven 2" modules="meta-store" />
+  </component>
+</project>

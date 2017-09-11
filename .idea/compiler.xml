@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="analyzer" />
+        <module name="api" />
+        <module name="clm" />
+        <module name="commons" />
+        <module name="hbase-query-generator" />
+        <module name="integration-tester" />
+        <module name="location-static-joiner" />
+        <module name="lucene-query-generator" />
+        <module name="meta-store" />
+        <module name="midm-location-joiner" />
+        <module name="query-generator-commons" />
+        <module name="result-file-generator" />
+        <module name="search-indexer" />
+        <module name="sql-query-generator" />
+        <module name="staticdatajoiner" />
+        <module name="subscriber-approximates-aggregator" />
+        <module name="subscriber-profile" />
+        <module name="trapezium-cache" />
+        <module name="trapezium-cassandra-dao" />
+        <module name="trapezium-couchbase-store" />
+        <module name="trapezium-dal" />
+        <module name="trapezium-framework" />
+        <module name="trapezium-sparkcassandra-connector" />
+        <module name="user-features" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="advertising" target="1.8" />
+      <module name="analyzer" target="1.8" />
+      <module name="api" target="1.8" />
+      <module name="api-assembly" target="1.8" />
+      <module name="assembly" target="1.8" />
+      <module name="clm" target="1.8" />
+      <module name="commons" target="1.8" />
+      <module name="etl-assembly" target="1.8" />
+      <module name="hbase-query-generator" target="1.8" />
+      <module name="indexer" target="1.8" />
+      <module name="integration-tester" target="1.8" />
+      <module name="location-static-joiner" target="1.8" />
+      <module name="lucene-query-generator" target="1.8" />
+      <module name="meta-store" target="1.8" />
+      <module name="midm-location-joiner" target="1.8" />
+      <module name="palomar" target="1.8" />
+      <module name="query-generator" target="1.8" />
+      <module name="query-generator-commons" target="1.8" />
+      <module name="query-processor" target="1.8" />
+      <module name="result-file-generator" target="1.8" />
+      <module name="search-indexer" target="1.8" />
+      <module name="sql-query-generator" target="1.8" />
+      <module name="staticdatajoiner" target="1.8" />
+      <module name="subscriber-approximates-aggregator" target="1.8" />
+      <module name="subscriber-profile" target="1.8" />
+      <module name="subscriber-profile-aggregator" target="1.8" />
+      <module name="trapezium-cache" target="1.7" />
+      <module name="trapezium-cassandra-dao" target="1.7" />
+      <module name="trapezium-couchbase-store" target="1.7" />
+      <module name="trapezium-dal" target="1.7" />
+      <module name="trapezium-framework" target="1.7" />
+      <module name="trapezium-parent" target="1.5" />
+      <module name="trapezium-sparkcassandra-connector" target="1.7" />
+      <module name="user-features" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../KafkaStreamTest/KafkaStreamTest.iml" filepath="$PROJECT_DIR$/../KafkaStreamTest/KafkaStreamTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../KafkaTest/KafkaTest.iml" filepath="$PROJECT_DIR$/../KafkaTest/KafkaTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/advertising/advertising.iml" filepath="$PROJECT_DIR$/../../remote/palomar/advertising/advertising.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/analyzer/analyzer.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/analyzer/analyzer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/api/api.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/api/api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/assembly/api-assembly/api-assembly.iml" filepath="$PROJECT_DIR$/../../remote/palomar/assembly/api-assembly/api-assembly.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/assembly/assembly.iml" filepath="$PROJECT_DIR$/../../remote/palomar/assembly/assembly.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/clm/clm.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/clm/clm.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/commons/commons.iml" filepath="$PROJECT_DIR$/../../remote/palomar/commons/commons.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/assembly/etl-assembly/etl-assembly.iml" filepath="$PROJECT_DIR$/../../remote/palomar/assembly/etl-assembly/etl-assembly.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/hbase-query-generator/hbase-query-generator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/hbase-query-generator/hbase-query-generator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/indexer/indexer.iml" filepath="$PROJECT_DIR$/../../remote/palomar/indexer/indexer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/integration-tester/integration-tester.iml" filepath="$PROJECT_DIR$/../../remote/palomar/integration-tester/integration-tester.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/location-static-joiner/location-static-joiner.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/location-static-joiner/location-static-joiner.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/lucene-query-generator/lucene-query-generator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/lucene-query-generator/lucene-query-generator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/meta-store/meta-store.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/meta-store/meta-store.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/midm-location-joiner/midm-location-joiner.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/midm-location-joiner/midm-location-joiner.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/palomar.iml" filepath="$PROJECT_DIR$/../../remote/palomar/palomar.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/query-generator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/query-generator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/query-generator-commons/query-generator-commons.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/query-generator-commons/query-generator-commons.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-processor.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/query-processor.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/advertising/result-file-generator/result-file-generator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/advertising/result-file-generator/result-file-generator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/indexer/search-indexer/search-indexer.iml" filepath="$PROJECT_DIR$/../../remote/palomar/indexer/search-indexer/search-indexer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/sql-query-generator/sql-query-generator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/query-processor/query-generator/sql-query-generator/sql-query-generator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/staticdatajoiner/staticdatajoiner.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/staticdatajoiner/staticdatajoiner.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-approximates-aggregator/subscriber-approximates-aggregator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-approximates-aggregator/subscriber-approximates-aggregator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/subscriber-profile/subscriber-profile.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/subscriber-profile/subscriber-profile.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/subscriber-profile-aggregator.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/subscriber-profile-aggregator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/cache/trapezium-cache.iml" filepath="$PROJECT_DIR$/cache/trapezium-cache.iml" />
+      <module fileurl="file://$PROJECT_DIR$/cassandra-dao/trapezium-cassandra-dao.iml" filepath="$PROJECT_DIR$/cassandra-dao/trapezium-cassandra-dao.iml" />
+      <module fileurl="file://$PROJECT_DIR$/couchbase-store/trapezium-couchbase-store.iml" filepath="$PROJECT_DIR$/couchbase-store/trapezium-couchbase-store.iml" />
+      <module fileurl="file://$PROJECT_DIR$/dal/trapezium-dal.iml" filepath="$PROJECT_DIR$/dal/trapezium-dal.iml" />
+      <module fileurl="file://$PROJECT_DIR$/framework/trapezium-framework.iml" filepath="$PROJECT_DIR$/framework/trapezium-framework.iml" />
+      <module fileurl="file://$PROJECT_DIR$/trapezium-parent.iml" filepath="$PROJECT_DIR$/trapezium-parent.iml" />
+      <module fileurl="file://$PROJECT_DIR$/sparkcassandra-connector/trapezium-sparkcassandra-connector.iml" filepath="$PROJECT_DIR$/sparkcassandra-connector/trapezium-sparkcassandra-connector.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/user-features/user-features.iml" filepath="$PROJECT_DIR$/../../remote/palomar/subscriber-profile-aggregator/user-features/user-features.iml" />
+    </modules>
+  </component>
+</project>
