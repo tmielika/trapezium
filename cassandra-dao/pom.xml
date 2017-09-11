@@ -49,6 +49,10 @@
                     <artifactId>guava</artifactId>
                     <groupId>com.google.guava</groupId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.apache.spark</groupId>
+                    <artifactId>spark-core</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <!-- Testing dependencies  -->

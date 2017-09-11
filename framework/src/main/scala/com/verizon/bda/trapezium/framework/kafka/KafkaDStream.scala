@@ -115,7 +115,6 @@ private[framework] object KafkaDStream {
 
       }
 
-
       // convert dstream of String into Row
       if (dStreamOffset != null) {
         val dStreamRow = dStreamOffset.transform((rdd) => {
@@ -140,7 +139,7 @@ private[framework] object KafkaDStream {
             rddcount += (o.untilOffset - o.fromOffset)
           }
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
-
+          logger.info(s"TOPIC PARTITIONS = ${topicpartitions.mkString(" , ")}")
           logger.info(s"Row Count ${rddcount}")
         }
 
@@ -163,6 +162,7 @@ private[framework] object KafkaDStream {
               -> (o.fromOffset, o.untilOffset))
             rddcount += (o.untilOffset - o.fromOffset)
           }
+
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
           logger.info(s"Row Count ${rddcount}")
         }

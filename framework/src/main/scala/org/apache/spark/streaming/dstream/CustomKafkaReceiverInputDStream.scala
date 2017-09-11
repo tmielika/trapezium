@@ -18,7 +18,9 @@ import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
 
 /**
-  * A customReceiverInputDStream that helps to aggregate blocks based on metadata information.
+  * NOTE: This code is adapted from ReceiverInputDStream since it was impossible to override some aspects
+  *
+  * A CustomReceiverInputDStream that helps to aggregate blocks based on metadata information.
   * Leverages the existing code to calculate the BlockRDD and grabs additional info to calculate
   * the OffsetRanges in the blocsks that represent the current RDD
   *

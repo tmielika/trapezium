@@ -91,6 +91,7 @@ private class PartitionAndCountBasedBlockWriter[K: ClassTag, V: ClassTag](consum
 
     /**
       * Messages in a block are per partition so we can store the partition details for end blocks
+      * These serve as 'watermark' that keeps the last location of the block
       */
     if (isLastSegment) {
       val partition = new TopicPartition(key._1, key._2)
