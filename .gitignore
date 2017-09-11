@@ -3,7 +3,6 @@ target/*
 *.iml
 ./*/*.iml
 cassandra-dao/target/
-.idea/
 dal/target/
 framework/target/
 sparkcassandra-connector/target/
