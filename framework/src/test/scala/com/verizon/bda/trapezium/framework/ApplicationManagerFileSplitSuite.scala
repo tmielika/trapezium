@@ -32,6 +32,14 @@ class ApplicationManagerFileSplitSuite extends ApplicationManagerTestSuite {
     FileCopy.copyFiles(2)
   }
 
+  test("Workflow parquet file readfull data set") {
+    val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("readParquet_readOnly")
+    ApplicationManager.runBatchWorkFlow(
+      workFlowToRun,
+      appConfig , maxIters = 1)(sc)
+  }
+
+
   test("testDataSplitFiles workflow should successfully run the batch workflow") {
     ApplicationManager.updateWorkflowTime(startTime, "fileSplitWorkFlow")
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("fileSplitWorkFlow")
