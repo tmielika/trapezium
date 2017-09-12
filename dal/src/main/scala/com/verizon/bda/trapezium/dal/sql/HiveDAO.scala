@@ -12,9 +12,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-/**
- * Copyright (C) Verizon Corp.
- */
+
 package com.verizon.bda.trapezium.dal.sql
 
 import com.verizon.bda.trapezium.dal.exceptions.HiveDAOException
@@ -35,6 +33,9 @@ class HiveDAO(database: String, tableName: String)(implicit sqlContext: HiveCont
     extends BaseSqlDAO(database, tableName) {
 
   require(database != null && tableName != null)
+
+  sqlContext.sql(s"use ${database}")
+
 
   private def tableExists = sqlContext.tableNames(database).contains(tableName)
 

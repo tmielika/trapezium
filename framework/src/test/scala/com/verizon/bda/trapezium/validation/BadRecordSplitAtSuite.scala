@@ -14,7 +14,6 @@
 */
 package com.verizon.bda.trapezium.validation
 
-
 import com.verizon.bda.trapezium.framework.{ApplicationManagerTestSuite, ApplicationManager}
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
 
@@ -26,6 +25,6 @@ class BadRecordSplitAtSuite extends ApplicationManagerTestSuite {
       ApplicationManager.setWorkflowConfig("badRecordFilterWorkflow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig )(sc)
   }
 }

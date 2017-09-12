@@ -24,12 +24,10 @@ import org.slf4j.LoggerFactory
  */
 private[framework]
 class TestHttpServlet1(sc: SparkContext) extends HttpServlet {
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
   import scala.xml.NodeSeq
-
-  val logger = LoggerFactory.getLogger(this.getClass)
 
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
 

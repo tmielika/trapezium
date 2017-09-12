@@ -14,6 +14,7 @@
 */
 package com.verizon.bda.trapezium.framework
 
+import com.verizon.bda.trapezium.framework.handler.BatchHandler
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import org.scalatest.FunSuite
 import org.slf4j.LoggerFactory
@@ -22,10 +23,9 @@ import org.slf4j.LoggerFactory
  * @author Testing spark context.
  */
 class ContextTestSuite extends FunSuite {
-
+  var appConfig: ApplicationConfig = _
   val logger = LoggerFactory.getLogger(this.getClass)
 
-  var appConfig: ApplicationConfig = _
   appConfig = ApplicationManager.getConfig()
 
   test("getSparkContext - should return spark context with all given params. ") {
@@ -38,3 +38,4 @@ class ContextTestSuite extends FunSuite {
   }
 
 }
+

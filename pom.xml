@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.verizon.bda</groupId>
   <artifactId>trapezium-parent</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>1.4.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Verizon BDA Trapezium Parent POM</name>
   <prerequisites>
@@ -13,15 +13,22 @@
   
   <modules>
     <module>dal</module>
+    <module>cache</module>
     <module>framework</module>
     <module>cassandra-dao</module>
     <module>sparkcassandra-connector</module>
+    <module>couchbase-store</module>
+    <module>license-stub</module>
+    <module>simulation</module>
+    <module>api</module>
+    <module>api-akkahttp</module>
   </modules>
   
   <properties>
+    <trapezium.version>1.2.0-SNAPSHOT</trapezium.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <java.version>1.7</java.version>
+    <java.version>1.8</java.version>
     <maven.version>3.3.3</maven.version>
     <log4j.version>1.2.17</log4j.version>
     <hadoop.version>2.2.0</hadoop.version>
@@ -33,7 +40,7 @@
     <scala.version>2.10.5</scala.version>
     <scala.binary.version>2.10</scala.binary.version>
     <spark.version>1.6.0</spark.version>
-    <lucene.version>5.5.0</lucene.version>
+    <lucene.version>6.5.1</lucene.version>
     <guava.version>18.0</guava.version>
     <snappy.version>1.1.1.7</snappy.version>
     <joda.version>2.5</joda.version>
@@ -66,10 +73,6 @@
 		</pluginRepository>
 	</pluginRepositories>
 	<dependencies>
-    <!--
-         This is needed by the scalatest plugin, and so is declared here to be available in
-         all child modules, just as scalatest is run in all children
-    -->
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
@@ -81,19 +84,16 @@
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
-
-	<dependency>
-    		<groupId>org.slf4j</groupId>
-    		<artifactId>slf4j-api</artifactId>
-   		<version>1.7.20</version>
-	</dependency>
-
-	<dependency>
-    		<groupId>ch.qos.logback</groupId>
-    		<artifactId>logback-classic</artifactId>
-    		<version>1.1.7</version>
-	</dependency>
-
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.15</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-log4j12</artifactId>
+        <version>1.7.15</version>
+      </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
@@ -138,13 +138,7 @@
         <version>${spark.version}_0.3.3</version>
         <scope>test</scope>
       </dependency>
-      <dependency>
-        <groupId>log4j</groupId>
-        <artifactId>log4j</artifactId>
-        <version>${log4j.version}</version>
-        <scope>${hadoop.deps.scope}</scope>
-      </dependency>
-      <dependency>
+     <dependency>
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>${snappy.version}</version>
@@ -541,7 +535,7 @@
         <version>0.7.0</version>
         <configuration>
           <verbose>false</verbose>
-          <failOnViolation>true</failOnViolation>
+          <failOnViolation>false</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
           <failOnWarning>true</failOnWarning>
           <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>

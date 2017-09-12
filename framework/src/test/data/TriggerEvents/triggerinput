@@ -1,0 +1,1 @@
+{ "datasources" : [ { "name": "triggerTest",  "location" : "src/test/data/parquet"}]}

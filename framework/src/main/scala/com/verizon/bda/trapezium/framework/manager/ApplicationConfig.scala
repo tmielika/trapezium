@@ -15,32 +15,59 @@
 package com.verizon.bda.trapezium.framework.manager
 
 import java.io.File
+
 import com.typesafe.config.{Config, ConfigFactory}
 import kafka.common.TopicAndPartition
 import org.slf4j.LoggerFactory
 
 /**
- * @author Pankaj on 10/21/15.
- *         debasish83 modified to create instances of ApplicationConfig for
- *         ApplicationManager.getConfig API
- */
+  * @author Pankaj on 10/21/15.
+  *         debasish83 modified to create instances of ApplicationConfig for
+  *         ApplicationManager.getConfig API
+  */
 class ApplicationConfig
-(val env: String, val configDir: String) extends Serializable {
+(val env: String, val configDir: String, val uid: String) extends Serializable {
+
+
+  private val config: Config = resolveConfig(s"${env}_app_mgr.conf")
+
+  def resolveConfig(fileName: String) = {
+    if (configDir != null) {
+
+      val configFilePath = s"${configDir}/$fileName"
+      val configFile: File = new File(configFilePath)
+      ConfigFactory.parseFile(configFile).resolve()
+
+    } else {
+
+      ConfigFactory.load(fileName).resolve()
+    }
+  }
 
   val logger = LoggerFactory.getLogger(this.getClass)
-
-  private val config: Config = if (configDir != null) {
-    val configFilePath = s"${configDir}/${env}_app_mgr.conf"
-    val configFile: File = new File(configFilePath)
-    ConfigFactory.parseFile(configFile)
-  } else {
-    ConfigFactory.load(s"${env}_app_mgr.conf")
-  }
 
   if (configDir != null) {
     logger.info(s"Reading Config File location ${configDir}/${env}_app_mgr.conf")
   } else {
     logger.info(s"Reading ${env}_app_mgr.conf from jar")
+  }
+
+  def getConfigDir(): String = {
+    configDir
+  }
+
+
+  def getEnv(): String = {
+    env
+  }
+
+  lazy val enableDependencies =
+  {
+    if (config.hasPath("enable.Dependencies")) {
+      config.getBoolean("enable.Dependencies")
+    } else {
+      false
+    }
   }
 
   lazy val appName =
@@ -82,6 +109,15 @@ class ApplicationConfig
         ""
     }
 
+  lazy val integrationRun = {
+    if (config.hasPath("integrationRun")) {
+      config.getBoolean("integrationRun")
+    } else {
+      false
+    }
+  }
+
+
   lazy val zookeeperList = config.getString("zookeeperList")
 
   lazy val kafkabrokerList = config.getString("kafkabrokers")
@@ -111,6 +147,27 @@ class ApplicationConfig
     } catch {
       case ex: Throwable => {
         logger.warn("Config property kafkaConf not defined, kafka conf properties will be blank")
+      }
+        ConfigFactory.empty
+    }
+
+  lazy val hadoopConfParam =
+    try {
+      config.getConfig("hadoopConf")
+    } catch {
+      case ex: Throwable => {
+        logger.warn("Config property hadoopConf not defined")
+      }
+        ConfigFactory.empty
+    }
+
+  lazy val chaosMonkeyParam =
+    try {
+      config.getConfig("chaosMonkeyConf")
+    } catch {
+      case ex: Throwable => {
+        logger.warn("Config property for chaosMonkey not defined, " +
+          " chaosMonkey conf  properties will be blank")
       }
         ConfigFactory.empty
     }

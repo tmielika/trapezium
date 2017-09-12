@@ -17,6 +17,7 @@ package com.verizon.bda.trapezium.dal.core.cassandra
 /**
   * Created by Faraz Waseem on 2/4/16.
   */
+
 import java.util
 import com.datastax.driver.core._
 import com.datastax.driver.core.querybuilder.{Select, QueryBuilder}
@@ -33,14 +34,31 @@ import scala.collection.mutable.ListBuffer
   */
 @SerialVersionUID(220L)
 class CassandraDAO(hosts: mutable.Buffer[String], dbName: String, tableName: String,
+                   tabletype: Boolean = true,
                    cassandraConfig: CassandraConfig =
                    new CassandraConfig(new util.HashMap[String, Object]()))
   extends Serializable {
-  def this( hosts: java.util.List[String], dbName: String, tableName: String
-          ){
+
+  def this(hosts: java.util.List[String], dbName: String, tableName: String
+          ) {
     this(hosts.asScala, dbName,
-      tableName)
+      tableName, true)
   }
+
+  /**
+    * Use this constructor when working with Materialized view.
+    * specify tabletype=false
+    * @param hosts
+    * @param dbName
+    * @param tableName
+    * @param tabletype
+    */
+  def this(hosts: java.util.List[String], dbName: String, tableName: String
+           , tabletype: Boolean) {
+    this(hosts.asScala, dbName,
+      tableName, tabletype)
+  }
+
   private val columns: java.util.List[ColumnMetadata] = init()
 
   /**
@@ -138,7 +156,7 @@ class CassandraDAO(hosts: mutable.Buffer[String], dbName: String, tableName: Str
     */
 
   def execute(statement: Statement): ResultSet = {
-    val session: Session = SessionManager.getSession(hosts, dbName );
+    val session: Session = SessionManager.getSession(hosts, dbName);
     session.execute(statement)
   }
 
@@ -153,12 +171,20 @@ class CassandraDAO(hosts: mutable.Buffer[String], dbName: String, tableName: Str
 
 
   /**
-    * Initialize DAO. Assign it a session from SessionManager
+    * Initialize DAO. Assign it a session from SessionManager.
+    * we only supports table and Materialized view.
+    * table type false means Materialized view.
     * @return
     */
   private def init(): java.util.List[ColumnMetadata] = {
     val session: Session = SessionManager.getSession(hosts, dbName, cassandraConfig)
-    session.getCluster().getMetadata.getKeyspace(dbName).getTable(tableName).getColumns
+    if (tabletype) {
+      session.getCluster().getMetadata.getKeyspace(dbName).getTable(tableName).getColumns
+    }
+    else {
+      session.getCluster().getMetadata.getKeyspace(dbName).getMaterializedView(tableName).getColumns
+    }
+
   }
 
   private def generateInsertStatment(): String = {

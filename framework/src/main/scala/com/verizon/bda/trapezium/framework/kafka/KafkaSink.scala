@@ -37,7 +37,6 @@ class KafkaSink(createProducer: () => KafkaProducer[String, String])
 
 object KafkaSink {
   val logger = LoggerFactory.getLogger(this.getClass)
-
   def apply(config: Map[String, Object]): KafkaSink = {
     val f = () => {
       val prop = new Properties()

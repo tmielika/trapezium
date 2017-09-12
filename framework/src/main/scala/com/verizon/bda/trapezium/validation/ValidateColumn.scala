@@ -13,6 +13,7 @@
 * limitations under the License.
 */
 package com.verizon.bda.trapezium.validation
+
 object ValidateColumn extends Serializable {
  /**
    * @author Hutashan
@@ -21,8 +22,15 @@ object ValidateColumn extends Serializable {
    * @return Boolean (validated)
    */
 
-  def validateNumberOfColumns(arrLine: Array[String], numberOfColumn: Int): Boolean = {
-    arrLine.size >= numberOfColumn
+  def validateNumberOfColumns(arrLine: Array[String], numberOfColumn: Int,
+                              dropRowWithExtraColumn: Boolean = false): Boolean = {
+
+    if (dropRowWithExtraColumn) {
+      arrLine.size == numberOfColumn
+    } else {
+      arrLine.size >= numberOfColumn
+    }
+
   }
 }
 

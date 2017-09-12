@@ -27,10 +27,8 @@ import org.slf4j.LoggerFactory
  * Created by Pankaj on 5/11/16.
  */
 object KafkaTxn1 extends StreamingTransaction {
-  val logger = LoggerFactory.getLogger(this.getClass)
-
   var batchID = 0
-
+  val logger = LoggerFactory.getLogger(this.getClass)
   private val CONST_STRING = "This has to be populated in the preprocess method"
   var populateFromPreprocess: String = _
 
@@ -91,6 +89,52 @@ object KafkaTxn3 extends StreamingTransaction {
 
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
     if (batchID == 0 || batchID == 1) require(rdd.count() == 1)
+    batchID += 1
+  }
+
+  override def rollbackStream(batchtime: Time): Unit = {
+
+  }
+}
+
+object KafkaTxn4 extends StreamingTransaction {
+  var batchID = 0
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processStream(dStreams: Map[String, DStream[Row]],
+                             batchtime: Time): DStream[Row] = {
+    val dStream = dStreams.head._2
+    dStream
+  }
+
+  override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
+    if (batchID < 4) {
+      val count = rdd.count()
+      require(count == 490 || count == 0)
+      logger.info(s"Invoked $batchID times with count $count")
+    }
+    batchID += 1
+  }
+
+  override def rollbackStream(batchtime: Time): Unit = {
+
+  }
+}
+
+object KafkaTxn5 extends StreamingTransaction {
+  var batchID = 0
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processStream(dStreams: Map[String, DStream[Row]],
+                             batchtime: Time): DStream[Row] = {
+    val dStream = dStreams.head._2
+    dStream
+  }
+
+  override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
+    if (batchID < 4) {
+      val count = rdd.count()
+      require(count == 499 || count == 0)
+      logger.info(s"Invoked $batchID times with count $count")
+    }
     batchID += 1
   }
 

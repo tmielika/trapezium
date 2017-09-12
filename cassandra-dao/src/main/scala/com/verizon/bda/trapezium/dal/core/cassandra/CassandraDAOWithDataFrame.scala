@@ -12,13 +12,12 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package com.verizon.bda.trapezium.dal.core.cassandra.utils
+package com.verizon.bda.trapezium.dal.core.cassandra
 
-import com.verizon.bda.trapezium.dal.core.cassandra.{CassandraConfig, CassandraDAO}
 import org.apache.spark.sql.{Row, DataFrame}
-import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable
+import org.slf4j.LoggerFactory
 /**
   * @author v468328 on 2/29/16.
   *         debasish83 column name mapping from dataframe to cassandra
@@ -27,9 +26,7 @@ import scala.collection.mutable
 class CassandraDAOWithDataFrame(val hostList: mutable.Buffer[String],
                                 val schema: String,
                                 val table: String) extends Serializable {
-
   val logger = LoggerFactory.getLogger(this.getClass)
-
   def getColumns(basicDAO: CassandraDAO) : Array[String] = {
     val columns = basicDAO.getSchema().map(_.getName)
     logger.info(s"core dao columns ${columns.mkString(",")}")

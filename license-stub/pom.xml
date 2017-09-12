@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.verizon.bda</groupId>
+		<artifactId>trapezium-parent</artifactId>
+		<version>1.4.0-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+    <artifactId>trapezium-license</artifactId>
+    <packaging>jar</packaging>
+    <name>License Library Stub</name>
+        
+    <properties>
+		<maven.build-helper.version>1.7</maven.build-helper.version>
+	</properties>
+    <build>
+		<outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
+		<testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
+	</build>
+</project>
