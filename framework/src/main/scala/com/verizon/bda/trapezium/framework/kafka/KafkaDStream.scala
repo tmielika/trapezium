@@ -138,7 +138,11 @@ private[framework] object KafkaDStream {
               -> (o.fromOffset, o.untilOffset))
             rddcount += (o.untilOffset - o.fromOffset)
           }
+
+
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
+
+
           logger.info(s"TOPIC PARTITIONS = ${topicpartitions.mkString(" , ")}")
           logger.info(s"Row Count ${rddcount}")
         }
