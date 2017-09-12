@@ -20,6 +20,7 @@ import java.util.Properties
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import kafka.common.KafkaException
 import kafka.server.{KafkaConfig, KafkaServer}
@@ -324,7 +325,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     utils
   }
 
-  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]]): Unit = {
+  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]],
+                    adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
 
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
@@ -334,15 +336,19 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val topicName = streamsInfo.get(0).getString("topicName")
     val newInputSeq = inputSeq.map(seq => Seq((topicName, seq)))
 
-    setupWorkflowForMultipleTopics(workflowName, newInputSeq)
+    setupWorkflowForMultipleTopics(workflowName, newInputSeq, adapt)
 
   }
 
   def setupWorkflowForMultipleTopics(workflowName: String,
-                                     inputSeq: Seq[Seq[(String, Seq[String])]]): Unit = {
+                                     inputSeq: Seq[Seq[(String, Seq[String])]],
+                                     adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
+
+    if(adapt!=null)
+      adapt(workflowConfig, appConfig)
 
     // create topcis
     utils.createTopics(workflowConfig)
@@ -393,10 +399,14 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
    * @param inputSeq
    */
   def setupMultipleWorkflowForMultipleTopics(workflowNames: List[String],
-                                     inputSeq: Seq[Seq[(String, Seq[String])]]): Unit = {
+                                     inputSeq: Seq[Seq[(String, Seq[String])]],
+                                      adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowNames(0))
+
+    if(adapt!=null)
+      adapt(workflowConfig,appConfig)
 
     // create topcis
     utils.createTopics(workflowConfig)

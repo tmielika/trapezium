@@ -55,14 +55,16 @@ class WorkflowConfig
      }
 
   /**
-    * possible values - NATIVE/ CUSTOM
+    * Possible values - NATIVE / CUSTOM
+    * NATIVE - Kafka spark bridge
+    * CUSTOM - Custom HADR implementation for Kafka spark
     */
-  lazy val bridgeType =
+  var bridgeType =
   {
     if (workflowConfig.hasPath("bridgeType")) {
       workflowConfig.getString("bridgeType")
     } else {
-      "CUSTOM"
+      "NATIVE"
     }
   }
 
