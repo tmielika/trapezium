@@ -108,7 +108,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
 
     val ipDataFrame: DataFrame = ipDao.getAll()
-    val resultList: Array[Row] = ipDataFrame.filter("origipaddress='1095549466'").collect()
+    val resultList: Array[Row] = ipDataFrame.filter("origipaddress='10955494'").collect()
     logger.info("result 2 set found is "
       + resultList);
     assert(resultList.length >= 1)
