@@ -68,7 +68,7 @@ class WorkflowConfig
 
   lazy val pollTime =
   {
-    val defaultPollTime =  100 //in millisecs
+    val defaultPollTime =  1000 //in millisecs
     if (workflowConfig.hasPath("kafka.pollTime")) {
       try {
         workflowConfig.getString("kafka.pollTime").toInt
