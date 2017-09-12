@@ -190,5 +190,6 @@ Contributions from:
 * Faraz Waseem
 * Ken Tam
 * Ponrama Jegan
-
+* Venkatesh poosarla(@venkateshpoosarla)
+* Narendra Parmar(@narendrasfo)
 And others (contact Pankaj Rastogi / Debasish Das if you've contributed code and aren't listed).
