@@ -71,7 +71,7 @@
                 <dependency>
                     <groupId>com.verizon.bda</groupId>
                     <artifactId>trapezium-license</artifactId>
-					<version>${trapezium.version}</version>
+		    <version>${trapezium.version}</version>
                 </dependency>
             </dependencies>
 			<build>
