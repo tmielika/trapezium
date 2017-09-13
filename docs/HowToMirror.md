@@ -1,6 +1,7 @@
-Internal repository is hosted on stash. We mirror github repository to stash and maintain integration branch.
-All internal code merges to integration branch after feature and data review. Integration branch merges to
-github master regularly and we cut releases from github which comes to stash through mirroring.
+Internal repository is hosted on stash. BDA team mirror github repository to Verizon Stash and maintain "verizon" 
+branch on stash. All internal code merges to "verizon" branch after feature and data review. "verizon" branch from 
+stash merges to Github master regularly and we cut releases from github which comes to stash through automated mirroring 
+from Jenkins build.
 
 Steps to mirror:
 
@@ -10,6 +11,5 @@ cd trapezium.git/
 
 git remote set-url --push origin https://username@mycompany.com/stash/scm/bda/trapezium.git
 
-git fetch -p origin
-
-git push --mirror
+git push --all stash
+git push --tags stash

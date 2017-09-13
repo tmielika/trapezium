@@ -162,7 +162,7 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
    Read data by timestamp
         offset=2
  
-6.Data Validation
+6. Data Validation
     Validates data at the source based on rule defined.
         Filters out all invalid rows and log.
         
@@ -178,6 +178,23 @@ Create an application that reads data from hdfs://my/first/trapezium/app/input a
                    }
           }    
 
+# Frisky checks
+
+Internal Verizon Developers are mandated to run frisky before creating any PR on Github Master / Verizon Stash to 
+clean any sensitive information from the code and datasets
+
+# Frisky Usage
+
+git clone https://github.com/Verizon/frisky
+git clone https://github.com/Verizon/trapezium
+cd trapezium
+python ../frisky/frisky .
+
+# Example violation
+ 
+./simulation/src/main/resources/local_app_mgr.conf:30 has non RFC-1918 IP address contents
+Clean all such violations before creating PR
+
 (c) Verizon
 
 Contributions from:
@@ -185,7 +202,7 @@ Contributions from:
 * Pankaj Rastogi (@rastogipankaj)
 * Debasish Das (@debasish83)
 * Hutashan Chandrakar(@hutashan)
-* Pramod Lakshmi Narasimha
+* Pramod Lakshmi Narasimha (@pramodl)
 * Sumanth Venkatasubbaiah (@vsumanth10)
 * Faraz Waseem
 * Ken Tam
