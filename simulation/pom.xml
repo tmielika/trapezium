@@ -17,14 +17,14 @@
         <dependency>
             <groupId>com.verizon.bda</groupId>
             <artifactId>trapezium-framework</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.verizon.bda</groupId>
             <artifactId>trapezium-framework</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 
