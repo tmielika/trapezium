@@ -42,6 +42,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <version>${trapezium.spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <version>${trapezium.spark.version}</version>
             <exclusions>
@@ -49,10 +54,12 @@
                     <artifactId>guava</artifactId>
                     <groupId>com.google.guava</groupId>
                 </exclusion>
+
                 <exclusion>
                     <groupId>org.apache.spark</groupId>
-                    <artifactId>spark-core</artifactId>
+                    <artifactId>spark-core_${scala.binary.version}</artifactId>
                 </exclusion>
+
             </exclusions>
         </dependency>
         <!-- Testing dependencies  -->
