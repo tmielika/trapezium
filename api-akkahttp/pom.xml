@@ -55,7 +55,11 @@
         <dependency>
             <groupId>com.verizon.trapezium.api</groupId>
             <artifactId>trapezium-api</artifactId>
+<<<<<<< HEAD
             <version>1.4.0-SNAPSHOT</version>
+=======
+            <version>1.3.0</version>
+>>>>>>> release/1.3.0
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>

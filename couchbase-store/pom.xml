@@ -5,7 +5,11 @@
     <parent>
         <artifactId>trapezium-parent</artifactId>
         <groupId>com.verizon.bda</groupId>
+<<<<<<< HEAD
         <version>1.4.0-SNAPSHOT</version>
+=======
+        <version>1.3.0</version>
+>>>>>>> release/1.3.0
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,7 +17,11 @@
     <artifactId>trapezium-couchbase-store</artifactId>
     
     <properties>
+<<<<<<< HEAD
         <cache.version>1.4.0-SNAPSHOT</cache.version>
+=======
+        <cache.version>1.3.0</cache.version>
+>>>>>>> release/1.3.0
         <couch.client.version>1.4.5</couch.client.version>
         <couch.mock.version>1.4.3</couch.mock.version>
         <typesafe.version>1.2.1</typesafe.version>
