@@ -279,9 +279,7 @@ object ApplicationManager {
       case "KAFKA" => {
         dStreams = initKafkaDstream(workflowConfig, sparkConf, runMode )
       }
-      case "KAFKA_HA" => {
-        dStreams = initKafkaDstreamHA(workflowConfig, sparkConf, runMode )
-      }
+
       case _ => {
         logger.error("Mode not implemented. Exiting...", dataSource)
         System.exit(ERROR_EXIT_CODE)
@@ -290,24 +288,6 @@ object ApplicationManager {
 
     runStreamWorkFlow(dStreams)
     addStreamListeners(ssc, workflowConfig)
-  }
-
-
-
-  def initKafkaDstreamHA(workflowConfig : WorkflowConfig, sparkConf : SparkConf,
-                       runMode : String) : MMap[String, DStream[Row]] = {
-    val (kafkaConfig: Config, kafkaBrokerList: String, topicPartitionOffsets: MMap[TopicPartition, Long]) = getKafkaDetails(workflowConfig, sparkConf, runMode)
-
-
-//    TODO: MaheshS - switch over to custom streams
-    val dStreams = KafkaDStream.createDStreams(
-      ssc,
-      workflowConfig,
-      kafkaBrokerList,
-      kafkaConfig,
-      topicPartitionOffsets.toMap,
-      appConfig)
-    dStreams
   }
 
   def initKafkaDstream(workflowConfig : WorkflowConfig, sparkConf : SparkConf,
