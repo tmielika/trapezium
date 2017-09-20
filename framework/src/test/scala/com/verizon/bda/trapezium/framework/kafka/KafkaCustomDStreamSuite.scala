@@ -14,16 +14,14 @@
 */
 package com.verizon.bda.trapezium.framework.kafka
 
-import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
-
 import scala.io.Source
 
 /**
  * @author Pankaj on 10/29/15.
  */
-class KafkaCustomDStreamSuite extends KafkaTestSuiteBase {
+class KafkaCustomDStreamSuite extends KafkaHATestSuiteBase {
+
+  override def repeatMessageSendCount : Int  = 10
 
   val path1 = "src/test/data/hdfs/hdfs_stream_1.csv"
   val path2 = "src/test/data/hdfs/hdfs_stream_2.csv"
@@ -34,82 +32,19 @@ class KafkaCustomDStreamSuite extends KafkaTestSuiteBase {
   val input2: Seq[String] = Source.fromFile(path2).mkString("").split("\n").toSeq
 
   val jsonInput: Seq[String] = Source.fromFile(jsonPath).mkString("").split("\n").toSeq
+/*
 
+  test("CustomDStream: Application Manager KAFKA Passthrough Test") {
 
-  /**
-    * adapts the workflow configuration of the existing set of tests to
-    * use the new bridge type configuration
-    * @param workflow
-    * @param appConfig
-    */
-  def adapt (workflow: WorkflowConfig, appConfig: ApplicationConfig) : Unit = {
-    workflow.bridgeType = "CUSTOM"
+    setupWorkflow("kafkaPassThroughWorkFlow", Seq(input1, input2))
   }
+*/
 
-  test("CustomDStream: Application Manager KAFKA Stream Test") {
+  test("CustomDStream: Application Manager large input Test") {
 
-    // Run primary workflow
-    setupWorkflow("kafkaBatchWorkFlow", Seq(input1, input2), adapt)
+    val inputs = Seq(input1,input2)
 
-    // Run dependent workflow
-    setupWorkflow("kafkaStreamWorkFlow", Seq(input1, input2), adapt)
-
-  }
-
-  test("CustomDStream: Application Manager KAFKA Batch Test") {
-
-    setupWorkflow("kafkaBatchWorkFlow", Seq(input1, input2), adapt)
-  }
-
-  test("CustomDStream: Application Manager Kafka multiple topics test") {
-
-    setupWorkflowForMultipleTopics("kafkaMultipleTopics",
-      Seq(
-        Seq(
-          ("stream_1", input1),
-          ("stream_2", input1)),
-        Seq(
-          ("stream_1", input2),
-          ("stream_2", input2))
-      ) , adapt)
-  }
-
-  test("CustomDStream: Application Manager Kafka multiple topics test with new topic") {
-
-    val zkPath = s"/kafkaMultipleTopicsWithNewTopic/stream_1/0"
-    ApplicationUtils.updateZookeeperValue(zkPath,
-      "0",
-      ApplicationManager.getConfig().zookeeperList)
-
-    setupWorkflowForMultipleTopics("kafkaMultipleTopicsWithNewTopic",
-      Seq(
-        Seq(
-          ("stream_1", input1),
-          ("stream_2", input1)),
-        Seq(
-          ("stream_1", input2),
-          ("stream_2", input2))
-      ), adapt)
-  }
-
-  test("CustomDStream: Read json data from Kafka") {
-
-    setupWorkflow("readJsonFromKafka", Seq(jsonInput, jsonInput), adapt)
-
-  }
-
-  test("CustomDStream: Application Manager Kafka multiple workflows with multiple topics test") {
-
-    setupMultipleWorkflowForMultipleTopics(
-      List("kafkaMultipleTopics_wf_1", "kafkaMultipleTopics_wf_2"),
-      Seq(
-        Seq(
-          ("stream_1", input1),
-          ("stream_2", input2)),
-        Seq(
-          ("stream_1", input1),
-          ("stream_2", input2))
-      ), adapt)
+    setupWorkflow("kafkaPassThroughWorkFlow", inputs)
   }
 
 }

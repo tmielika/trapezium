@@ -75,12 +75,13 @@ private class PartitionAndCountBasedBlockWriter[K: ClassTag, V: ClassTag](consum
       val block = ArrayBuffer[ConsumerRecord[K, V]](consumerRecord)
       blockCache.put(key, block)
     } else {
-      val block: ArrayBuffer[ConsumerRecord[K, V]] = blockCache(key)
-      //write back and flush when the threshold is reached
+      //TODO: Improve this code here
+      var block: ArrayBuffer[ConsumerRecord[K, V]] = blockCache(key)
+      block = block.:+(consumerRecord)
+      blockCache(key) =  block
+//      write back and flush when the threshold is reached
       if (consumerConfig.getMaxRecordCount() > 1 && block.size >= consumerConfig.getMaxRecordCount()) {
         flushBlock(false, key, block)
-      } else {
-        blockCache(key) = block.:+(consumerRecord)
       }
     }
   }

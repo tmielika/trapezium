@@ -224,22 +224,27 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
   }
 
-  private def sendMessages(topic: String, messageToFreq: Map[String, Int]) {
+  private[framework] def sendMessages(topic: String, messageToFreq: Map[String, Int]) {
     val messages = messageToFreq.flatMap { case (s, freq) => Seq.fill(freq)(s) }.toArray
     sendMessages(topic, messages)
   }
 
 
-  private def sendMessages(topic: String, messages: Array[String]) {
+  private[framework] def sendMessages(topic: String, messages: Array[String]) {
     producer = new KafkaProducer[String, String](getProducerConfig())
     // producer.send(messages.map { new KeyedMessage[String, String](topic, _ ) }: _*)
 
-    for(msg <- messages)
-    producer.send(
-      new org.apache.kafka.clients.producer.ProducerRecord[String,String](topic, null, msg)
-    )
+    sendMessages(topic, messages)
+
     producer.close()
     kf_logger.info(s"=============== Sent Messages ===================")
+  }
+
+  private[framework]  def sendMessages(producer: KafkaProducer[String,String], topic: String, messages: Array[String]) = {
+    for (msg <- messages)
+      producer.send(
+        new org.apache.kafka.clients.producer.ProducerRecord[String, String](topic, null, msg)
+      )
   }
 
   private def deleteRecursively(in : File): Unit = {
@@ -296,7 +301,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
    }
    */
 
-  private def getProducerConfig(): Properties = {
+  private[framework] def getProducerConfig(): Properties = {
     var brokerAddr = brokerConf.hostName + ":" + brokerConf.port
     if (brokerConf2 != null) brokerAddr += "," + brokerConf2.hostName + ":" + brokerConf2.port
     val props = new Properties()
@@ -357,6 +362,11 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val currentTimeStamp = System.currentTimeMillis()
     ApplicationManager.updateWorkflowTime(currentTimeStamp)
 
+    startApplication(inputSeq, workflowConfig, kafkaConfig, appConfig)
+
+  }
+
+  private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig, kafkaConfig: Config, appConfig: ApplicationConfig) = {
     val sparkConf = ApplicationManager.getSparkConf(appConfig)
     val ssc = KafkaDStream.createStreamingContext(sparkConf)
 
@@ -365,11 +375,11 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     // start streaming
     ssc.start
 
-    inputSeq.foreach( input => {
+    inputSeq.foreach(input => {
 
-      input.foreach( seq => {
+      input.foreach(seq => {
 
-        kf_logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"OLD Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })
@@ -381,7 +391,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     ssc.awaitTerminationOrTimeout(
       kafkaConfig.getLong("batchTime") * 1000)
 
-    if( ssc != null ) {
+    if (ssc != null) {
       kf_logger.info("Stopping streaming context from test Thread.")
       ssc.stop(true, false)
 
@@ -389,12 +399,12 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       KafkaDStream.sparkcontext = None
     }
 
-    assert (!ApplicationManager.stopStreaming)
-
+    assert(!ApplicationManager.stopStreaming)
   }
 
   /**
    * Added method to test multiple kafka workflows reading from multiple Kafka topics
+ *
    * @param workflowNames
    * @param inputSeq
    */
@@ -435,7 +445,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
       input.foreach( seq => {
 
-        kf_logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"OLDER Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })

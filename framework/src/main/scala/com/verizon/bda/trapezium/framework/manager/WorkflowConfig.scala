@@ -59,7 +59,7 @@ class WorkflowConfig
     * NATIVE - Kafka spark bridge
     * CUSTOM - Custom HADR implementation for Kafka spark
     */
-  var bridgeType =
+  lazy val bridgeType =
   {
     if (workflowConfig.hasPath("bridgeType")) {
       workflowConfig.getString("bridgeType")
@@ -70,13 +70,49 @@ class WorkflowConfig
 
   lazy val pollTime =
   {
-    val defaultPollTime =  1000 //in millisecs
-    if (workflowConfig.hasPath("kafka.pollTime")) {
+    val defaultPollTime: Long =  1000 //in millisecs
+    if (workflowConfig.hasPath("kafka.consumer.pollTime")) {
       try {
-        workflowConfig.getString("kafka.pollTime").toInt
+        workflowConfig.getString("kafka.consumer.pollTime").toLong
       }catch {
         case ex: Exception => {
           logger.warn(s" Invalid vaue for 'pollTime' - ${workflowConfig.getString("kafka.pollTime")}. Setting default pollTime as ${defaultPollTime}")
+          defaultPollTime
+        }
+      }
+    } else {
+      logger.debug("Setting default pollTime for kafka config")
+      defaultPollTime
+    }
+  }
+
+  lazy val waitBetweenPolls =
+  {
+    val defaultPollTime: Long =  1000 //in millisecs
+    if (workflowConfig.hasPath("kafka.consumer.waitBetweenPolls")) {
+      try {
+        workflowConfig.getString("kafka.consumer.waitBetweenPolls").toLong
+      }catch {
+        case ex: Exception => {
+          logger.warn(s" Invalid vaue for 'waitBetweenPolls' - ${workflowConfig.getString("kafka.pollTime")}. Setting default pollTime as ${defaultPollTime}")
+          defaultPollTime
+        }
+      }
+    } else {
+      logger.debug("Setting default pollTime for kafka config")
+      defaultPollTime
+    }
+  }
+
+  lazy val maxRecordSize =
+  {
+    val defaultPollTime: Long =  0
+    if (workflowConfig.hasPath("kafka.consumer.maxRecordSize")) {
+      try {
+        workflowConfig.getString("kafka.consumer.maxRecordSize").toInt
+      }catch {
+        case ex: Exception => {
+          logger.warn(s" Invalid vaue for 'maxRecordSize' - ${workflowConfig.getString("kafka.pollTime")}. Setting default pollTime as ${defaultPollTime}")
           defaultPollTime
         }
       }

@@ -85,16 +85,18 @@ object CustomKafkaSparkDStream {
 
       //TODO: Change to Debug before checkin
       logger.info(s"storing [${record.size}]  messages")
+
       store(record, blockMetadata)
     }
 
     override def onStart(): Unit = {
       logger.info(s"Starting the reciver @ ${this.streamId}")
       val blockWriter:IBlockWriter[K,V]= BlockWriterFactory.createDefaultBlockWriter[K,V](consumerConfig, storeRecord)
+      val handler = new MessageHandler[K, V](blockWriter)
       balancedKafkaConsumer = new BalancedKafkaConsumer[K, V](
         consumerConfig,
         new ZkBasedOffsetManager( appConfig, workflowName, syncWorkflow),
-        new MessageHandler[K, V](blockWriter))
+        handler)
       balancedKafkaConsumer.start()
     }
 

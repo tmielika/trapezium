@@ -141,4 +141,23 @@ object KafkaTxn5 extends StreamingTransaction {
   override def rollbackStream(batchtime: Time): Unit = {
 
   }
+
+}
+
+
+/**
+  * pass through for persist
+  */
+object KafkaTxnPassThrough extends StreamingTransaction {
+
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processStream(dStreams: Map[String, DStream[Row]],
+                             batchtime: Time): DStream[Row] = {
+    val dStream = dStreams.head._2
+    dStream
+  }
+
+  override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
+    logger.info(s"[persistStream] RDD count = ${rdd.count()}")
+  }
 }

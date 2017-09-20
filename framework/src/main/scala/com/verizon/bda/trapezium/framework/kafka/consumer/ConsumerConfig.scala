@@ -8,12 +8,15 @@ import java.util.Properties
   *
   * If maxRecordsSize is less than 1 then all records for that partition will be accumulated in to a block
   *
+  *
   * Created by sankma8 on 8/7/17.
   */
 class ConsumerConfig(props: Properties,
                      topics: util.Collection[String],
                      pollTime: Long,
-                     maxRecordSize: Long = 0 ) extends Serializable {
+                     waitTimeBetweenPolls: Long = 1000L,
+                     maxRecordSize: Long = 0
+                     ) extends Serializable {
 
   def getPollTime(): Long = {
     pollTime
@@ -28,5 +31,10 @@ class ConsumerConfig(props: Properties,
 
   def getMaxRecordCount() : Long = {
     maxRecordSize
+  }
+
+  def getWaitTimeBetweenPolls() : Long = {
+    waitTimeBetweenPolls
+
   }
 }

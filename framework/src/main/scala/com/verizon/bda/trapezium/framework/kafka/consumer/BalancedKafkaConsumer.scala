@@ -36,12 +36,17 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     */
   private val stopped = new AtomicBoolean(false);
 
+  private val waitTimeBetweenPolls = {
+    if(config.getWaitTimeBetweenPolls() <1 ) 100
+    else config.getWaitTimeBetweenPolls()
+  }
+
   private val consumer = new KafkaConsumer[K, V](config.getConsumerProperties())
 
   /**
     * All operations on the consumer is single threaded
     */
-  private val executor: ExecutorService = Executors.newSingleThreadExecutor
+  private var executor: ExecutorService = null
 
   private val pollProc = new Callable[Option[PollResult[K, V]]] {
 
@@ -116,6 +121,10 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
 
     logger.info(s"starting the consumer on topic - ${config.getTopics()}")
 
+    val scheduledExecutorService:ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+
+    executor = scheduledExecutorService
+
     startConsumer()
   }
 
@@ -184,6 +193,10 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
                 logger.error("Unable to publish message to message handler", ex)
               }
             }
+          /**
+            * avoid an all time CPU spin
+            */
+          Thread.sleep(waitTimeBetweenPolls)
         }
 
         try {
@@ -227,7 +240,7 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
         consumer.seek(topicPartition, offset.get)
         logger.debug(s"Assigned offset= ${offset.get} to partition= ${topicPartition.partition()} for topic ${topicPartition.topic()}")
       } else {
-        logger.debug(s"No offset found for partition= ${topicPartition.partition()} on topic ${topicPartition.topic()}")
+        logger.info(s"No offset found for partition= ${topicPartition.partition()} on topic ${topicPartition.topic()}")
       }
     }
 
