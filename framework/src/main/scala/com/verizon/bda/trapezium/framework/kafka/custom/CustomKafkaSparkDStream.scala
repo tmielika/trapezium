@@ -84,7 +84,7 @@ object CustomKafkaSparkDStream {
                     blockMetadata : BlockMetadata) : Unit = {
 
       //TODO: Change to Debug before checkin
-      logger.info(s"storing [${record.size}]  messages")
+      logger.debug(s"storing [${record.size}]  messages")
 
       store(record, blockMetadata)
     }

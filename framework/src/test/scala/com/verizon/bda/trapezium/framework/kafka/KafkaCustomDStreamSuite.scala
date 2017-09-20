@@ -32,13 +32,7 @@ class KafkaCustomDStreamSuite extends KafkaHATestSuiteBase {
   val input2: Seq[String] = Source.fromFile(path2).mkString("").split("\n").toSeq
 
   val jsonInput: Seq[String] = Source.fromFile(jsonPath).mkString("").split("\n").toSeq
-/*
 
-  test("CustomDStream: Application Manager KAFKA Passthrough Test") {
-
-    setupWorkflow("kafkaPassThroughWorkFlow", Seq(input1, input2))
-  }
-*/
 
   test("CustomDStream: Application Manager large input Test") {
 
@@ -46,5 +40,16 @@ class KafkaCustomDStreamSuite extends KafkaHATestSuiteBase {
 
     setupWorkflow("kafkaPassThroughWorkFlow", inputs)
   }
+
+  /**
+    *  Defaults
+    */
+  test("CustomDStream: Application Manager default inputs Test") {
+
+    val inputs = Seq(input1,input2)
+
+    setupWorkflow("kafkaPassThroughDefaultsWorkFlow", inputs)
+  }
+
 
 }

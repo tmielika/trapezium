@@ -75,7 +75,6 @@ private class PartitionAndCountBasedBlockWriter[K: ClassTag, V: ClassTag](consum
       val block = ArrayBuffer[ConsumerRecord[K, V]](consumerRecord)
       blockCache.put(key, block)
     } else {
-      //TODO: Improve this code here
       var block: ArrayBuffer[ConsumerRecord[K, V]] = blockCache(key)
       block = block.:+(consumerRecord)
       blockCache(key) =  block

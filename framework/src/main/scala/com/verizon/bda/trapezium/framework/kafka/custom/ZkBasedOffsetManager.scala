@@ -14,7 +14,7 @@ class ZkBasedOffsetManager(appConfig: ApplicationConfig,  workflowName: String, 
   def getOffsets(kafkaTopicName: String): Offsets = {
     val logger = LoggerFactory.getLogger(this.getClass)
     var offsetMap: Map[Int, Long] = Map()
-    logger.debug("fetching offsets from Zk")
+    logger.debug(s"fetching offsets from Zk for topic ${kafkaTopicName}")
 
     val currentWorkflowKafkaPath =
       ApplicationUtils.getCurrentWorkflowKafkaPath(appConfig, kafkaTopicName, workflowName)

@@ -46,7 +46,7 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
   /**
     * All operations on the consumer is single threaded
     */
-  private var executor: ExecutorService = null
+  private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
   private val pollProc = new Callable[Option[PollResult[K, V]]] {
 
@@ -100,13 +100,13 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     })
 
     val untilOffsets: java.util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
-    records.partitions().asScala.par.foreach(tp => {
+    records.partitions().asScala.par.foreach(parts => {
       try {
-        val position = consumer.position(tp)
-        untilOffsets.put(tp, position)
+        val position = consumer.position(parts)
+        untilOffsets.put(parts, position)
       } catch {
         case ex: Exception  =>
-          logger.error(s"cannot obtain position for topic partition - ${tp.toString}",ex)
+          logger.error(s"cannot obtain position for topic partition - ${parts.toString}",ex)
       }
     })
 
@@ -120,10 +120,6 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
   def start(): Unit = {
 
     logger.info(s"starting the consumer on topic - ${config.getTopics()}")
-
-    val scheduledExecutorService:ScheduledExecutorService = Executors.newScheduledThreadPool(1)
-
-    executor = scheduledExecutorService
 
     startConsumer()
   }
@@ -238,9 +234,9 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
       // when there are offsets managed then propagate them
       if (!offset.isEmpty && offset.get > 0) {
         consumer.seek(topicPartition, offset.get)
-        logger.debug(s"Assigned offset= ${offset.get} to partition= ${topicPartition.partition()} for topic ${topicPartition.topic()}")
+        logger.info(s"Assigned offset= ${offset.get} to partition= ${topicPartition.partition()} for topic ${topicPartition.topic()}")
       } else {
-        logger.info(s"No offset found for partition= ${topicPartition.partition()} on topic ${topicPartition.topic()}")
+        logger.warn(s"No offset found for partition= ${topicPartition.partition()} on topic ${topicPartition.topic()}")
       }
     }
 

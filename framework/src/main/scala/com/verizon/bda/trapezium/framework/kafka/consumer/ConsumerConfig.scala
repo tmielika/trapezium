@@ -12,10 +12,10 @@ import java.util.Properties
   * Created by sankma8 on 8/7/17.
   */
 class ConsumerConfig(props: Properties,
-                     topics: util.Collection[String],
-                     pollTime: Long,
-                     waitTimeBetweenPolls: Long = 1000L,
-                     maxRecordSize: Long = 0
+                     topics: util.Collection[String] ,
+                     pollTime: Long ,
+                     waitTimeBetweenPolls: Long ,
+                     maxRecordSize: Long
                      ) extends Serializable {
 
   def getPollTime(): Long = {
