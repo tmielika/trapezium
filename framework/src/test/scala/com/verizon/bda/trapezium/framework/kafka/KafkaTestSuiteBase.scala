@@ -234,7 +234,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     producer = new KafkaProducer[String, String](getProducerConfig())
     // producer.send(messages.map { new KeyedMessage[String, String](topic, _ ) }: _*)
 
-    sendMessages(topic, messages)
+    sendMessages(producer, topic, messages)
 
     producer.close()
     kf_logger.info(s"=============== Sent Messages ===================")
