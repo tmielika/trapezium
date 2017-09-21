@@ -71,11 +71,7 @@
                 <dependency>
                     <groupId>com.verizon.bda</groupId>
                     <artifactId>trapezium-license</artifactId>
-<<<<<<< HEAD
 		    <version>${trapezium.version}</version>
-=======
-					<version>1.3.0</version>
->>>>>>> release/1.3.0
                 </dependency>
             </dependencies>
 			<build>
@@ -195,14 +191,11 @@
 			<groupId>com.verizon.bda</groupId>
 			<artifactId>trapezium-couchbase-store</artifactId>
 			<version>${trapezium.version}</version>
-<<<<<<< HEAD
 		</dependency>
 		<dependency>
 			<groupId>com.verizon.bda</groupId>
 			<artifactId>trapezium-license</artifactId>
 			<version>${trapezium.version}</version>
-=======
->>>>>>> release/1.3.0
 		</dependency>
 
 		<dependency>
