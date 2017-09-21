@@ -503,17 +503,17 @@ private[framework] object KafkaDStream {
 
     //  Convention is as follows  key = (actual_key, calculated_value, default_value, isMandatory)
     val reservedParams = Map(
-      "bootstrap.servers" -> (null, getKafkaBrokerList(kafkabrokerlist), null,true),
+      "bootstrap.servers" -> (null, getKafkaBrokerList(kafkabrokerlist), null, true),
       "auto.offset.reset" -> (null, null, "earliest", true),
-      "key.deserializer" -> (null, null, deserializer,   true),
-      "value.deserializer" -> (null, null, deserializer,  true),
-      "default-group" -> ("group.id",null, "consumerGroup", false)
+      "key.deserializer" -> (null, null, deserializer, true),
+      "value.deserializer" -> (null, null, deserializer, true),
+      "default-group" -> ("group.id", null, "consumerGroup", false)
     )
 
     for ((k, v) <- reservedParams) {
       var actualValue = v._2
 
-      if(actualValue==null) {
+      if (actualValue == null) {
         actualValue =
           try {
             kafkaConfig.getString(k)
@@ -525,12 +525,12 @@ private[framework] object KafkaDStream {
           }
       }
 
-//      Mandatory param is empty
+      //      Mandatory param is empty
       if (actualValue == null && v._4)
         throw new IllegalArgumentException(s"Problems constructing the kafka params. No value defined for mandatory key '${k}'.")
 
       val key = {
-        if(v._1!=null) v._1
+        if (v._1 != null) v._1
         else k
       }
 
@@ -542,20 +542,30 @@ private[framework] object KafkaDStream {
       * other than the reserved list will be added to the configuration
       */
 
-    val consumerParams = kafkaConfig.getConfig("consumerParams")
-    consumerParams.entrySet().iterator().asScala
+    val consumerParams = {
+      try {
+        kafkaConfig.getConfig("consumerParams")
+      } catch {
+        case ex: Exception => {
+          logger.info("No additional consumer parameters found")
+          null
+        }
+      }
+    }
+
+    if (consumerParams != null) {
+      consumerParams.entrySet().iterator().asScala
         .filter(entry => {
           val key = entry.getKey
           !reservedParams.contains(key)
         })
-      .foreach(entry => {
-        val key = entry.getKey
-        val paramValue = getValue(consumerParams, null, key)
-
-        if(paramValue!=null)
-          kafkaParams += (key -> paramValue)
-
-      })
+        .foreach(entry => {
+          val key = entry.getKey
+          val paramValue = getValue(consumerParams, null, key)
+          if (paramValue != null)
+            kafkaParams += (key -> paramValue)
+        })
+    }
 
     kafkaParams
   }

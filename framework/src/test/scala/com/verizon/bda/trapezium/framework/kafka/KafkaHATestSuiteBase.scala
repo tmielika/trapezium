@@ -109,8 +109,8 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
       */
     latch.await(getWaitTime(waitTime), TimeUnit.SECONDS)
 
-//    ssc1.awaitTerminationOrTimeout(
-//      kafkaConfig.getLong("batchTime") * 1000)
+    ssc1.awaitTerminationOrTimeout(
+      kafkaConfig.getLong("batchTime") * 1000)
 
     kf_logger.info("Stopping the streamign context")
     ssc1.stop(false, false)
