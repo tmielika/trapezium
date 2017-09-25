@@ -2,10 +2,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.verizon.bda.apisvcs</groupId>
+
+    <parent>
+        <groupId>com.verizon.bda</groupId>
+        <artifactId>trapezium-parent</artifactId>
+        <version>1.4.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>com.verizon.trapezium.api.akkahttp</groupId>
     <artifactId>api-akkahttp</artifactId>
-    <version>0.0.1</version>
-   <name>Akka http api services</name>
+    <version>1.4.0-SNAPSHOT</version>
+   <name>Trapezium akka http api services</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -45,9 +53,9 @@
             <version>1.3.0</version>
         </dependency>
         <dependency>
-            <groupId>com.verizon.bda.apisvcs</groupId>
-            <artifactId>commons-api</artifactId>
-            <version>0.0.1</version>
+            <groupId>com.verizon.trapezium.api</groupId>
+            <artifactId>trapezium-api</artifactId>
+            <version>1.4.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
@@ -67,25 +75,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jcl-over-slf4j</artifactId>
-            <version>1.7.20</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>log4j-over-slf4j</artifactId>
-            <version>1.7.20</version>
-        </dependency>
-        <dependency>
             <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-slf4j_2.11</artifactId>
             <version>2.4.17</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.verizon.bda</groupId>
-            <artifactId>authorizationsvcs-framework</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>commons-httpclient</groupId>

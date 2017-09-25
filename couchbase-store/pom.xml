@@ -5,7 +5,7 @@
     <parent>
         <artifactId>trapezium-parent</artifactId>
         <groupId>com.verizon.bda</groupId>
-        <version>1.1.0</version>
+        <version>1.4.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,7 +13,7 @@
     <artifactId>trapezium-couchbase-store</artifactId>
     
     <properties>
-        <cache.version>1.1.0</cache.version>
+        <cache.version>1.4.0-SNAPSHOT</cache.version>
         <couch.client.version>1.4.5</couch.client.version>
         <couch.mock.version>1.4.3</couch.mock.version>
         <typesafe.version>1.2.1</typesafe.version>
@@ -81,18 +81,11 @@
             <scope>test</scope>
         </dependency>
 
-
-
-
         <dependency>
             <groupId>com.verizon.bda</groupId>
             <artifactId>trapezium-cache</artifactId>
-            <version>${cache.version}</version>
+            <version>${trapezium.version}</version>
         </dependency>
-
-
-
-
     </dependencies>
     <build>
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>

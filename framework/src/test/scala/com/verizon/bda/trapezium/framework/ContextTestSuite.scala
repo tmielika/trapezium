@@ -30,12 +30,8 @@ class ContextTestSuite extends FunSuite {
 
   test("getSparkContext - should return spark context with all given params. ") {
     val conf = ApplicationManager.getSparkConf(appConfig)
-
-    assert(conf.get("memsql.host") == appConfig.sparkConfParam.getString("memsql.host"))
-    assert(conf.get("memsql.user") == appConfig.sparkConfParam.getString("memsql.user"))
     assert(conf.get("spark.akka.frameSize")
       == appConfig.sparkConfParam.getString("spark.akka.frameSize"))
   }
-
 }
 
