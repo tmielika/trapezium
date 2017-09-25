@@ -39,7 +39,7 @@
     <codahale.metrics.version>3.1.2</codahale.metrics.version>
     <scala.version>2.10.5</scala.version>
     <scala.binary.version>2.10</scala.binary.version>
-    <spark.version>1.6.0</spark.version>
+    <spark.version>2.1.0</spark.version>
     <lucene.version>6.5.1</lucene.version>
     <guava.version>18.0</guava.version>
     <snappy.version>1.1.1.7</snappy.version>

@@ -15,6 +15,9 @@
 
     <properties>
         <trapezium.spark.version>2.1.0</trapezium.spark.version>
+      <scala.binary.version>2.10</scala.binary.version>
+      <scala.version>2.10.5</scala.version>
+
     </properties>
 
     <dependencies>

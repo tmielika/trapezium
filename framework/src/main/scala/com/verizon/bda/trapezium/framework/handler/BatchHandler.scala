@@ -17,19 +17,19 @@ package com.verizon.bda.trapezium.framework.handler
 import java.sql.Time
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, Timer, TimerTask}
+
 import com.typesafe.config.{Config, ConfigList, ConfigObject}
 import com.verizon.bda.trapezium.framework.kafka.KafkaSink
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
+import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, Waiter}
 import com.verizon.bda.trapezium.framework.{ApplicationManager, BatchTransaction}
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.DataFrame
-import org.joda.time.LocalDateTime
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable.{Map => MMap}
-import com.verizon.bda.trapezium.framework.utils.Waiter
 
 
 /**
@@ -90,7 +90,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     logger.info(s" Job Summary Status : Passed" )
     val hdfsBatchConfig = workFlowConfig.hdfsFileBatch.asInstanceOf[Config]
     val batchInfoList = hdfsBatchConfig.getList("batchInfo")
-    var inputNamePath : mutable.StringBuilder = new StringBuilder("[")
+    var inputNamePath : StringBuilder = new StringBuilder("[")
     batchInfoList.asScala.foreach { batchConfig =>
       val batchData: Config = batchConfig.asInstanceOf[ConfigObject].toConfig
       val dataDir = FileSourceGenerator.getDataDir(appConfig, batchData)
