@@ -33,7 +33,7 @@ class SaveSlice(df : DataFrame, workflowConfig : WorkflowConfig) {
       df.write.partitionBy("quantizedtime").parquet(outputpath)
     } catch {
       case ex: Exception => {
-        logger.error("Error occured while saving the data", ex.printStackTrace())
+        logger.error("Error occured while saving the data", ex)
       }
     }
   }
