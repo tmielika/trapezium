@@ -14,7 +14,7 @@
 */
 package com.verizon.trapezium.growth
 
-import org.apache.spark.sql.UserDefinedFunction
+import org.apache.spark.sql.expressions.UserDefinedFunction
 
 
 /**
