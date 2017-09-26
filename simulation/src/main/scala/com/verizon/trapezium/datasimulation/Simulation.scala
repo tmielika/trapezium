@@ -44,7 +44,7 @@ object Simulation {
         saveToKafka(df , conf)
       }
       case _ => {
-        logger.error("Mode not implemented. Exiting..." , runmode)
+        logger.error("Mode not implemented. Exiting... {}" , runmode)
         System.exit(1)
       }
     }
@@ -64,9 +64,7 @@ object Simulation {
       Thread.sleep(sleep)
     } else {
       logger.error("Simulation is too slow not able to write data " +
-        "in interval define " + interval ,
-        logger.error("Simulation is too slow not able " +
-          " to write data in interval define " , interval))
+        "in interval define " + interval)
       df.rdd.sparkContext.stop()
     }
   }
