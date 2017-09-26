@@ -131,12 +131,12 @@ object ApplicationManager {
      parser.parse(args, defaultParams).map { params =>
        run(params)
      } getOrElse {
-       logger.error("Insufficient number of arguments", getUsage)
+       logger.error("Insufficient number of arguments {}", getUsage)
        System.exit(ERROR_EXIT_CODE)
      }
    } catch {
      case ex: Throwable => {
-       logger.error(s"Exiting job because of following exception" ,
+       logger.error(s"Exiting job because of following exception {}" ,
          ex.getMessage)
        System.exit(ERROR_EXIT_CODE)
      }
@@ -193,7 +193,7 @@ object ApplicationManager {
         startHttpServer(sc, workflowConfig)
 
       }
-      case _ => logger.error("Not implemented run mode. Exiting.. ", runMode)
+      case _ => logger.error("Not implemented run mode. Exiting.. {}", runMode)
     }
   }
 
@@ -234,7 +234,7 @@ object ApplicationManager {
           case ex: Throwable => {
 
             logger.error(s"Consumed following exception because " +
-              s"spark context was NOT stopped gracefully." , {ex.getMessage})
+              s"spark context was NOT stopped gracefully. {}" , ex.getMessage)
             throw ex
           }
 
@@ -282,7 +282,7 @@ object ApplicationManager {
         dStreams = initKafkaDstream(workflowConfig, sparkConf, runMode )
       }
       case _ => {
-        logger.error("Mode not implemented. Exiting...", dataSource)
+        logger.error("Mode not implemented. Exiting... {}", dataSource)
         System.exit(ERROR_EXIT_CODE)
       }
     }

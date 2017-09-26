@@ -133,7 +133,7 @@ object DataTranformer {
       map = propertiesToMap(input)
     } catch {
       case e: Exception =>
-        logger.error("error reading source file from local:   " + source, e.getMessage)
+        logger.error(s"error reading source file from local:   $source {} ", e.getMessage)
     }
     map
 

@@ -257,7 +257,7 @@ private[framework] object KafkaDStream {
     } catch {
       case ex @ (_: KeeperException | _: Exception) => {
 
-        logger.error("Exception", ex.getMessage)
+        logger.error("Exception  {}", ex.getMessage)
         throw ex
 
       }
