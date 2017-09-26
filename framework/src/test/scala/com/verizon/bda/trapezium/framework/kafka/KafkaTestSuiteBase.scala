@@ -139,7 +139,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         val brokerProps = getBrokerConfig()
         brokerProps.put("broker.id", "1")
         brokerProps.put("port", brokerPort2.toString)
-        brokerProps.put("log.dir", "tmp/kafka")
+        brokerProps.put("log.dir", "target/kafka")
 
         brokerConf2 = new KafkaConfig(brokerProps)
         server2 = new KafkaServer(brokerConf2)
@@ -270,8 +270,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
 
-    deleteRecursively( new File("tmp/kafka"))
-    props.put("log.dir", "tmp/kafka")
+    deleteRecursively( new File("target/kafka"))
+    props.put("log.dir", "target/kafka")
     props.put("zookeeper.connect", zkAddress)
     props.put("log.flush.interval.messages", "1")
     props.put("replica.socket.timeout.ms", "1500")
