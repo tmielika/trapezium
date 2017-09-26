@@ -251,6 +251,11 @@
 			<type>test-jar</type>
 			<version>${trapezium.version}</version>
 		</dependency>
+        <dependency>
+            <groupId>com.verizon.bda</groupId>
+            <artifactId>trapezium-cache</artifactId>
+            <version>1.4.0-SNAPSHOT</version>
+        </dependency>
 	</dependencies>
 
 	<build>
