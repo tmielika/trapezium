@@ -113,7 +113,7 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
       kafkaConfig.getLong("batchTime") * 1000)
 
     kf_logger.info("Stopping the streamign context")
-    ssc1.stop(false, false)
+    ssc1.stop(true, false)
 
     // reset option
     KafkaDStream.sparkcontext = None
