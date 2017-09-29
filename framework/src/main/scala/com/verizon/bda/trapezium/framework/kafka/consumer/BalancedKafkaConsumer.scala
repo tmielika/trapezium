@@ -180,10 +180,12 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
       override def run(): Unit = {
 
         while (!stopped.get()) {
-          if (!stopped.get())
+
           try {
              val pollResult = requestPoll()
-              messageHandler.handleMessage(pollResult.records, pollResult.beginningOffsets, pollResult.untilOffsets, pollResult.latestOffsets)
+//             Double idoim check to see if the stopped flag is set - If so then stop relaying messages
+             if (!stopped.get())
+                messageHandler.handleMessage(pollResult.records, pollResult.beginningOffsets, pollResult.untilOffsets, pollResult.latestOffsets)
             } catch {
               case ex: Exception => {
                 logger.error("Unable to publish message to message handler", ex)
