@@ -14,7 +14,7 @@
 */
 package com.verizon.bda.trapezium.dal.spark.cassandra
 
-import org.apache.spark.sql.cassandra.CassandraSQLContext
+import org.apache.spark.sql._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -34,7 +34,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
   val logger = LoggerFactory.getLogger(this.getClass)
   var ipDao: CassandraDAO = null
   implicit var sc: SparkContext = _
-  implicit var sqlContext: CassandraSQLContext = _
+  implicit var sqlContext: SQLContext = _
 
   val daoTestSchema = StructType(
     Seq(StructField("ipaddress", LongType, true),
@@ -58,8 +58,9 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
       .set("spark.cassandra.connection.port", port)
       .set("spark.driver.allowMultipleContexts", "true")
 
-    sc = new SparkContext(conf)
-    sqlContext = new CassandraSQLContext(sc)
+    val builder = SparkSession.builder().config(conf)
+    sc = builder.getOrCreate().sparkContext
+    sqlContext = builder.getOrCreate().sqlContext
 
     cassandraDAOUtils = new CassandraDAOUtils(
       List("localhost"), "netintel", "ipreputation2", sqlContext);
