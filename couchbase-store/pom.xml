@@ -86,6 +86,11 @@
             <artifactId>trapezium-cache</artifactId>
             <version>${trapezium.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.verizon.bda</groupId>
+            <artifactId>trapezium-dal</artifactId>
+            <version>${trapezium.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
