@@ -37,8 +37,8 @@
     <parquet.version>1.8.1</parquet.version>
     <hive.parquet.version>1.8.1</hive.parquet.version>
     <codahale.metrics.version>3.1.2</codahale.metrics.version>
-    <scala.version>2.10.5</scala.version>
-    <scala.binary.version>2.10</scala.binary.version>
+    <scala.version>2.11.8</scala.version>
+    <scala.binary.version>2.11</scala.binary.version>
     <spark.version>2.1.0</spark.version>
     <lucene.version>6.5.1</lucene.version>
     <guava.version>18.0</guava.version>
@@ -134,7 +134,7 @@
       </dependency>
       <dependency>
         <groupId>com.holdenkarau</groupId>
-        <artifactId>spark-testing-base_2.10</artifactId>
+        <artifactId>spark-testing-base_${scala.binary.version}</artifactId>
         <version>${spark.version}_0.3.3</version>
         <scope>test</scope>
       </dependency>

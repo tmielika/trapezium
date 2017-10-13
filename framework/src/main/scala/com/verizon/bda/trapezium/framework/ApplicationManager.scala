@@ -134,8 +134,7 @@ object ApplicationManager {
      }
    } catch {
      case ex: Throwable => {
-       logger.error(s"Exiting job because of following exception" ,
-         ex.getMessage)
+       logger.error(s"Exiting job because of following exception" , ex)
        System.exit(ERROR_EXIT_CODE)
      }
 

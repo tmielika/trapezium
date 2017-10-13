@@ -199,7 +199,7 @@
 
         <dependency>
             <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka_2.10</artifactId>
+            <artifactId>kafka_2.11</artifactId>
             <version>${kafka.version}</version>
             <exclusions>
                 <exclusion>
@@ -217,32 +217,26 @@
         </dependency>
 
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <version>9.2.16.v20160414</version>
-        </dependency>
-
-        <dependency>
             <groupId>com.databricks</groupId>
-            <artifactId>spark-avro_2.10</artifactId>
+            <artifactId>spark-avro_${scala.binary.version}</artifactId>
             <version>3.2.0</version>
         </dependency>
 
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-http-experimental_2.10</artifactId>
+            <artifactId>akka-http-experimental_${scala.binary.version}</artifactId>
             <version>2.0.4</version>
         </dependency>
 
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-http-spray-json-experimental_2.10</artifactId>
+            <artifactId>akka-http-spray-json-experimental_${scala.binary.version}</artifactId>
             <version>2.0.4</version>
         </dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-testkit-experimental_2.10</artifactId>
+			<artifactId>akka-http-testkit-experimental_${scala.binary.version}</artifactId>
 			<version>2.0.4</version>
 			<scope>test</scope>
 		</dependency>

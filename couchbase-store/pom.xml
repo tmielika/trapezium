@@ -17,8 +17,8 @@
         <couch.client.version>1.4.5</couch.client.version>
         <couch.mock.version>1.4.3</couch.mock.version>
         <typesafe.version>1.2.1</typesafe.version>
-        <scala.version>2.10.5</scala.version>
-        <scala.binary.version>2.10</scala.binary.version>
+        <scala.version>2.11.8</scala.version>
+        <scala.binary.version>2.11</scala.binary.version>
         <scala.test.version>2.2.4</scala.test.version>
         <bdalogger.version>1.0.2</bdalogger.version>
         <couch.mock.version>1.4.3</couch.mock.version>
