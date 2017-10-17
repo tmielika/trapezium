@@ -100,7 +100,7 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
     })
 
     val untilOffsets: java.util.Map[TopicPartition, Long] = new util.HashMap[TopicPartition, Long]()
-    records.partitions().asScala.par.foreach(parts => {
+    records.partitions().asScala.foreach(parts => {
       try {
         val position = consumer.position(parts)
         untilOffsets.put(parts, position)
@@ -191,10 +191,18 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
                 logger.error("Unable to publish message to message handler", ex)
               }
             }
+
+          try {
+            Thread.sleep(waitTimeBetweenPolls)
+          }catch {
+            case ex: Exception => {
+              logger.error("Sleep interrupted for thread..", ex)
+            }
+          }
+
           /**
             * avoid an all time CPU spin
             */
-          Thread.sleep(waitTimeBetweenPolls)
         }
 
         try {

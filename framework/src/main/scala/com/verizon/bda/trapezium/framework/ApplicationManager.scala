@@ -562,7 +562,7 @@ class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
       }
       case ex: Throwable => {
 
-        logger.error("Stopping job", ex.getMessage)
+        logger.error("Stopping job", ex)
         ApplicationManager.stopStreaming = true
       }
     }

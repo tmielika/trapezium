@@ -213,7 +213,6 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-streaming-kafka-0-10_${scala.binary.version}</artifactId>
             <version>${trapezium.spark.version}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
