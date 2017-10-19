@@ -364,12 +364,19 @@ private[framework] object KafkaDStream {
 
         var topicpart = topicpartitions.get
 
-        // Add new partitions to old map
-        newtopicpart.foreach { case (tp, (soff, eoff)) =>
-          // New partition
-          if (!topicpart.contains(tp)) {
-            topicpart += (tp -> (0, eoff))
-            modified = true
+        /* TODO: Check if it matches all cases
+           For bridgeType = 'CUSTOM' the topic offsets are split between several context
+           and hence is invalid to treat as a new or missed partition/offset. Any new additions
+           or changes will be automatically handled by the consumer
+        */
+        if(workflowConfig.dataSource.equals("KAFKA") && workflowConfig.bridgeType.equals("NATIVE")) {
+          // Add new partitions to old map
+          newtopicpart.foreach { case (tp, (soff, eoff)) =>
+            // New partition
+            if (!topicpart.contains(tp)) {
+              topicpart += (tp -> (0, eoff))
+              modified = true
+            }
           }
         }
 
@@ -591,7 +598,6 @@ private[framework] object KafkaDStream {
 
       KafkaApplicationUtils.kafkaBrokers
     } else {
-
       kafkaBrokerList
     }
   }
