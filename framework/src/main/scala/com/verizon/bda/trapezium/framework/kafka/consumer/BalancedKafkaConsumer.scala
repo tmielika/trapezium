@@ -187,7 +187,7 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
              if (!stopped.get())
                 messageHandler.handleMessage(pollResult.records, pollResult.beginningOffsets, pollResult.untilOffsets, pollResult.latestOffsets)
             } catch {
-              case ex: Exception => {
+              case ex: Throwable => {
                 logger.error("Unable to publish message to message handler", ex)
               }
             }
@@ -243,7 +243,14 @@ class BalancedKafkaConsumer[K: ClassTag, V: ClassTag](
 
       // when there are offsets managed then propagate them
       if (!offset.isEmpty && offset.get > 0) {
-        consumer.seek(topicPartition, offset.get)
+        try{
+
+          consumer.seek(topicPartition, offset.get)
+        }catch {
+          case ex: Exception => {
+            logger.error("problems seeking the consumer offset", ex)
+          }
+        }
         logger.info(s"Assigned offset= ${offset.get} to partition= ${topicPartition.partition()} for topic ${topicPartition.topic()}")
       } else {
         logger.warn(s"No offset found for partition= ${topicPartition.partition()} on topic ${topicPartition.topic()}")
