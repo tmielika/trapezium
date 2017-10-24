@@ -67,7 +67,7 @@ object WorkflowUtils {
 
     } getOrElse {
 
-      logger.error("Insufficient number of arguments", getUsage)
+      logger.error("Insufficient number of arguments {}", getUsage)
       System.exit(1)
     }
   }

@@ -38,7 +38,7 @@ class Slice(df: DataFrame, workflowConfig: WorkflowConfig) {
        return new SaveSlice(res , workflowConfig)
      } catch {
        case ex: Exception => {
-         logger.error("Error occured while slicing the data" , ex.printStackTrace())
+         logger.error("Error occured while slicing the data" , ex)
        }
      }
      null

@@ -9,7 +9,7 @@ git clone --mirror https://github.com/Verizon/trapezium
 
 cd trapezium.git/
 
-git remote set-url --push origin https://username@mycompany.com/stash/scm/bda/trapezium.git
+git remote add stash https://username@mycompany.com/stash/scm/bda/trapezium.git
 
 git push --all stash
 git push --tags stash

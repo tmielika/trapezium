@@ -134,7 +134,7 @@ private[framework] object ApplicationUtils {
 
         // expected to get exception in local mode
         if ( appConfig.env != "local") {
-          logger.error("ZooKeeperException", ex.getMessage)
+          logger.error("ZooKeeperException {}", ex.getMessage)
         }
 
       }
@@ -207,7 +207,7 @@ private[framework] object ApplicationUtils {
     } catch {
 
       case ex: Throwable => {
-        logger.error("ZooKeeperException", ex.getMessage)
+        logger.error("ZooKeeperException {}", ex.getMessage)
         throw new Exception(ex)
 
       }
@@ -246,7 +246,7 @@ private[framework] object ApplicationUtils {
 
     } catch {
       case ex: Throwable => {
-        logger.error("ZooKeeperException", ex.getMessage)
+        logger.error("ZooKeeperException {}", ex.getMessage)
         throw ex
       }
     }
@@ -341,7 +341,7 @@ private[framework] object ApplicationUtils {
 
     } catch {
       case ex: Throwable => {
-        logger.error("ZooKeeperException", ex.getMessage)
+        logger.error("ZooKeeperException {}", ex.getMessage)
          throw ex
       }
     }
@@ -358,7 +358,7 @@ private[framework] object ApplicationUtils {
     } catch {
       case ex: Throwable => {
         ex.printStackTrace()
-        logger.error("ZooKeeperException", ex.getMessage)
+        logger.error("ZooKeeperException {}", ex.getMessage)
       }
     }
   }

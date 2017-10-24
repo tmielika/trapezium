@@ -63,7 +63,7 @@ object ScanFS {
         }
       } catch {
           case e : Throwable =>
-            logger.error(s"Error while scanning file", e.getMessage)
+            logger.error(s"Error while scanning file {}", e.getMessage)
       }
       fileArray
     }

@@ -346,7 +346,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       }
     } catch {
       case e: Throwable => {
-        logger.error(s"Caught Exception during processing", e.getMessage)
+        logger.error(s"Caught Exception during processing {}", e.getMessage)
         rollBackTransactions(workflowTime)
         throw e
       }
@@ -377,7 +377,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       } catch {
         case e: Throwable =>
           logger.error(s"Exception caught while rollback of " +
-            s"transaction $transactionClassName with batchTime: ${workflowTime}"
+            s"transaction $transactionClassName with batchTime: ${workflowTime} {}"
             , e.getMessage)
           throw e
       }

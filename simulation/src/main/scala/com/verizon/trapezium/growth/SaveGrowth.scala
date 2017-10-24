@@ -33,7 +33,7 @@ class SaveGrowth(df : DataFrame, workflowConfig : WorkflowConfig) {
      df.write.parquet(outputpath)
     } catch {
       case ex: Exception => {
-        logger.error("Error occured while saving the data", ex.printStackTrace())
+        logger.error("Error occured while saving the data", ex)
       }
     }
   }
@@ -43,7 +43,7 @@ class SaveGrowth(df : DataFrame, workflowConfig : WorkflowConfig) {
      return new Slice(df : DataFrame, workflowConfig: WorkflowConfig).slice()
     } catch {
       case ex: Exception => {
-        logger.error("Error occured while saving the data", ex.printStackTrace())
+        logger.error("Error occured while saving the data", ex)
       }
     }
     null
