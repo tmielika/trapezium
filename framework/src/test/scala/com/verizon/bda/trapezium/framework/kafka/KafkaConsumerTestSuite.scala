@@ -254,7 +254,7 @@ class KafkaConsumerTestSuite extends KafkaTestSuiteBase {
       override def getOffsets(kafkaTopicName: String): Offsets = {
         //do nothing just catch it.
         offsetLatch.countDown()
-        if(untilOffsetReference==null) {
+        if(untilOffsetReference==null || untilOffsetReference.get()==null ) {
           logger.info("[consumers-offset-check] getOffsets = empty map")
           new Offsets(Map())
         }
@@ -277,8 +277,14 @@ class KafkaConsumerTestSuite extends KafkaTestSuiteBase {
                                  , begOffsets: util.Map[TopicPartition, java.lang.Long]
                                  , untilOffsets: util.Map[TopicPartition, java.lang.Long]
                                  , latestOffsets: util.Map[TopicPartition, java.lang.Long]): Unit = {
-        if(records.count()>0)
-          untilOffsetReference.set(untilOffsets)
+        if(records.count()>0){
+          val map = untilOffsetReference.get()
+          if(map==null)
+            untilOffsetReference.set(untilOffsets)
+          else {
+            map.putAll(untilOffsets)
+          }
+        }
 
         logger.info(s"[consumers-switches]  received - ${records.count()} with offsets ${untilOffsets} for topic ${topiczz}")
         var count = records.count()
