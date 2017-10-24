@@ -20,7 +20,6 @@ public class Producer {
 
     private static final String topic = "HADR_2";
 
-    //    private static final String SERVER_ADDRESS = "md-bdadev-55.verizon.com:9092";
     private static final String SERVER_ADDRESS = "localhost:9092";
 
     private static final String RECORD_1 = "AA1.IAD8.ALTER.NET|em0|108|2015-07-07 15:52:43|299990|11|" ;

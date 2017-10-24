@@ -49,7 +49,7 @@ public class ContinuousProducer {
 
     public void initialize() {
         Map<String,Object> producerProps = new HashMap<String,Object>();
-        producerProps.put("bootstrap.servers", "md-bdadev-55.verizon.com:9092");
+        producerProps.put("bootstrap.servers", "localhost:9092");
         producerProps.put("key.serializer", StringSerializer.class.getName());
         producerProps.put("value.serializer", StringSerializer.class.getName());
         producerProps.put("request.required.acks", "1");
