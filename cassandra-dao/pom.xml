@@ -12,11 +12,11 @@
     <artifactId>trapezium-cassandra-dao</artifactId>
     <packaging>jar</packaging>
     <name>Trapezium Cassandra DAO</name>
-    
+
     <properties>
-      <spark.version>1.6.0</spark.version>
-      <scala.binary.version>2.10</scala.binary.version>
-      <scala.version>2.10.5</scala.version>
+        <trapezium.spark.version>2.1.0</trapezium.spark.version>
+      <scala.binary.version>2.11</scala.binary.version>
+      <scala.version>2.11.8</scala.version>
 
     </properties>
 
@@ -45,13 +45,24 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <version>${trapezium.spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
+            <version>${trapezium.spark.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>guava</artifactId>
                     <groupId>com.google.guava</groupId>
                 </exclusion>
+
+                <exclusion>
+                    <groupId>org.apache.spark</groupId>
+                    <artifactId>spark-core_${scala.binary.version}</artifactId>
+                </exclusion>
+
             </exclusions>
         </dependency>
         <!-- Testing dependencies  -->

@@ -20,14 +20,15 @@ import java.util.Properties
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import kafka.common.KafkaException
-import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
-import kafka.serializer.StringEncoder
 import kafka.server.{KafkaConfig, KafkaServer}
-import kafka.utils.ZKStringSerializer
-import org.I0Itec.zkclient.ZkClient
+import kafka.utils.ZkUtils
+import org.I0Itec.zkclient.{ZkClient, ZkConnection}
 import org.apache.commons.io
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
@@ -48,11 +49,12 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   private var server2: KafkaServer = _
   private var brokerPort2 = 9093
   private var brokerConf2: KafkaConfig = _
-  private var producer: Producer[String, String] = _
+  private var producer: KafkaProducer[String, String] = _
   private var zkReady = false
   private var brokerReady = false
 
   protected var zkClient: ZkClient = _
+  protected var utils: KafkaApplicationUtils = _
 
   before {
 
@@ -65,11 +67,13 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     // set up local Kafka cluster
     setupKafka
+     utils = getZKUtils
   }
 
   after {
     tearDownKafka
   }
+
 
   private def zkAddress: String = {
     assert(zkReady, "Zookeeper not setup yet or already torn down, cannot get zookeeper address")
@@ -97,7 +101,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     zkReady = true
     kf_logger.info("==================== Zookeeper Started ====================")
 
-    zkClient = new ZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout, ZKStringSerializer)
+    zkClient = ZkUtils.createZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout)
+
     kf_logger.info("==================== Zookeeper Client Created ====================")
 
     // Kafka broker startup
@@ -219,21 +224,28 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
   }
 
-  private def sendMessages(topic: String, messageToFreq: Map[String, Int]) {
+  private[framework] def sendMessages(topic: String, messageToFreq: Map[String, Int]) {
     val messages = messageToFreq.flatMap { case (s, freq) => Seq.fill(freq)(s) }.toArray
     sendMessages(topic, messages)
   }
 
-  private def sendMessages(topic: String, messages: Array[String]) {
-    producer = new Producer[String, String](new ProducerConfig(getProducerConfig()))
+
+  private[framework] def sendMessages(topic: String, messages: Array[String]) {
+    producer = new KafkaProducer[String, String](getProducerConfig())
     // producer.send(messages.map { new KeyedMessage[String, String](topic, _ ) }: _*)
-    producer.send(messages.map {
-      new KeyedMessage[String, String](topic, null, _)
-    }: _*)
+
+    sendMessages(producer, topic, messages)
+
     producer.close()
     kf_logger.info(s"=============== Sent Messages ===================")
   }
 
+  private[framework]  def sendMessages(producer: KafkaProducer[String,String], topic: String, messages: Array[String]) = {
+    for (msg <- messages)
+      producer.send(
+        new org.apache.kafka.clients.producer.ProducerRecord[String, String](topic, null, msg)
+      )
+  }
 
   private def deleteRecursively(in : File): Unit = {
 
@@ -278,15 +290,6 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     props
   }
 
-  private def getProducerConfig(): Properties = {
-    var brokerAddr = brokerConf.hostName + ":" + brokerConf.port
-    if (brokerConf2 != null) brokerAddr += "," + brokerConf2.hostName + ":" + brokerConf2.port
-    val props = new Properties()
-    props.put("metadata.broker.list", brokerAddr)
-    props.put("serializer.class", classOf[StringEncoder].getName)
-    props
-  }
-
   /*
    private def waitUntilMetadataIsPropagated(topic: String, partition: Int) {
      eventually(timeout(10000 milliseconds), interval(100 milliseconds)) {
@@ -298,17 +301,37 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
    }
    */
 
+  private[framework] def getProducerConfig(): Properties = {
+    var brokerAddr = brokerConf.hostName + ":" + brokerConf.port
+    if (brokerConf2 != null) brokerAddr += "," + brokerConf2.hostName + ":" + brokerConf2.port
+    val props = new Properties()
+
+    props.put("bootstrap.servers", brokerAddr)
+    props.put("value.serializer", classOf[StringSerializer].getName)
+    props.put("key.serializer", classOf[StringSerializer].getName)
+
+    props
+  }
   /**
-   * create topic
-   * @param topic
-   * @param nparts
-   */
+    * create topic
+    * @param topic
+    * @param nparts
+    */
   def createTopic(topic: String, nparts: Int = 1): Unit = {
 
-    new KafkaApplicationUtils(zkClient, kafkaBrokers).createTopic(topic, nparts)
+    utils.createTopic(topic, nparts)
   }
 
-  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]]): Unit = {
+  private def getZKUtils: KafkaApplicationUtils = {
+//    TODO: Switch to this API in the near future
+//    ZkUtils.createZkClientAndConnection(zkList , 100, 100)
+    val zkUtils: ZkUtils = new ZkUtils(zkClient, new ZkConnection(zkList), false)
+    val utils = new KafkaApplicationUtils(zkUtils, kafkaBrokers)
+    utils
+  }
+
+  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]],
+                    adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
 
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
@@ -318,17 +341,19 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val topicName = streamsInfo.get(0).getString("topicName")
     val newInputSeq = inputSeq.map(seq => Seq((topicName, seq)))
 
-    setupWorkflowForMultipleTopics(workflowName, newInputSeq)
+    setupWorkflowForMultipleTopics(workflowName, newInputSeq, adapt)
 
   }
 
   def setupWorkflowForMultipleTopics(workflowName: String,
-                                     inputSeq: Seq[Seq[(String, Seq[String])]]): Unit = {
+                                     inputSeq: Seq[Seq[(String, Seq[String])]],
+                                     adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
-    val utils = new KafkaApplicationUtils(zkClient, kafkaBrokers)
+    if(adapt!=null)
+      adapt(workflowConfig, appConfig)
 
     // create topcis
     utils.createTopics(workflowConfig)
@@ -337,6 +362,11 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val currentTimeStamp = System.currentTimeMillis()
     ApplicationManager.updateWorkflowTime(currentTimeStamp)
 
+    startApplication(inputSeq, workflowConfig, kafkaConfig, appConfig)
+
+  }
+
+  private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig, kafkaConfig: Config, appConfig: ApplicationConfig) = {
     val sparkConf = ApplicationManager.getSparkConf(appConfig)
     val ssc = KafkaDStream.createStreamingContext(sparkConf)
 
@@ -345,11 +375,11 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     // start streaming
     ssc.start
 
-    inputSeq.foreach( input => {
+    inputSeq.foreach(input => {
 
-      input.foreach( seq => {
+      input.foreach(seq => {
 
-        kf_logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"OLD Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })
@@ -361,30 +391,32 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     ssc.awaitTerminationOrTimeout(
       kafkaConfig.getLong("batchTime") * 1000)
 
-    if( ssc != null ) {
-      kf_logger.info(s"Stopping streaming context from test Thread.")
+    if (ssc != null) {
+      kf_logger.info("Stopping streaming context from test Thread.")
       ssc.stop(true, false)
 
       // reset option
       KafkaDStream.sparkcontext = None
     }
 
-    assert (!ApplicationManager.stopStreaming)
-
+    assert(!ApplicationManager.stopStreaming)
   }
 
   /**
    * Added method to test multiple kafka workflows reading from multiple Kafka topics
+ *
    * @param workflowNames
    * @param inputSeq
    */
   def setupMultipleWorkflowForMultipleTopics(workflowNames: List[String],
-                                     inputSeq: Seq[Seq[(String, Seq[String])]]): Unit = {
+                                     inputSeq: Seq[Seq[(String, Seq[String])]],
+                                      adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowNames(0))
 
-    val utils = new KafkaApplicationUtils(zkClient, kafkaBrokers)
+    if(adapt!=null)
+      adapt(workflowConfig,appConfig)
 
     // create topcis
     utils.createTopics(workflowConfig)
@@ -413,7 +445,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
       input.foreach( seq => {
 
-        kf_logger.info(s"Size of the input: ${seq._2.size}")
+        kf_logger.info(s"OLDER Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
 
       })

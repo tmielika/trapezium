@@ -1,13 +1,15 @@
 package com.verizon.bda.trapezium.dal.lucene
 
-import org.apache.lucene.document.{Field, Document}
 import java.util.UUID
+
+import org.apache.lucene.document.{Document, Field}
 import org.apache.spark.SparkConf
-import org.apache.spark.mllib.linalg.VectorUDT
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.types._
+import org.apache.spark.util.CustomVectorUDT
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
  * @author debasish83 on 12/22/16.
@@ -16,9 +18,9 @@ import org.apache.spark.sql.types._
 
 // TODO: Given a dataframe schema create all the Projection
 trait SparkSQLProjections {
-  @transient lazy val VectorProjection = UnsafeProjection.create(VectorType.sqlType)
-
-  lazy val VectorType = new VectorUDT()
+  @transient lazy val VectorProjection = UnsafeProjection.create(Array(VectorType.asInstanceOf[DataType]))
+  // CHeck [SPARK-16074] for usage here for VectorUDT
+  lazy val VectorType = new CustomVectorUDT()
   lazy val unsafeRow = new UnsafeRow()
 }
 
@@ -27,10 +29,19 @@ trait SparkSQLProjections {
 // The types on dimension and measures must be SparkSQL compatible
 // Dimensions are a subset of types.keySet
 class OLAPConverter(val dimensions: Set[String],
-                    val storedDimensions: Set[String],
-                    val measures: Set[String],
-                    val serializer: KryoSerializer) extends SparkLuceneConverter {
+val storedDimensions: Set[String],
+val measures: Set[String],
+val serializer: KryoSerializer) extends SparkLuceneConverter {
   @transient lazy val ser = serializer.newInstance()
+
+  @transient private var log = LoggerFactory.getLogger(this.getClass)
+
+  def getLog(): Logger = {
+    if(log==null)
+      log = LoggerFactory.getLogger(this.getClass)
+
+    log
+  }
 
   def addField(doc: Document,
                fieldName: String,
@@ -61,13 +72,13 @@ class OLAPConverter(val dimensions: Set[String],
   private var dict: DictionaryManager = _
 
   def setSchema(schema: StructType): OLAPConverter = {
-    logDebug(s"schema ${schema} set for the converter")
+    getLog().debug(s"schema ${schema} set for the converter")
     this.inputSchema = schema
     this
   }
 
   def setDictionary(dict: DictionaryManager): OLAPConverter = {
-    logInfo(s"Setting dictionary of size ${dict.size()} for converter")
+    log.info(s"Setting dictionary of size ${dict.size()} for converter")
     this.dict = dict
     this
   }

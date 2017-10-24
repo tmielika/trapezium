@@ -41,7 +41,7 @@ object AlgorithmEval extends StreamingTransaction {
 
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
 
-    logger.info(s"${batchID} with ${rdd.count}")
+    logger.info(s" BATCH ${batchID} with ${rdd.count}")
     if (batchID == 0) require(rdd.count() == 490)
     if (batchID == 1) require(rdd.count() == 499)
     batchID += 1

@@ -17,6 +17,7 @@ package com.verizon.bda.trapezium.framework.kafka
 import java.util.Properties
 
 import org.apache.kafka.clients.producer._
+import org.apache.kafka.common.serialization.StringDeserializer
 import org.slf4j.LoggerFactory
 
 /**
@@ -40,6 +41,10 @@ object KafkaSink {
   def apply(config: Map[String, Object]): KafkaSink = {
     val f = () => {
       val prop = new Properties()
+
+      prop.put("value.deserializer", classOf[StringDeserializer].getName)
+      prop.put("key.deserializer", classOf[StringDeserializer].getName)
+
       config.keysIterator.foreach(k => prop.put(k, config.get(k).get))
       val producer = new KafkaProducer[String, String](prop)
       sys.addShutdownHook {
