@@ -16,7 +16,6 @@ package com.verizon.bda.trapezium.dal.spark.cassandra
 
 import com.verizon.bda.trapezium.dal.sql.BaseSqlDAO
 import org.apache.spark.sql._
-import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -27,7 +26,7 @@ import org.apache.spark.sql.types.StructType
   *
   */
 class CassandraDAO(dbName: String, tableName: String,
-                  hosts: List[String]) (implicit sqlContext: CassandraSQLContext)
+                    hosts: List[String]) (implicit sqlContext: SQLContext)
   extends BaseSqlDAO(dbName, tableName) {
   protected val schema = null;
   var dbMap = Map("table" -> tableName, "keyspace" -> dbName)
@@ -42,7 +41,7 @@ class CassandraDAO(dbName: String, tableName: String,
 
   def this (dbName: String, tableName: String,
             hosts: List[String],
-            options: Map[String, String]) (implicit sqlContext: CassandraSQLContext) {
+            options: Map[String, String]) (implicit sqlContext: SQLContext) {
     this(dbName, tableName, hosts)
     dbMap ++= options
 

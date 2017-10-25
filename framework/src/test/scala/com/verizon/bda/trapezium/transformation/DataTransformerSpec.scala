@@ -14,7 +14,7 @@
 */
 package com.verizon.bda.trapezium.transformation
 
-import com.typesafe.config.{ConfigObject, Config}
+import com.typesafe.config.ConfigObject
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
 import org.apache.spark.sql.{DataFrame, SQLContext}

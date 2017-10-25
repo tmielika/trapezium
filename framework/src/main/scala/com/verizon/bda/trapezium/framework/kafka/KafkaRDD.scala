@@ -1,13 +1,12 @@
 package com.verizon.bda.trapezium.framework.kafka
 
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import com.typesafe.config.Config
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.streaming.kafka.{OffsetRange, HasOffsetRanges, KafkaUtils}
-import kafka.serializer.StringDecoder
+import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, OffsetRange}
 import org.slf4j.LoggerFactory
 
 /**
@@ -32,15 +31,23 @@ private[framework] object KafkaRDD {
      if (offsetRangeList.size>0) {
        val fromOffset = offsetRangeList(0).fromOffset
        logger.info ("zk fromOffset" + fromOffset)
-      Some( KafkaUtils.createRDD[String, String, StringDecoder, StringDecoder](sparkContext,
-         getkafkaParam(appConfig, kafkaTopicName), offsetRangeList.toArray) , fromOffset)
+
+       val param = getkafkaParam(appConfig, kafkaTopicName)
+       val value = KafkaUtils.createRDD[String, String](sparkContext, param,
+         offsetRangeList.toArray, LocationStrategies.PreferConsistent)
+
+//     Convert to the (key , Value ) pair for backwards compatibility
+       val record = value.map ( record => (record.key, record.value) )
+
+       Some( record , fromOffset)
+
      } else {
        None
      }
   }
 
 
-  def getkafkaParam (appConfig: ApplicationConfig, kafkaTopicName: String) : Map[String, String] = {
+  def getkafkaParam (appConfig: ApplicationConfig, kafkaTopicName: String) : java.util.Map[String, Object] = {
     val logger = LoggerFactory.getLogger(this.getClass)
     val kafkaConfParam = appConfig.kafkaConfParam
 
@@ -52,16 +59,12 @@ private[framework] object KafkaRDD {
       }
     }
     logger.info ("KafkaApplicationUtils.kafkaBrokers" + kafkaParamBootStrap)
-    val kafkaParamsMap = Map[String, String](
-      "bootstrap.servers" -> kafkaParamBootStrap,
-      "group.id" -> appConfig.persistSchema
-    )
+    val kafkaParamsMap = new java.util.HashMap[String, Object]()
+    kafkaParamsMap.put("bootstrap.servers",kafkaParamBootStrap)
+    kafkaParamsMap.put("group.id" , appConfig.persistSchema)
+    kafkaParamsMap.put("value.deserializer", classOf[StringDeserializer].getName)
+    kafkaParamsMap.put("key.deserializer", classOf[StringDeserializer].getName)
     kafkaParamsMap
   }
-
-
-
-
-
 
 }

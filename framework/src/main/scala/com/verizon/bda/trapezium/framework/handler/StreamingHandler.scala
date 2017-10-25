@@ -16,17 +16,16 @@ package com.verizon.bda.trapezium.framework.handler
 
 import java.sql.Time
 
-import org.apache.spark.Accumulator
+import com.typesafe.config.ConfigObject
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, ApplicationListener, WorkflowConfig}
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.{ApplicationManager, StreamingTransaction}
+import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.sql.Row
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-
-import com.typesafe.config.{Config, ConfigList, ConfigObject}
-import com.verizon.bda.trapezium.framework.{ApplicationManager, StreamingTransaction}
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig, ApplicationListener}
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
-import com.verizon.bda.trapezium.validation.{DataValidator, ValidationConfig, Validator}
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.{Map => MMap}
 
 /**
@@ -122,8 +121,7 @@ private[framework] object StreamingHandler {
             try {
               logger.info(s"Adding dstream ${inputStreamName} "
                 + s"to transformation workflow $workflowClass")
-              workflowDStreams += ((inputStreamName,
-                dStreams(inputStreamName)))
+              workflowDStreams += ((inputStreamName,dStreams(inputStreamName)))
             } catch {
               case e: Throwable => {
                 logger.error("some error {}", e.getMessage)
@@ -189,8 +187,16 @@ private[framework] object StreamingHandler {
             workflowClass.persistStream(rdd, new Time(time.milliseconds))
             DataValidator.printStats()
           } catch {
+            case c: java.lang.InterruptedException => {
+              /**
+                * happens when the spark context is stopped while the graph is still being processed
+                * Should we do something here ?
+                */
+              logger.error("Ignoring the interrrupted exception from the spark framework stop")
+            }
             case e: Throwable => {
 
+              logger.error("Exception ", e)
               logger.error("Exception {}", e.getMessage)
               workflowClassMap.foreach {
                 case (workflowClassName, workflowClass) => {

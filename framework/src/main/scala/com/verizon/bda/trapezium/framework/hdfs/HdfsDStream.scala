@@ -19,7 +19,7 @@ import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.validation.Validator
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.{ LongWritable, Text }
+import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
@@ -50,7 +50,7 @@ private[framework] object HdfsDStream {
   }
 
   def createDStreams(ssc: StreamingContext, dynamicPath : String = null):
-  collection.mutable.Map[String, DStream[Row]] = {
+  scala.collection.mutable.Map[String, DStream[Row]] = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.getWorkflowConfig
@@ -59,7 +59,7 @@ private[framework] object HdfsDStream {
     val streamsInfo = hdfsConfig.getList("streamsInfo")
     logger.info(s"STREAM ${streamsInfo.toString}")
 
-    val dStreams = collection.mutable.Map[String, DStream[Row]]()
+    val dStreams = scala.collection.mutable.Map[String, DStream[Row]]()
 
     val streamsInfoListItr = streamsInfo.iterator
     while (streamsInfoListItr.hasNext) {
