@@ -4,7 +4,7 @@ import java.util.Properties
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.kafka.consumer.ConsumerConfig
-import com.verizon.bda.trapezium.framework.kafka.custom.CustomKafkaSparkDStream
+import com.verizon.bda.trapezium.framework.kafka.ha.HAKafkaSparkDStream
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
@@ -43,7 +43,7 @@ object KafkaDStreamFactory {
     val maxRecordSize = workflowConfig.maxRecordSize
     val kafkaConfig = new ConsumerConfig(props, topicSet, pollTime,waitBetweenPolls, maxRecordSize)
 
-    CustomKafkaSparkDStream.createDStream(ssc,kafkaConfig, appConfig, workflowConfig.workflow, workflowConfig.syncWorkflow)
+    HAKafkaSparkDStream.createDStream(ssc,kafkaConfig, appConfig, workflowConfig.workflow, workflowConfig.syncWorkflow)
   }
 
 
@@ -74,7 +74,7 @@ object KafkaDStreamFactory {
 
       } else {
 
-//        logger.warn(s"No topic offset exists for ${topicName}. Starting streams as per KafkaParams")
+        logger.warn(s"No topic offset exists for ${topicName}. Starting streams as per KafkaParams")
 
         val subscription = ConsumerStrategies.Subscribe[K, V](topicSet, kafkaParams)
 
@@ -85,7 +85,7 @@ object KafkaDStreamFactory {
 
     } else {
 
-//      logger.warn(s"No offset found for ${topicName}. Starting streams as per KafkaParams")
+      logger.warn(s"No from offset found for ${topicName}. Starting streams as per KafkaParams")
 
       val subscription = ConsumerStrategies.Subscribe[K, V](topicSet, kafkaParams)
 

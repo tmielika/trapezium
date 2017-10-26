@@ -1,11 +1,11 @@
-package com.verizon.bda.trapezium.framework.kafka.custom
+package com.verizon.bda.trapezium.framework.kafka.ha
 
 import com.verizon.bda.trapezium.framework.kafka.consumer.{BalancedKafkaConsumer, ConsumerConfig}
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.streaming.dstream.{CustomKafkaReceiverInputDStream, ReceiverInputDStream}
+import org.apache.spark.streaming.dstream.{HAKafkaReceiverInputDStream, ReceiverInputDStream}
 import org.apache.spark.streaming.receiver.Receiver
 import org.apache.spark.streaming.{StreamingContext, Time}
 import org.slf4j.LoggerFactory
@@ -16,7 +16,7 @@ import scala.reflect.ClassTag
 /**
   * Created by sankma8 on 7/28/17.
   */
-object CustomKafkaSparkDStream {
+object HAKafkaSparkDStream {
 
   def createDStream[K: ClassTag, V: ClassTag](ssc: StreamingContext,
                                               consumerConfig: ConsumerConfig,
@@ -25,7 +25,7 @@ object CustomKafkaSparkDStream {
                                               syncWorkflow: String): ReceiverInputDStream[ConsumerRecord[K, V]] = {
 
 
-    new CustomInputStream[K, V](ssc, consumerConfig,  appConfig, workflowName, syncWorkflow)
+    new HABasedKafkaInputStream[K, V](ssc, consumerConfig,  appConfig, workflowName, syncWorkflow)
   }
 
   // --------- START : Block manager based IMPL ---------
@@ -38,12 +38,12 @@ object CustomKafkaSparkDStream {
     * @tparam K
     * @tparam V
     */
-  class CustomInputStream[K: ClassTag, V: ClassTag](ssc: StreamingContext,
+  class HABasedKafkaInputStream[K: ClassTag, V: ClassTag](ssc: StreamingContext,
                                                     consumerConfig: ConsumerConfig,
                                                     appConfig: ApplicationConfig,
                                                     workflowName: String,
                                                     syncWorkflow: String)
-    extends CustomKafkaReceiverInputDStream[ConsumerRecord[K, V]](ssc) {
+    extends HAKafkaReceiverInputDStream[ConsumerRecord[K, V]](ssc) {
 
     override def getReceiver(): Receiver[ConsumerRecord[K, V]] =
       new MyKafkaConsumer[K, V](ssc, consumerConfig,  appConfig,workflowName, syncWorkflow)
