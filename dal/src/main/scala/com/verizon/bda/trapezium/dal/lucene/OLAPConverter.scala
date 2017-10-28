@@ -6,10 +6,10 @@ import org.apache.lucene.document.{Document, Field}
 import org.apache.spark.SparkConf
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.types._
-import org.apache.spark.util.CustomVectorUDT
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.LoggerFactory
+import org.apache.spark.util.DalUtils
 
 /**
  * @author debasish83 on 12/22/16.
@@ -18,10 +18,8 @@ import org.slf4j.{Logger, LoggerFactory}
 
 // TODO: Given a dataframe schema create all the Projection
 trait SparkSQLProjections {
-  @transient lazy val VectorProjection = UnsafeProjection.create(Array(VectorType.asInstanceOf[DataType]))
-  // CHeck [SPARK-16074] for usage here for VectorUDT
-  lazy val VectorType = new CustomVectorUDT()
-  lazy val unsafeRow = new UnsafeRow()
+  @transient lazy val VectorProjection = DalUtils.projectVector()
+  lazy val unsafeVector = new UnsafeRow(4)
 }
 
 // Dimensions needs to be indexed, dictionary-mapped and docvalued
@@ -29,27 +27,19 @@ trait SparkSQLProjections {
 // The types on dimension and measures must be SparkSQL compatible
 // Dimensions are a subset of types.keySet
 class OLAPConverter(val dimensions: Set[String],
-val storedDimensions: Set[String],
-val measures: Set[String],
-val serializer: KryoSerializer) extends SparkLuceneConverter {
+                    val storedDimensions: Set[String],
+                    val measures: Set[String],
+                    val serializer: KryoSerializer) extends SparkLuceneConverter {
   @transient lazy val ser = serializer.newInstance()
-
-  @transient private var log = LoggerFactory.getLogger(this.getClass)
-
-  def getLog(): Logger = {
-    if(log==null)
-      log = LoggerFactory.getLogger(this.getClass)
-
-    log
-  }
+  @transient lazy val log = LoggerFactory.getLogger(this.getClass)
 
   def addField(doc: Document,
                fieldName: String,
                dataType: DataType,
                value: Any,
                multiValued: Boolean): Unit = {
-    // dimensions will be indexed and docvalued based on dictionary encoding
-    // measures will be docvalued
+    // dimensions will be indexed and doc-valued based on dictionary encoding
+    // measures will be doc-valued
     if (value == null) return
 
     if (dimensions.contains(fieldName)) {
@@ -62,7 +52,8 @@ val serializer: KryoSerializer) extends SparkLuceneConverter {
       // SingleValue and MultiValue dimension are both stored as NumericSet
       doc.add(toDocValueField(fieldName, IntegerType, true, idx))
     }
-    else if (measures.contains(fieldName)) {
+
+    if (measures.contains(fieldName)) {
       doc.add(toDocValueField(fieldName, dataType, multiValued, value))
     }
   }
@@ -72,7 +63,7 @@ val serializer: KryoSerializer) extends SparkLuceneConverter {
   private var dict: DictionaryManager = _
 
   def setSchema(schema: StructType): OLAPConverter = {
-    getLog().debug(s"schema ${schema} set for the converter")
+    log.debug(s"schema ${schema} set for the converter")
     this.inputSchema = schema
     this
   }
@@ -113,13 +104,12 @@ val serializer: KryoSerializer) extends SparkLuceneConverter {
     this
   }
 
-  // Use docToRow to extract stored field since the stored fields are part of doc
+  //TODO: Implement row based document retrieval
   def docToRow(doc: Document): Row = {
     Row.empty
   }
 
   override def schema: StructType = inputSchema
-
 }
 
 object OLAPConverter {

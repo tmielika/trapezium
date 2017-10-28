@@ -31,24 +31,20 @@ import org.scalatest.{FunSuite, Ignore}
   *
   *         The HIVE Dao module is going to removed soon
   **/
-@Ignore class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
-  @transient implicit var hiveContext: HiveContext = _
+class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
+  @transient implicit var hiveContext: TestHiveContext = _
   @transient var testdf: DataFrame = _
 
   override def beforeAll() {
     super.beforeAll()
 
-//FIXME: Here TestHiveContext no longer exists
-//    hiveContext = new TestHiveContext(sc)
-
-//    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
-
-    var sparkSession = SparkSession.builder.
+    spark = SparkSession.builder.
       master("local")
-      .appName("spark session example")
+      .appName("HiveTest")
       .enableHiveSupport()
       .getOrCreate()
 
+    sc = spark.sparkContext
 
     val rdd: RDD[Row] = sc.parallelize(
       (1 to 10).map(x => new GenericRow(Array("a" + x, "b", x))).toList
@@ -57,17 +53,21 @@ import org.scalatest.{FunSuite, Ignore}
       StructField("c1", StringType, true),
       StructField("c2", StringType, true),
       StructField("c3", IntegerType, true)))
+
+    hiveContext = new TestHiveContext(sc, false)
+    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
+
     testdf = hiveContext.createDataFrame(rdd, schema)
-    testdf.registerTempTable("test_read")
+    testdf.createOrReplaceTempView("test_read")
   }
 
   override def afterAll() {
-    hiveContext.asInstanceOf[TestHiveContext].reset()
+    hiveContext.reset()
     super.afterAll()
   }
 
   test("HiveDAO read test") {
-    val testDao = new HiveDAO("default", "test_read")
+    val testDao = new HiveDAO("default", "test_read")(hiveContext.sparkSession)
 
     assert(testDao.getAll().count == 20)
     assert(testDao.getColumns(List("c1")).count == 20)
@@ -77,7 +77,7 @@ import org.scalatest.{FunSuite, Ignore}
     val tableName = "test_write_partitioned"
     hiveContext.sql(s"""create table if not exists ${tableName}
                   (c1 string) partitioned by (c2 string, c3 int)""")
-    val testDao = new HiveDAO("default", tableName)
+    val testDao = new HiveDAO("default", tableName)(hiveContext.sparkSession)
 
     testDao.write(testdf, Seq("c2", "c3"))
     assert(hiveContext.table(tableName).count() == 20)
@@ -92,7 +92,7 @@ import org.scalatest.{FunSuite, Ignore}
 
   test("HiveDAO delete partitions test") {
     val tableName = "test_delete_partitions"
-    val testDao = new HiveDAO("default", tableName)
+    val testDao = new HiveDAO("default", tableName)(hiveContext.sparkSession)
 
     hiveContext.sql(s"""create table if not exists ${tableName}
                   (c1 string) partitioned by (c2 string, c3 int)""")
@@ -112,7 +112,7 @@ import org.scalatest.{FunSuite, Ignore}
 
   test("Switch context test") {
     val tableName = "test_switch_context"
-    val newSqlContext = new SQLContext(sc)
+    val newSqlContext = spark.sqlContext
     val schema =
       StructType(
         StructField("name", StringType, false) ::
@@ -123,11 +123,11 @@ import org.scalatest.{FunSuite, Ignore}
         _.split(",")).map(p => Row(p(0), p(1).trim.toInt))
 
     val dataFrame = newSqlContext.createDataFrame(people, schema)
+    dataFrame.createOrReplaceTempView(tableName)
 
-    dataFrame.registerTempTable(tableName)
     val testsqldf = newSqlContext.table(tableName)
     hiveContext.sql(s"create table if not exists ${tableName} (name string, age int)")
-    val testDao = new HiveDAO("default", tableName)(hiveContext)
+    val testDao = new HiveDAO("default", tableName)(hiveContext.sparkSession)
     testDao.write(testsqldf)
     assert(hiveContext.tableNames().contains(tableName) && testDao.getAll().count() == 2)
     hiveContext.sql(s"drop table ${tableName}")
