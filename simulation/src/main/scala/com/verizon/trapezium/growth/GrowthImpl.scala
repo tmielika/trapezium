@@ -65,7 +65,7 @@ class GrowthImpl(df: DataFrame, workflowConfig: WorkflowConfig) extends DefaultU
      } catch {
       case ex: Exception => {
 
-        logger.error("Error occured while growing the data", ex.printStackTrace())
+        logger.error("Error occured while growing the data", ex)
       }
     }
     null

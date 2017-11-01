@@ -126,7 +126,7 @@ private[framework] object StreamingHandler {
                 dStreams(inputStreamName)))
             } catch {
               case e: Throwable => {
-                logger.error("some error", e.getMessage)
+                logger.error("some error {}", e.getMessage)
                 workflowDStreams += ((inputStreamName,
                   dStreams(inputStreamName)))
               }
@@ -191,7 +191,7 @@ private[framework] object StreamingHandler {
           } catch {
             case e: Throwable => {
 
-              logger.error("Exception ", e.getMessage)
+              logger.error("Exception {}", e.getMessage)
               workflowClassMap.foreach {
                 case (workflowClassName, workflowClass) => {
 
@@ -203,14 +203,14 @@ private[framework] object StreamingHandler {
                   } catch {
 
                     case ex: Throwable => {
-                      logger.error("Exception during rollback",
+                      logger.error("Exception during rollback {}",
                         s"$workflowClassName :${e.getMessage}")
                     }
                   }
                 }
               }
 
-              logger.error("ERROR", "Stopping Streaming Context.")
+              logger.error("ERROR {}", "Stopping Streaming Context.")
 
               try {
                 if (ssc != null) {
@@ -246,7 +246,7 @@ private[framework] object StreamingHandler {
   private def addShutdownHook(): Unit = {
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        logger.error("#####################Inside shutdown hook#####################", "")
+        logger.error("#####################Inside shutdown hook#####################")
 
         // When CTRL+C is pressed, we need to reset stopStreaming to TRUE
         // Otherwise depending on the order of Threads getting killed,

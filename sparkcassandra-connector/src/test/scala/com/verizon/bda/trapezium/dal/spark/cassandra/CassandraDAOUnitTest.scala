@@ -95,10 +95,10 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     }
     catch {
       case e: Exception => {
-        logger.error("exception we got is " , e.getMessage)
+        logger.error("exception we got is {}" , e.getMessage)
       }
       case err: Throwable => {
-        logger.error("exception we got is " , err.getMessage)
+        logger.error("exception we got is {}" , err.getMessage)
       }
     }
 

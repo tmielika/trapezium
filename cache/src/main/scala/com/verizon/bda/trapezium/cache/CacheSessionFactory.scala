@@ -1,17 +1,17 @@
 /**
-* Copyright (C) 2016 Verizon. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+  * Copyright (C) 2016 Verizon. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.verizon.bda.trapezium.cache
 
 import java.io.IOException
@@ -43,8 +43,9 @@ class CacheSessionFactory[K, V] {
 
   /**
     * Returns Application specfic bucket.
-    * @param appName  This translate to app specfic bucket in case of couch Base
-    * @param pwd  The password for couchBase
+    *
+    * @param appName This translate to app specfic bucket in case of couch Base
+    * @param pwd     The password for couchBase
     * @return
     */
   def getCache(appName: String = globalBucket, pwd: String = "", retryCount: Int = 0):
@@ -72,8 +73,8 @@ class CacheSessionFactory[K, V] {
             return getCache(appName, pwd, retryCount + 1)
           }
           else {
-            logger.error("Unable to initialize the app cache > " + appName + " for class -> "
-              + cacheImplClassName, ioe.getMessage)
+            logger.error(s"Unable to initialize the app cache > $appName" +
+              s" for class -> $cacheImplClassName {}", ioe.getMessage)
           }
 
         }

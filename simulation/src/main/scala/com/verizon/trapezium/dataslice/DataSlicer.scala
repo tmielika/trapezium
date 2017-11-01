@@ -76,7 +76,7 @@ object DataSlicer  extends BatchTransaction {
    None
     } catch {
    case ex : Exception => {
-     logger.error("Error while slicing the data" , ex.printStackTrace())
+     logger.error("Error while slicing the data " , ex)
      None
    }
  }
