@@ -3,11 +3,11 @@ package com.verizon.bda.trapezium.dal.lucene
 import java.nio.ByteBuffer
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.lucene.index.{DocValues, LeafReader}
-import org.apache.spark.mllib.linalg.VectorUDT
 import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import scala.reflect.ClassTag
+import org.apache.spark.ml.linalg.SQLDataTypes._
+import org.apache.spark.util.DalUtils
 
 /**
  * @author debasish83 on 12/24/16.
@@ -84,8 +84,7 @@ class StringAccessor(luceneReaders: Seq[LuceneReader],
   def extract(docID: Int, offset: Int): Any = {
     assert(offset == 0, s"string docvalue accessor non-zero offset $offset")
     val shardIndex = locate(docID)
-    val bytes = docValueReaders(shardIndex).get(docID - lower(shardIndex)).bytes
-    new String(bytes, "UTF-8")
+    docValueReaders(shardIndex).get(docID - lower(shardIndex)).utf8ToString()
   }
 }
 
@@ -137,8 +136,8 @@ class ProjectionAccessor(luceneReaders: Seq[LuceneReader],
 
   override def extract(docID: Int, offset: Int): Any = {
     val bytes = extractBytes(docID, offset)
-    unsafeRow.pointTo(bytes, VectorType.sql.size, bytes.size)
-    VectorType.deserialize(unsafeRow.asInstanceOf[InternalRow])
+    unsafeVector.pointTo(bytes, bytes.size)
+    DalUtils.deserializeVector(unsafeVector)
   }
 }
 
@@ -174,9 +173,7 @@ object DocValueAccessor extends Serializable {
         case TimestampType => new NumericAccessor(luceneReaders, fieldName)
         case StringType => new StringAccessor(luceneReaders, fieldName)
         case BinaryType => new BinaryAccessor(luceneReaders, fieldName)
-        // Use Kryo if ProjectionAccessor does not work on Vector
-        // case _: VectorUDT => new KryoAccessor[Vector](luceneReaders, fieldName, ser)
-        case _: VectorUDT => new ProjectionAccessor(luceneReaders, fieldName)
+        case VectorType => new ProjectionAccessor(luceneReaders, fieldName)
         case _ => throw new LuceneDAOException(s"unsupported type ${dataType} for " +
           s"docvalue accessor constructor")
       }

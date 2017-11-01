@@ -1,16 +1,17 @@
 package com.verizon.bda.trapezium.dal.lucene
 
 import java.util.BitSet
-
 import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.index._
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.{BooleanQuery, IndexSearcher, ScoreDoc}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
+import java.util.BitSet
+import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.slf4j.LoggerFactory
-
 import scala.collection.mutable.ArrayBuffer
+import org.apache.lucene.analysis.Analyzer
 
 /**
  * @author debasish83 on 12/15/16.
@@ -21,8 +22,8 @@ import scala.collection.mutable.ArrayBuffer
 case class LuceneReader(leafReader: LeafReader, range: FeatureAttr)
 
 class LuceneShard(reader: IndexReader,
-                  converter: OLAPConverter) extends IndexSearcher(reader) {
-
+                  converter: OLAPConverter,
+                  analyzer: Analyzer) extends IndexSearcher(reader) {
   private val log = LoggerFactory.getLogger(this.getClass)
   log.info(s"lucene shard leaf readers ${leafContexts.size}")
 
@@ -60,8 +61,9 @@ class LuceneShard(reader: IndexReader,
   })
 
   val dvExtractor = DocValueExtractor(leafReaders, converter)
-  val analyzer = new KeywordAnalyzer
-  val qp = new QueryParser("content", analyzer)
+
+  // TODO: Update "content" to a default search field
+  val qp = new QueryParser("keyword", analyzer)
 
   // Filter the time column for time series analysis
   // time column should be a measure field
@@ -285,7 +287,8 @@ class LuceneShard(reader: IndexReader,
 
 object LuceneShard {
   def apply(reader: IndexReader,
-            converter: OLAPConverter): LuceneShard = {
-    new LuceneShard(reader, converter)
+            converter: OLAPConverter,
+            analyzer: Analyzer): LuceneShard = {
+    new LuceneShard(reader, converter, analyzer)
   }
 }
