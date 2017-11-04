@@ -18,7 +18,6 @@ package com.verizon.bda.trapezium.dal.spark.cassandra
   * Created by v468328 on 3/7/16.
   */
 
-import org.apache.spark.sql.cassandra.CassandraSQLContext
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 
@@ -27,7 +26,7 @@ import org.apache.spark.sql.{DataFrame, Row, SQLContext}
   */
 class CassandraDAOUtils(val hostList: List[String],
                         val schmea: String, val table: String,
-                        implicit val sqlContext: CassandraSQLContext) extends Serializable {
+                        implicit val sqlContext: SQLContext) extends Serializable {
 
 
   val daoTestSchema = StructType(

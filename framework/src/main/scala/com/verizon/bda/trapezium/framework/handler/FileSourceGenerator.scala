@@ -20,9 +20,9 @@ import java.text.SimpleDateFormat
 import java.util
 import java.util.Date
 import java.util.regex.Pattern
+
 import com.typesafe.config.{Config, ConfigObject}
-import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.kafka.{KafkaRDD, KafkaDStream}
+import com.verizon.bda.trapezium.framework.kafka.KafkaRDD
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, ScanFS}
 import com.verizon.bda.trapezium.transformation.DataTranformer
@@ -30,9 +30,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
-import scala.collection.mutable.StringBuilder
-import scala.collection.mutable.{Map => MMap}
+
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.mutable.{StringBuilder, Map => MMap}
 // scalastyle:off
 import scala.collection.JavaConversions._
 // scalastyle:on
@@ -50,15 +50,12 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
                     sc: SparkContext)  // readFullDataset is true then run only 1 times
   extends SourceGenerator(workflowConfig, appConfig, sc) {
 
-  import FileSourceGenerator.getSortedFileMap
-  import FileSourceGenerator.getWorkFlowTime
+  import FileSourceGenerator.{getSortedFileMap, getWorkFlowTime}
 
   var mapFile: java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]] = null
   var mapFileAllFile: java.util.TreeMap[Date, java.util.HashMap[String, StringBuilder]] = null
 
-  import FileSourceGenerator.getElligbleFiles
-  import FileSourceGenerator.getDataDir
-  import FileSourceGenerator.getCurrentWorkflowTime
+  import FileSourceGenerator.{getCurrentWorkflowTime, getDataDir, getElligbleFiles}
 
   def getDFFromKafka (topicName : String) : util.TreeMap[Time,
     (MMap[String, DataFrame], String, Long)] = {
@@ -139,7 +136,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             logger.info("fileSplit running for date " + sDate + " , files are " +
               files.toString())
             workflowTime = getWorkFlowTime(sDate, currentWorkflowTime)
-            val dataMap = addDF(sc, files.toString().split(","), batchData)
+            val dataMap = addDF(sc, files.toString().split(","), batchData, dataDir)
             val existingDataMap = dataSources.get(workflowTime)
             if (existingDataMap != null) {
               logger.info(s"Entry exists for this workflow time ${existingDataMap}")
@@ -158,7 +155,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             s": ${batchFiles.size}")
           if (batchFiles.size > 0) {
             logger.info(s"list of files for this run " + batchFiles.mkString(","))
-            val dataMap = addDF(sc, batchFiles, batchData)
+            val dataMap = addDF(sc, batchFiles, batchData, dataDir)
             dataSourcesNoSplit ++= dataMap
           }
         }
@@ -180,16 +177,35 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
   import DynamicSchemaHelper.generateDataFrame
   def  addDF (sc: SparkContext,
               input: Array[String],
-              batchData: Config): MMap[String, DataFrame] = synchronized {
+              batchData: Config, basePath : String): MMap[String, DataFrame] = synchronized {
 
     var dataMap = MMap[String, DataFrame]()
 
     val name = batchData.getString("name")
+    val readFullDataSet = {
+      if (batchData.hasPath("readFullDataset")) {
+        batchData.getString("readFullDataset")
+      } else {
+        "false"
+      }
+    }
+    logger.debug (s"readFullDataSet = ${readFullDataSet}")
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
-        logger.info(s"input source is Parquet")
-
-        dataMap += ((name, SQLContext.getOrCreate(sc).read.parquet(input: _*)))
+        logger.info(s"input source ${basePath} is Parquet ")
+        /**
+          * Unless the option 'readFullDataSet' is set to true, we always read
+          * in chunks - which is much safer
+          */
+       if (readFullDataSet.equals("true")) {
+         logger.debug(s"Reading the full data set from basePath =${basePath}")
+         val parquet = SQLContext.getOrCreate(sc).read.parquet(basePath)
+         dataMap += ((name, parquet))
+       } else {
+         logger.debug(s"Input slices will be made from - ${input.mkString(",")} ")
+         dataMap += ((name, SQLContext.getOrCreate(sc).read.option("basePath",
+           basePath).parquet(input: _*)))
+       }
       }
       case "AVRO" => {
         logger.info(s"input source is Avro")
@@ -286,7 +302,7 @@ object FileSourceGenerator {
       if ((x.after(startDate)) && (x.equals(endDate) || x.before(endDate))) {
         mapFile.put(x, fileList)
       }
-    })
+   })
     mapFile
   }
 

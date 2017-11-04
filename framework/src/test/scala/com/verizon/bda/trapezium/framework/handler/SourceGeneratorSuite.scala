@@ -15,6 +15,7 @@
 package com.verizon.bda.trapezium.framework.handler
 
 import java.io.{BufferedWriter, FileWriter}
+
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection

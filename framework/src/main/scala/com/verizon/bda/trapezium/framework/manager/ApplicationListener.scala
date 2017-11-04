@@ -14,7 +14,6 @@
 */
 package com.verizon.bda.trapezium.framework.manager
 
-import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.kafka.KafkaDStream
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
@@ -40,7 +39,8 @@ class ApplicationListener(workflowConfig: WorkflowConfig) extends StreamingListe
       ApplicationManager.getConfig().zookeeperList)
 
     // clear accumulators
-    logger.info(s"We need to reset accumulators")
+    logger.info(s"We need to reset accumulators for ${workflowConfig.workflow} using data source ${workflowConfig.dataSource}")
+
     DataValidator.resetAccumulators
 
     workflowConfig.dataSource match {
