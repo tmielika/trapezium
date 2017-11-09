@@ -26,7 +26,7 @@ import org.apache.spark.sql.types.StructType
   *
   */
 class CassandraDAO(dbName: String, tableName: String,
-                    hosts: List[String]) (implicit sqlContext: SQLContext)
+                    hosts: List[String]) (implicit spark: SparkSession)
   extends BaseSqlDAO(dbName, tableName) {
   protected val schema = null;
   var dbMap = Map("table" -> tableName, "keyspace" -> dbName)
@@ -41,7 +41,7 @@ class CassandraDAO(dbName: String, tableName: String,
 
   def this (dbName: String, tableName: String,
             hosts: List[String],
-            options: Map[String, String]) (implicit sqlContext: SQLContext) {
+            options: Map[String, String]) (implicit spark: SparkSession) {
     this(dbName, tableName, hosts)
     dbMap ++= options
 
@@ -74,7 +74,7 @@ class CassandraDAO(dbName: String, tableName: String,
     val sqlText = constructSql(cols)
     log.info(s"Executing query: $sqlText")
 
-    val df = sqlContext.sql(sqlText)
+    val df = spark.sqlContext.sql(sqlText)
     df
   }
 
@@ -89,7 +89,7 @@ class CassandraDAO(dbName: String, tableName: String,
     * @return T distributed collection of data containing all columns.
     */
   override def getAll(): DataFrame = {
-    val df = sqlContext
+    val df = spark.sqlContext
       .read
       .format("org.apache.spark.sql.cassandra")
       .options(dbMap)

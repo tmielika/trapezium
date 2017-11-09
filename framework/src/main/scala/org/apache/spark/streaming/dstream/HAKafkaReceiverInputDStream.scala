@@ -3,7 +3,7 @@ package org.apache.spark.streaming.dstream
 import java.lang.Long
 import java.util
 
-import com.verizon.bda.trapezium.framework.kafka.custom.BlockMetadata
+import com.verizon.bda.trapezium.framework.kafka.ha.BlockMetadata
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.rdd.{BlockRDD, RDD}
 import org.apache.spark.storage.BlockId
@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
   *
   * Created by sankma8 on 9/3/17.
   */
-abstract class CustomKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingContext) extends ReceiverInputDStream[T](_ssc) {
+abstract class HAKafkaReceiverInputDStream[T: ClassTag](_ssc: StreamingContext) extends ReceiverInputDStream[T](_ssc) {
 
 
   /**

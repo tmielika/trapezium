@@ -1,4 +1,4 @@
-package com.verizon.bda.trapezium.framework.kafka.custom
+package com.verizon.bda.trapezium.framework.kafka.ha
 
 import com.verizon.bda.trapezium.framework.kafka.KafkaDStream
 import com.verizon.bda.trapezium.framework.kafka.consumer.{IOffsetManager, Offsets}

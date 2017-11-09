@@ -19,14 +19,14 @@ package com.verizon.bda.trapezium.dal.spark.cassandra
   */
 
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
   * Created by v468328 on 2/29/16.
   */
 class CassandraDAOUtils(val hostList: List[String],
                         val schmea: String, val table: String,
-                        implicit val sqlContext: SQLContext) extends Serializable {
+                        implicit val spark: SparkSession) extends Serializable {
 
 
   val daoTestSchema = StructType(
@@ -54,7 +54,7 @@ class CassandraDAOUtils(val hostList: List[String],
     */
 
   def processRDD(ipreputationRDD: org.apache.spark.rdd.RDD[(String)],
-                 sqlContext: SQLContext): DataFrame = {
+                 spark: SparkSession): DataFrame = {
 
 
     val df = if (!ipreputationRDD.isEmpty()) {
@@ -68,7 +68,7 @@ class CassandraDAOUtils(val hostList: List[String],
       }
       // now do distinc of all the records
 
-      sqlContext.createDataFrame(row, daoTestSchema)
+      spark.createDataFrame(row, daoTestSchema)
 
 
     } else null
