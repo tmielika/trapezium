@@ -34,11 +34,8 @@ package org.apache.spark.streaming
 import java.io.{BufferedWriter, OutputStreamWriter}
 import java.net.{ServerSocket, Socket, SocketException}
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch, TimeUnit}
-
 import org.apache.spark.internal.Logging
-
 import scala.language.postfixOps
-
 
 /** This is a server to test the network input stream */
 class TestServer(portToBind: Int = 0) extends Logging {

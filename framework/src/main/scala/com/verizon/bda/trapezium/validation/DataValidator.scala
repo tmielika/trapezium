@@ -16,13 +16,16 @@ package com.verizon.bda.trapezium.validation
 
 import java.text.SimpleDateFormat
 import java.util.List
+
 import au.com.bytecode.opencsv.CSVParser
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.{Map => MMap}
+
 // scalastyle:off
 import scala.collection.JavaConversions.asScalaBuffer
 // scalastyle:on
@@ -85,7 +88,7 @@ class DataValidator(sc: SparkContext) extends Serializable {
    */
   def applySchema(rowFilter: RDD[Row], config: Config): DataFrame = {
     require(rowFilter != null)
-    val sqlContext = SQLContext.getOrCreate(rowFilter.context)
+    val sqlContext = SparkSession.builder().getOrCreate().sqlContext
     val schema = SchemaBuilder.buildSchema(config)
     val inputDF = sqlContext.createDataFrame(rowFilter, schema)
     inputDF

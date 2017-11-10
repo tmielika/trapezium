@@ -18,9 +18,8 @@ import com.typesafe.config.{Config, ConfigObject}
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
 import com.verizon.bda.trapezium.validation.{DataValidator, ValidationConfig}
-import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters.asScalaBufferConverter
 // scalastyle:off
@@ -36,7 +35,7 @@ import scala.collection.JavaConversions._
  */
 private[framework] abstract class SourceGenerator(workflowConfig: WorkflowConfig,
                                                   appConfig: ApplicationConfig,
-                                                  sc: SparkContext) {
+                                                  spark: SparkSession) {
   val logger = LoggerFactory.getLogger(this.getClass)
   val inputSources = scala.collection.mutable.Set[String]()
   var mode = ""
