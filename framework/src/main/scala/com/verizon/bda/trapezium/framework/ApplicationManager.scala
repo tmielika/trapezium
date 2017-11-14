@@ -26,7 +26,7 @@ import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowC
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import org.apache.kafka.common.TopicPartition
-import org.apache.spark.sql.{Row, SQLContext}
+import org.apache.spark.sql.{Row, SQLContext, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -175,10 +175,10 @@ object ApplicationManager {
             initStreamThread(workFlowToRun)
           }
           case _ => {
-            var sc: SparkContext = null
+            var sc: SparkSession = SparkSession.builder().getOrCreate()
             runBatchWorkFlow(workflowConfig, appConfig)(sc)
             // if spark context is not stopped, stop it
-            if (sc != null && !sc.isStopped) {
+            if (sc != null && sc.sparkContext.isStopped) {
               sc.stop
             }
           }
@@ -442,7 +442,7 @@ object ApplicationManager {
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long = -1)
-                      (implicit sc: SparkContext): Unit = {
+                      (implicit sc: SparkSession): Unit = {
     BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
   }
 

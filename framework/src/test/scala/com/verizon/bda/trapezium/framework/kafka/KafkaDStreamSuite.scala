@@ -14,8 +14,6 @@
 */
 package com.verizon.bda.trapezium.framework.kafka
 
-import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import scala.io.Source
 
 /**
@@ -33,6 +31,8 @@ class KafkaDStreamSuite extends KafkaTestSuiteBase {
 
   val jsonInput: Seq[String] = Source.fromFile(jsonPath).mkString("").split("\n").toSeq
 
+
+
   test("Application Manager KAFKA Stream Test") {
 
     // Run primary workflow
@@ -43,11 +43,14 @@ class KafkaDStreamSuite extends KafkaTestSuiteBase {
 
   }
 
+
   test("Application Manager KAFKA Batch Test") {
 
     setupWorkflow("kafkaBatchWorkFlow", Seq(input1, input2))
 
   }
+
+/*
 
   test("Application Manager Kafka multiple topics test") {
 
@@ -99,5 +102,6 @@ class KafkaDStreamSuite extends KafkaTestSuiteBase {
           ("stream_2", input2))
       ))
   }
+*/
 
 }

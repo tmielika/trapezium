@@ -17,9 +17,12 @@ package com.verizon.bda.trapezium.framework.kafka
 import java.io.File
 import java.net.ServerSocket
 import java.util.Properties
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.apps.TestConditionFactory.KEYS
+import com.verizon.bda.trapezium.framework.apps.{ITestCondition, ITestListener, TestConditionManager, TestConditionMap}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import kafka.common.KafkaException
@@ -30,6 +33,7 @@ import org.apache.commons.io
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.scheduler._
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
 import org.slf4j.LoggerFactory
@@ -372,8 +376,42 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     utils.startKafkaWorkflow(workflowConfig, ssc)
 
+    var size = 0
+
+    inputSeq.foreach(input => {
+      input.foreach(seq => {
+        size+=seq._2.size
+      })
+    })
+
+    val messages = size * 1 // Only AlgorithmETL sends the messages
+
+    var total_messages = 0;
+
+    val latch = new CountDownLatch(size);
+
+
+    val listener = new ITestListener {
+      override def notify(condition: ITestCondition): Unit = {
+        val testConditionMap: TestConditionMap = condition.asInstanceOf[TestConditionMap]
+        val count = testConditionMap.getMap().get(KEYS.COUNT.toString).get
+        val klass = testConditionMap.getMap().get(KEYS.CLASS_NAME.toString).get
+        val batch = testConditionMap.getMap().get(KEYS.BATCH.toString).get
+        var cnt = count.toInt
+        total_messages += cnt
+        kf_logger.info(s" [${klass}] ----------------------> current_latch[${latch.toString}] = ${latch.getCount} ; Batch = ${batch} ; message_count = ${cnt} ;  expected = ${size} ; totalTillNow = ${total_messages}")
+        while (cnt > 0) {
+          latch.countDown()
+          cnt -= 1
+        }
+
+      }
+    }
+    TestConditionManager.addListener(listener)
+
     // start streaming
     ssc.start
+
 
     inputSeq.foreach(input => {
 
@@ -388,8 +426,14 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     })
 
-    ssc.awaitTerminationOrTimeout(
-      kafkaConfig.getLong("batchTime") * 1000)
+    latch.await(kafkaConfig.getLong("batchTime"),TimeUnit.SECONDS)
+
+    if(latch.getCount!=0) {
+      ssc.awaitTerminationOrTimeout(
+        kafkaConfig.getLong("batchTime") * 1000)
+    }
+
+    TestConditionManager.removeListener(listener)
 
     if (ssc != null) {
       kf_logger.info("Stopping streaming context from test Thread.")
@@ -400,6 +444,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
     assert(!ApplicationManager.stopStreaming)
+    assert(latch.getCount==0,s"received only ${messages - latch.getCount} out of ${messages}")
   }
 
   /**
@@ -441,9 +486,9 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     // start streaming
     ssc.start
 
-    inputSeq.foreach( input => {
+    inputSeq.foreach(input => {
 
-      input.foreach( seq => {
+      input.foreach(seq => {
 
         kf_logger.info(s"OLDER Size of the input: ${seq._2.size}")
         sendMessages(seq._1, seq._2.toArray)
@@ -455,7 +500,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     })
 
     ssc.awaitTerminationOrTimeout(
-      kafkaConfig.getLong("batchTime") * 1000)
+      kafkaConfig.getLong("batchTime") * 10000)
 
     if( ssc != null ) {
       kf_logger.info(s"Stopping streaming context from test Thread.")
@@ -467,6 +512,56 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     assert (!ApplicationManager.stopStreaming)
 
+  }
+
+  /**
+    * @deprecated   - because not getting enough calls to send mesages
+    *
+    * @param inputSeq
+    * @param ssc
+    * @return
+    */
+  private def registerForListener(inputSeq: Seq[Seq[(String, Seq[String])]], ssc: StreamingContext):StreamingListener = {
+
+    val streamingListener = new StreamingListener() {
+      var batchID = 0
+
+
+      /** Called when processing of a batch of jobs has completed. */
+      override def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted): Unit = {
+        kf_logger.info(s"batch-completed [${batchID}] with - ${batchCompleted.batchInfo.numRecords}")
+        postMessages
+      }
+
+
+      override def onBatchSubmitted(batchSubmitted: StreamingListenerBatchSubmitted): Unit = {
+//        kf_logger.info(s"OutputOperation completed..... ${outputOperationCompleted.outputOperationInfo.startTime} to ${outputOperationCompleted.outputOperationInfo.endTime}")
+//        postMessages
+      }
+
+      override def onBatchStarted(batchStarted: StreamingListenerBatchStarted): Unit = {
+//        postMessages
+      }
+
+      override def onOutputOperationCompleted(outputOperationCompleted: StreamingListenerOutputOperationCompleted): Unit = {
+      }
+      private def postMessages = {
+        kf_logger.info(s"SUbmitting messages for batch - ${batchID}")
+        if (batchID < inputSeq.size) {
+          val input = inputSeq(batchID)
+          batchID += 1
+          input.foreach(seq => {
+            kf_logger.info(s"Size of the input: ${seq._2.size}")
+            sendMessages(seq._1, seq._2.toArray)
+          })
+        }
+      }
+    }
+
+
+    ssc.addStreamingListener(streamingListener)
+
+    streamingListener
   }
 
 }

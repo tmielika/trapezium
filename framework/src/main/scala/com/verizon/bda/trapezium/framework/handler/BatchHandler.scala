@@ -25,7 +25,7 @@ import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, Waiter}
 import com.verizon.bda.trapezium.framework.{ApplicationManager, BatchTransaction}
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -454,7 +454,7 @@ private[framework] object BatchHandler {
   def scheduleBatchRun(workFlowConfig: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long,
-                       sc: SparkContext): Unit = {
+                       sc: SparkSession): Unit = {
     val timer: Timer = new Timer(true)
     try {
       logger.info("Starting Batch WorkFlow")

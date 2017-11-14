@@ -20,12 +20,14 @@ import com.verizon.bda.trapezium.framework.StreamingTransaction
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.streaming.dstream.DStream
+import org.slf4j.LoggerFactory
 
 /**
  * @author Pankaj on 10/28/15.
  */
 object AlgorithmETL extends StreamingTransaction {
   var batchID = 0
+  val logger = LoggerFactory.getLogger(this.getClass)
 
   override def processStream(dStreams: Map[String, DStream[Row]],
                        batchtime: Time): DStream[Row] = {
@@ -34,8 +36,10 @@ object AlgorithmETL extends StreamingTransaction {
   }
 
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
-    if (batchID == 0 || batchID == 2) require(rdd.count() == 490)
-    if (batchID == 1 || batchID == 3) require(rdd.count() == 499)
+    val count = rdd.count
+    logger.info(s" AlgorithmETL: BATCH ${batchID} with ${count}")
+    if (batchID == 1 || batchID == 3) require(count == 490, s"Expecting 490 but got ${count} ")
+    if (batchID == 2 || batchID == 4) require(count == 499, s"Expecting 499 but got ${count} ")
     batchID += 1
   }
 

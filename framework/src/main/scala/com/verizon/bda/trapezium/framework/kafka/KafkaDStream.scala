@@ -120,6 +120,7 @@ private[framework] object KafkaDStream {
 
       // convert dstream of String into Row
       if (dStreamOffset != null) {
+
         val dStreamRow = dStreamOffset.transform((rdd) => {
 
           logger.info(s" Transform Count : ${rdd.count()}")

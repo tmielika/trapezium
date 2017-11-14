@@ -12,45 +12,37 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package com.verizon.bda.trapezium.framework.apps
+package com.verizon.bda.trapezium.framework.apps.kafka
 
 import java.sql.Time
 
 import com.verizon.bda.trapezium.framework.StreamingTransaction
-import org.apache.spark.SparkContext
+import com.verizon.bda.trapezium.framework.apps.{TestConditionFactory, TestConditionManager}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Row
+import org.apache.spark.sql._
 import org.apache.spark.streaming.dstream.DStream
 import org.slf4j.LoggerFactory
 
 /**
- * @author by Pankaj on 10/28/15.
+ * A custom kafka specific ETL that uses notifications as mechanism for communication
  */
-object AppETL extends StreamingTransaction {
+object AlgorithmETL extends StreamingTransaction {
   var batchID = 0
   val logger = LoggerFactory.getLogger(this.getClass)
-  private val CONST_STRING = "This has to be populated in the preprocess method"
-  var populateFromPreprocess: String = _
-
-  override def preprocess(sc: SparkContext): Unit = {
-    logger.info("Inside preprocess of AppETL")
-    populateFromPreprocess = CONST_STRING
-  }
 
   override def processStream(dStreams: Map[String, DStream[Row]],
                        batchtime: Time): DStream[Row] = {
-    logger.info("Inside ETL")
     val dStream = dStreams.head._2
-    require(populateFromPreprocess == CONST_STRING)
     dStream
   }
 
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
     val count = rdd.count
-    logger.info(s" AppETL: BATCH ${batchID} with ${count}")
-    if (batchID == 1) require(count == 490, s"Expecting 490 but got ${count} ")
-    if (batchID == 2) require(count == 499, s"Expecting 499 but got ${count} ")
-    require(populateFromPreprocess == CONST_STRING)
+    logger.info(s" kafa.AlgorithmETL: BATCH ${batchID} with ${count}")
+    val condition = TestConditionFactory.createCondition(getClass.getSimpleName, "persistSchema", batchID, count)
+    TestConditionManager.notify(condition)
+//    if (batchID == 1 || batchID == 3) require(rdd.count() == 490, s"Expecting 490 but got ${rdd.count()} ")
+//    if (batchID == 2 || batchID == 4) require(rdd.count() == 499, s"Expecting 499 but got ${rdd.count()} ")
     batchID += 1
   }
 
