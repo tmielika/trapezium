@@ -15,18 +15,17 @@
 package com.verizon.bda.trapezium.framework.handler
 
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
-import org.apache.spark.SparkContext
 import org.slf4j.LoggerFactory
+import org.apache.spark.sql.SparkSession
 
 /**
   * @author hutashan start and stop context
   */
 class StartAndStopContextTest extends ApplicationManagerTestSuite {
 
-
   test("Start Context test") {
     val logger = LoggerFactory.getLogger(this.getClass)
-    val thread1 = new WFThread(sc, "batchWorkFlow")
+    val thread1 = new WFThread(spark, "batchWorkFlow")
     thread1.start()
     while (thread1.isRunning) {
       Thread.sleep(100)
@@ -43,7 +42,7 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
       logger.info("Context stopped")
     }
     val workflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
-    val batchHandler = new BatchHandler(workflowConfig, appConfig, 1)(sc)
+    val batchHandler = new BatchHandler(workflowConfig, appConfig, 1)(spark)
     val sc1 = batchHandler.createContext
     assert(!sc1.isStopped)
     if (!sc1.isStopped) {
@@ -52,26 +51,22 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
     }
   }
 
-
   override def afterAll(): Unit = {
     super.afterAll()
   }
-
 }
-  class WFThread(sc: SparkContext, wf: String) extends Thread {
-    val logger = LoggerFactory.getLogger(this.getClass)
-    var isRunning = true
 
-    override def run(): Unit = {
+class WFThread(spark: SparkSession, wf: String) extends Thread {
+  val logger = LoggerFactory.getLogger(this.getClass)
+  var isRunning = true
 
-      val workflowConfig = ApplicationManager.setWorkflowConfig(wf)
-      logger.info(" ####################Job Start ######  " + wf + " ####################")
-      ApplicationManager.runBatchWorkFlow(
-        workflowConfig, ApplicationManager.getConfig(), 1)(sc)
-      logger.info(" ####################Job completed ######  " + wf + " ####################")
-      isRunning = false
-    }
+  override def run(): Unit = {
 
-
+    val workflowConfig = ApplicationManager.setWorkflowConfig(wf)
+    logger.info(" ####################Job Start ######  " + wf + " ####################")
+    ApplicationManager.runBatchWorkFlow(workflowConfig, ApplicationManager.getConfig(), 1)(spark)
+    logger.info(" ####################Job completed ######  " + wf + " ####################")
+    isRunning = false
+  }
 }
 

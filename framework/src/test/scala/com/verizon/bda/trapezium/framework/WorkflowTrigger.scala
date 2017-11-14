@@ -1,11 +1,13 @@
-package com.verizon.bda.trapezium.framework.handler
-import com.verizon.bda.trapezium.framework.{ApplicationManagerTestSuite}
-import scala.collection.mutable.{Map => MMap}
+package com.verizon.bda.trapezium.framework
+
+import com.verizon.bda.trapezium.framework.handler.FileSourceGenerator
 import org.json._
+import scala.collection.mutable.{Map => MMap}
 /**
   * Created by v708178 on 5/31/17.
   */
-class WorkflowTrigger extends ApplicationManagerTestSuite{
+class WorkflowTrigger extends ApplicationManagerTestSuite {
+
   test("Test Json Parsing") {
     var dataMap = MMap[String, String]()
     val json = "{ \"datasources\" : [ { \"name\": \"test\",  \"location\": \"testlocation\"}]}"
@@ -25,7 +27,7 @@ class WorkflowTrigger extends ApplicationManagerTestSuite{
   test("Test JSON DF"){
     val json = "{ \"datasources\" : [ { \"name\": \"test\",  \"location\":" +
       " \"src/test/data/parquet\"}]}"
-    val df = FileSourceGenerator.getDFFromStream(json, sc)
+    val df = FileSourceGenerator.getDFFromStream(json, spark)
     val df1 = df("test")
     assert(df.size==1)
     assert(df1.count()>1)

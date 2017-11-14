@@ -38,7 +38,7 @@
 package org.apache.spark.streaming
 
 import java.io.{IOException, ObjectInputStream}
-
+import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.{DStream, ForEachDStream, InputDStream}
@@ -49,10 +49,10 @@ import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.time.{Span, Seconds => ScalaTestSeconds}
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Suite}
 import org.slf4j.LoggerFactory
-
-import scala.collection.mutable.{ArrayBuffer, SynchronizedBuffer}
+import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
+import org.apache.spark.sql.SparkSession
 
 /** To track the information of input stream at specified batch time. */
 private[streaming] case class InputInfo(inputStreamId: Int, numRecords: Long) {
@@ -111,19 +111,21 @@ class TestInputStream[T: ClassTag](ssc_ : StreamingContext, input: Seq[Seq[T]], 
   }
 }
 
+
+
 /**
- * This is a output stream just for the testsuites. All the output is collected into a
- * ArrayBuffer. This buffer is wiped clean on being restored from checkpoint.
- *
- * The buffer contains a sequence of RDD's, each containing a sequence of items
- */
+  * This is a output stream just for the testsuites. All the output is collected into a
+  * ConcurrentLinkedQueue. This queue is wiped clean on being restored from checkpoint.
+  *
+  * The buffer contains a sequence of RDD's, each containing a sequence of items.
+  */
 class TestOutputStream[T: ClassTag](
                                      parent: DStream[T],
-                                     val output: SynchronizedBuffer[Seq[T]] =
-                                     new ArrayBuffer[Seq[T]] with SynchronizedBuffer[Seq[T]]
-                                     ) extends ForEachDStream[T](parent, (rdd: RDD[T], t: Time) => {
+                                     val output: ConcurrentLinkedQueue[Seq[T]] =
+                                     new ConcurrentLinkedQueue[Seq[T]]()
+                                   ) extends ForEachDStream[T](parent, (rdd: RDD[T], t: Time) => {
   val collected = rdd.collect()
-  output += collected
+  output.add(collected)
 }, false) {
 
   // This is to clear the output buffer every it is read from a checkpoint
@@ -135,19 +137,19 @@ class TestOutputStream[T: ClassTag](
 }
 
 /**
- * This is a output stream just for the testsuites. All the output is collected into a
- * ArrayBuffer. This buffer is wiped clean on being restored from checkpoint.
- *
- * The buffer contains a sequence of RDD's, each containing a sequence of partitions, each
- * containing a sequence of items.
- */
-class TestOutputStreamWithPartitions[T: ClassTag]
-(parent: DStream[T],
- val output: SynchronizedBuffer[Seq[Seq[T]]] =
- new ArrayBuffer[Seq[Seq[T]]] with SynchronizedBuffer[Seq[Seq[T]]])
+  * This is a output stream just for the testsuites. All the output is collected into a
+  * ConcurrentLinkedQueue. This queue is wiped clean on being restored from checkpoint.
+  *
+  * The queue contains a sequence of RDD's, each containing a sequence of partitions, each
+  * containing a sequence of items.
+  */
+class TestOutputStreamWithPartitions[T: ClassTag](
+                                                   parent: DStream[T],
+                                                   val output: ConcurrentLinkedQueue[Seq[Seq[T]]] =
+                                                   new ConcurrentLinkedQueue[Seq[Seq[T]]]())
   extends ForEachDStream[T](parent, (rdd: RDD[T], t: Time) => {
     val collected = rdd.glom().collect().map(_.toSeq)
-    output += collected
+    output.add(collected)
   }, false) {
 
   // This is to clear the output buffer every it is read from a checkpoint
@@ -267,6 +269,8 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
   // Timeout for use in ScalaTest `eventually` blocks
   val eventuallyTimeout: PatienceConfiguration.Timeout = timeout(Span(10, ScalaTestSeconds))
 
+  @transient var spark: SparkSession = _
+
   @transient var sc: SparkContext = _
 
   override def beforeAll() {
@@ -278,7 +282,8 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
       log.info("Using real clock")
       conf.set("spark.streaming.clock", "org.apache.spark.util.SystemClock")
     }
-    sc = new SparkContext(conf)
+    spark = SparkSession.builder().config(conf).getOrCreate()
+    sc = spark.sparkContext
   }
 
   override def afterAll() {
@@ -340,7 +345,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
     val inputStream = new TestInputStream(ssc, localInput, numPartitions)
     val operatedStream = operation(inputStream)
     val outputStream = new TestOutputStreamWithPartitions(operatedStream,
-      new ArrayBuffer[Seq[Seq[V]]] with SynchronizedBuffer[Seq[Seq[V]]])
+      new ConcurrentLinkedQueue[Seq[Seq[V]]])
     outputStream.register()
     ssc
   }
@@ -363,7 +368,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
     val inputStream = new TestInputStream(ssc, input, numPartitions)
     val operatedStream = operation(inputStream)
     val outputStream = new TestOutputStreamWithPartitions(operatedStream,
-      new ArrayBuffer[Seq[Seq[V]]] with SynchronizedBuffer[Seq[Seq[V]]])
+      new ConcurrentLinkedQueue[Seq[Seq[V]]])
     outputStream.register()
     ssc
   }
@@ -387,8 +392,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
     val inputStream1 = new TestInputStream(ssc, input1, numInputPartitions)
     val inputStream2 = new TestInputStream(ssc, input2, numInputPartitions)
     val operatedStream = operation(inputStream1, inputStream2)
-    val outputStream = new TestOutputStreamWithPartitions(operatedStream,
-      new ArrayBuffer[Seq[Seq[W]]] with SynchronizedBuffer[Seq[Seq[W]]])
+    val outputStream = new TestOutputStreamWithPartitions(operatedStream, new ConcurrentLinkedQueue[Seq[Seq[W]]])
     outputStream.register()
     ssc
   }
@@ -518,7 +522,6 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
       }
       val timeTaken = System.currentTimeMillis() - startTime
       log.info("Output generated in " + timeTaken + " milliseconds")
-      output.foreach(x => log.info("[" + x.mkString(",") + "]"))
       assert(timeTaken < maxWaitTimeMillis, "Operation timed out after " + timeTaken + " ms")
       assert(output.size == numExpectedOutput, "Unexpected number of outputs generated")
 
@@ -526,7 +529,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
     } finally {
       ssc.stop(stopSparkContext = false)
     }
-    output
+    output.asScala.toSeq
   }
 
   /**

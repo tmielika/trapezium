@@ -17,7 +17,6 @@ package com.verizon.bda.trapezium.framework.handler
 import java.sql.Time
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, Timer, TimerTask}
-
 import com.typesafe.config.{Config, ConfigList, ConfigObject}
 import com.verizon.bda.trapezium.framework.kafka.KafkaSink
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
@@ -27,7 +26,6 @@ import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.slf4j.LoggerFactory
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable.{Map => MMap}
 
@@ -41,7 +39,7 @@ import scala.collection.mutable.{Map => MMap}
 private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
                                       val appConfig: ApplicationConfig,
                                       val maxIter: Long)
-                                     (implicit var sc: SparkContext) extends TimerTask with Waiter {
+                                     (implicit var spark: SparkSession) extends TimerTask with Waiter {
   /**
    * method called by the TimerTask when a run is scheduled.
    */
@@ -109,7 +107,6 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       s",endtime=${new Date(endTime)}" +
       s",duration=$diffhours:$diffMinutes:$diffSeconds" +
       s",input=$inputNamePath")
-
   }
 
 
@@ -130,21 +127,20 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
   def createContext : SparkContext = {
     logger.info("getting context")
-    if (sc == null || sc.isStopped) {
+    if (spark == null || spark.sparkContext.isStopped) {
       logger.info("Starting context")
-      sc = new SparkContext(ApplicationManager.getSparkConf(appConfig))
-      ApplicationManager.setHadoopConf(sc, appConfig)
+      spark = SparkSession.builder().config(ApplicationManager.getSparkConf(appConfig)).getOrCreate()
+      ApplicationManager.setHadoopConf(spark.sparkContext, appConfig)
       logger.info("Started context")
-     }
-    sc
- }
+    }
+    spark.sparkContext
+  }
 
   def stopContext: Unit = {
-
-    if (ApplicationUtils.env != "local" && !sc.isStopped &&
+    if (ApplicationUtils.env != "local" && !spark.sparkContext.isStopped &&
       (workFlowConfig.httpServer == null || !workFlowConfig.httpServer.hasPath("hostname"))) {
       logger.info("Stoping context")
-      sc.stop
+      spark.sparkContext.stop
       logger.info("Stopped context")
     }
   }
@@ -155,7 +151,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     do {
       ApplicationUtils.waitForDependentWorkflow(appConfig, workFlowConfig)
       createContext
-      ApplicationManager.startHttpServer(sc, workFlowConfig)
+      ApplicationManager.startHttpServer(spark.sparkContext, workFlowConfig)
 
       val (workflowTimeToSave, runSuccess, mode) = executeWorkFlow
       logger.info("going to call complete method")
@@ -182,7 +178,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     var runSuccess = false
     var mode: String = "None"
 
-    val fileSourceGenerator = new FileSourceGenerator(workFlowConfig, appConfig, sc).get
+    val fileSourceGenerator = new FileSourceGenerator(workFlowConfig, appConfig, spark).get
 
     var workflowTimeToSave = new Time(System.currentTimeMillis)
 
@@ -278,13 +274,12 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     val transactionList = workFlowConfig.transactions
     var allTransactionInputData = MMap[String, DataFrame]()
     transactionList.asScala.foreach { transaction: Config => {
-
       var transactionInputData = MMap[String, DataFrame]()
       val transactionClassName = transaction.getString("transactionName")
       val transactionClass: BatchTransaction = ApplicationUtils.getWorkflowClass(
         transactionClassName, appConfig.tempDir).asInstanceOf[BatchTransaction]
 
-      transactionClass.preprocess(sc)
+      transactionClass.preprocess(spark.sparkContext)
 
       // MMap to hold the list of all input data sets for this transaction
       val inputData: ConfigList = transaction.getList("inputData")
@@ -415,8 +410,8 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
             val returnEvent = callbackEvent.get
             logger.info("Inside return event")
             val kafkaConf = ApplicationManager.getKafkaConf()
-            val kafkaSink = sc.broadcast(KafkaSink(kafkaConf))
-            logger.info("is spark context live " + sc.isStopped)
+            val kafkaSink = spark.sparkContext.broadcast(KafkaSink(kafkaConf))
+            logger.info("is spark context live " + spark.sparkContext.isStopped)
             logger.info("topic " + returnEvent + " sending to topic "
               + returnEvent.mkString(","))
             for (event <- returnEvent) {
@@ -449,12 +444,12 @@ private[framework] object BatchHandler {
    * Schedules the batch workflows
    * @param workFlowConfig the workflow config
    * @param appConfig the ApplicationConfig object
-   * @param sc SparkContext instance
+   * @param spark SparkSession instance
    */
   def scheduleBatchRun(workFlowConfig: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long,
-                       sc: SparkSession): Unit = {
+                       spark: SparkSession): Unit = {
     val timer: Timer = new Timer(true)
     try {
       logger.info("Starting Batch WorkFlow")
@@ -469,7 +464,7 @@ private[framework] object BatchHandler {
         System.exit(-1)
       }
 
-      val batchHandler = new BatchHandler(workFlowConfig, appConfig, maxIters)(sc)
+      val batchHandler = new BatchHandler(workFlowConfig, appConfig, maxIters)(spark)
       val nextRun = workFlowConfig.hdfsFileBatch.asInstanceOf[Config].getString("timerStartDelay")
       val nextRunHourMinute = nextRun.split(":")
       if (nextRunHourMinute.size == 1) {

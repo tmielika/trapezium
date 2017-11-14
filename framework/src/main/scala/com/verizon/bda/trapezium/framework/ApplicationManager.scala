@@ -16,7 +16,6 @@ package com.verizon.bda.trapezium.framework
 
 import java.net.InetAddress
 import java.util.Calendar
-
 import com.typesafe.config.Config
 import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.handler.{BatchHandler, StreamingHandler}
@@ -32,7 +31,6 @@ import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
 import scopt.OptionParser
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
 
@@ -175,17 +173,21 @@ object ApplicationManager {
             initStreamThread(workFlowToRun)
           }
           case _ => {
-            var sc: SparkSession = SparkSession.builder().getOrCreate()
-            runBatchWorkFlow(workflowConfig, appConfig)(sc)
+            var spark: SparkSession = SparkSession.builder().getOrCreate()
+            runBatchWorkFlow(workflowConfig, appConfig)(spark)
             // if spark context is not stopped, stop it
-            if (sc != null && sc.sparkContext.isStopped) {
-              sc.stop
+            if (spark != null && !spark.sparkContext.isStopped) {
+              spark.sparkContext.stop
             }
           }
         }
       }
       case "API" => {
-        val sc = new SparkContext(getSparkConf (appConfig))
+        val sc =
+          SparkSession.builder()
+            .config(getSparkConf(appConfig))
+            .getOrCreate()
+            .sparkContext
         setHadoopConf(sc, appConfig)
         startHttpServer(sc, workflowConfig)
 
@@ -328,7 +330,7 @@ object ApplicationManager {
    *
    * @return SparkContext object
    */
-  private[framework] def getSparkConf(appConfig: ApplicationConfig): SparkConf = {
+  private[trapezium] def getSparkConf(appConfig: ApplicationConfig): SparkConf = {
 
     val sparkConfigParam: Config = appConfig.sparkConfParam
     val sparkConf = new SparkConf
@@ -442,8 +444,8 @@ object ApplicationManager {
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long = -1)
-                      (implicit sc: SparkSession): Unit = {
-    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
+                      (implicit spark: SparkSession): Unit = {
+    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, spark)
   }
 
   def getSynchronizationTime: String = {

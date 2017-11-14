@@ -15,9 +15,7 @@
 package com.verizon.bda.trapezium.framework.utils
 
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
-import org.apache.spark.SparkContext
-import org.slf4j.LoggerFactory
-
+import org.apache.spark.sql.SparkSession
 
 class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 
@@ -28,7 +26,6 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
       ApplicationManager.getConfig(), workflowConfig)
     assert(dependentTime.size == 2)
   }
-
 
   test("dependent workflow executed." +
     " Current workflow should run isDependentWorkflowExecuted function should return true") {
@@ -72,11 +69,11 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
   test("Test dependency waitForDependentWorkflow") {
 
     // Run workflow1
-    val dependentTest1 = new WFThread(sc, "dependent1")
+    val dependentTest1 = new WFThread(spark, "dependent1")
     dependentTest1.start()
-    val dependentTest = new WFThread(sc, "dependentWorkflow")
+    val dependentTest = new WFThread(spark, "dependentWorkflow")
     dependentTest.start()
-    val dependentTest2 = new WFThread(sc, "dependent2")
+    val dependentTest2 = new WFThread(spark, "dependent2")
     dependentTest2.start()
 
     logger.info("dependent val set")
@@ -87,12 +84,12 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 }
 
 
-class WFThread (sc : SparkContext, wf : String) extends Thread {
+class WFThread (spark : SparkSession, wf : String) extends Thread {
   var isRunning = true
   override def run(): Unit = {
     val workflowConfig = ApplicationManager.setWorkflowConfig(wf)
     ApplicationManager.runBatchWorkFlow(
-      workflowConfig, ApplicationManager.getConfig(), 1)(sc)
+      workflowConfig, ApplicationManager.getConfig(), 1)(spark)
     isRunning = false
   }
 }

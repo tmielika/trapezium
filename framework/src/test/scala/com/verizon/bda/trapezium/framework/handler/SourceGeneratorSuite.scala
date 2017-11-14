@@ -15,7 +15,6 @@
 package com.verizon.bda.trapezium.framework.handler
 
 import java.io.{BufferedWriter, FileWriter}
-
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
@@ -25,6 +24,7 @@ import org.apache.spark.mllib.util.LocalSparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
+import org.apache.spark.sql.SparkSession
 
 /**
  * @author sumanth.venkatasubbaiah
@@ -35,10 +35,12 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
   var zk: EmbeddedZookeeper = null
   var appConfig: ApplicationConfig = _
 
+  var spark: SparkSession = _
+
   before {
     appConfig = ApplicationManager.getConfig()
-
     zk = new EmbeddedZookeeper(appConfig.zookeeperList.split(",")(0))
+    spark = SparkSession.builder().config(ApplicationManager.getSparkConf(appConfig)).getOrCreate()
   }
 
   after {
@@ -56,7 +58,7 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
     val path1 = "src/test/data/hdfs/source1/"
     val path2 = "src/test/data/hdfs/source2/"
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val sources = FileSourceGenerator(workflowConfig, appConfig, spark).get
     val dfMap = sources(0)._2._1
     assert(2 == dfMap.size)
     assert(dfMap.contains("source1"))
@@ -100,7 +102,7 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
       fs.setTimes(new Path(destFile), MTIME, 1)
     }}
 
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val sources = FileSourceGenerator(workflowConfig, appConfig, spark).get
     val rddMap = sources(0)._2._1
 
     assert(1 == rddMap.size)
@@ -114,7 +116,7 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
     val workflowConfig = ApplicationManager.setWorkflowConfig("testWorkFlow1")
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
 
-    val sources = new FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val sources = new FileSourceGenerator(workflowConfig, appConfig, spark).get
     val rddMap = sources(0)._2._1
 
     assert(0 == rddMap.size)
