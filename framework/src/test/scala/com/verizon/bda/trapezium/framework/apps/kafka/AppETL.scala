@@ -16,21 +16,17 @@ package com.verizon.bda.trapezium.framework.apps.kafka
 
 import java.sql.Time
 
-import com.verizon.bda.trapezium.framework.StreamingTransaction
-import com.verizon.bda.trapezium.framework.apps.{TestConditionFactory, TestConditionManager}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.streaming.dstream.DStream
-import org.slf4j.LoggerFactory
 
 
 /**
   * A custom kafka specific ETL that uses notifications as mechanism for communication
   */
-object AppETL extends StreamingTransaction {
-  var batchID = 0
-  val logger = LoggerFactory.getLogger(this.getClass)
+object AppETL extends BaseStreamingTransaction {
+
   private val CONST_STRING = "This has to be populated in the preprocess method"
   var populateFromPreprocess: String = _
 
@@ -48,14 +44,9 @@ object AppETL extends StreamingTransaction {
   }
 
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
-    val count = rdd.count
-    logger.info(s" kafka.AppETL: BATCH ${batchID} with ${count}")
-    val condition = TestConditionFactory.createCondition(getClass.getSimpleName, "persistSchema", batchID, count)
-    TestConditionManager.notify(condition)
-//    if (batchID == 1) require(rdd.count() == 490, s"Expecting 490 but got ${rdd.count()} ")
-//    if (batchID == 2) require(rdd.count() == 499, s"Expecting 499 but got ${rdd.count()} ")
+    logger.info(s" kafka.AlgorithmETL: BATCH_ID ${batchID} ")
     require(populateFromPreprocess == CONST_STRING)
-    batchID += 1
+    super.persistStream(rdd,batchtime)
   }
 
   override def rollbackStream(batchtime: Time): Unit = {

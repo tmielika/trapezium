@@ -10,52 +10,63 @@ import scala.collection.mutable.ListBuffer
 object TestConditionManager {
   val logger = LoggerFactory.getLogger(this.getClass)
 
-  val listeners = new ListBuffer[ITestListener]()
+  val listeners = new ListBuffer[ITestEventListener]()
 
-  def addListener (listener: ITestListener): Unit = {
+  def addListener(listener: ITestEventListener): Unit = {
     logger.info("Adding listener .....")
-    listeners +=(listener)
+    listeners += (listener)
   }
 
-  def removeListener (listener: ITestListener): Unit = {
+  def removeListener(listener: ITestEventListener): Unit = {
     logger.info("removing listener .....")
-    listeners -=(listener)
+    listeners -= (listener)
   }
 
-  def notify(condition: ITestCondition): Unit = {
+  def notify(event: TestEvent): Unit = {
     logger.info("notifying listener .....")
-    listeners.foreach( _.notify(condition))
+    listeners.foreach(_.notify(event))
   }
-
 }
 
-trait ITestListener {
-  def notify(condition: ITestCondition)
+trait ITestEventListener {
+  def getName(): String
+  def notify(event: TestEvent)
 }
 
-trait ITestCondition {
-
+trait TestEvent {
+  def getEventType(): String
 }
 
-class TestConditionMap(val map:Map[String,String]) extends ITestCondition {
+/**
+  * Stage represents a stage in the callback for the transaction
+  */
+object STAGE extends Enumeration {
+  type Stage = Value
+  val preprocess, processStream, persistStream, rollbackStream, OTHER = Value
+}
 
-  def getMap(): Map[String,String] = {
+/**
+  * a more generic event with an extra map
+  *
+  * @param map
+  */
+class TestEventImpl(val name: String, val stage: STAGE.Value, val batch: Int, val count: Long, val map: Map[String, String]) extends TestEvent {
+
+
+  def getMap(): Map[String, String] = {
     map
   }
 
+  override def getEventType(): String = "vz.KafkaTestEvent"
 }
 
-object TestConditionFactory {
 
-  object KEYS extends Enumeration {
-    type keys = Value
-    val CLASS_NAME, STAGE, BATCH, COUNT, OTHER = Value
-  }
+object TestEventFactory {
 
-  def createCondition (name:String, stage:String, batch:Int, count:Long) : ITestCondition = {
+  def createTestEventMap(name: String, stage: STAGE.Value, batch: Int, count: Long): TestEvent = {
     val countVal = count.toInt.toString
-    val map = Map(KEYS.CLASS_NAME.toString -> name , KEYS.STAGE.toString -> stage, KEYS.BATCH.toString -> batch.toString, KEYS.COUNT.toString -> countVal)
-    new TestConditionMap(map)
+    val map = Map[String,String]()
+    new TestEventImpl(name, stage, batch,count,map)
   }
 
 }

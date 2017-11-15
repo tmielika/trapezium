@@ -16,19 +16,15 @@ package com.verizon.bda.trapezium.framework.apps.kafka
 
 import java.sql.Time
 
-import com.verizon.bda.trapezium.framework.StreamingTransaction
-import com.verizon.bda.trapezium.framework.apps.{TestConditionFactory, TestConditionManager}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.streaming.dstream.DStream
-import org.slf4j.LoggerFactory
 
 /**
  * A custom kafka specific ETL that uses notifications as mechanism for communication
  */
-object AlgorithmETL extends StreamingTransaction {
-  var batchID = 0
-  val logger = LoggerFactory.getLogger(this.getClass)
+object AlgorithmETL extends BaseStreamingTransaction {
+
 
   override def processStream(dStreams: Map[String, DStream[Row]],
                        batchtime: Time): DStream[Row] = {
@@ -37,13 +33,8 @@ object AlgorithmETL extends StreamingTransaction {
   }
 
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
-    val count = rdd.count
-    logger.info(s" kafa.AlgorithmETL: BATCH ${batchID} with ${count}")
-    val condition = TestConditionFactory.createCondition(getClass.getSimpleName, "persistSchema", batchID, count)
-    TestConditionManager.notify(condition)
-//    if (batchID == 1 || batchID == 3) require(rdd.count() == 490, s"Expecting 490 but got ${rdd.count()} ")
-//    if (batchID == 2 || batchID == 4) require(rdd.count() == 499, s"Expecting 499 but got ${rdd.count()} ")
-    batchID += 1
+    logger.info(s" kafka.AlgorithmETL: BATCH_ID ${batchID} ")
+    super.persistStream(rdd,batchtime)
   }
 
   override def rollbackStream(batchtime: Time): Unit = {

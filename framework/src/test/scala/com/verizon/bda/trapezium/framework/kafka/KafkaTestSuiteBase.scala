@@ -1,28 +1,26 @@
 /**
-* Copyright (C) 2016 Verizon. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+  * Copyright (C) 2016 Verizon. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.verizon.bda.trapezium.framework.kafka
 
 import java.io.File
 import java.net.ServerSocket
 import java.util.Properties
-import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.apps.TestConditionFactory.KEYS
-import com.verizon.bda.trapezium.framework.apps.{ITestCondition, ITestListener, TestConditionManager, TestConditionMap}
+import com.verizon.bda.trapezium.framework.apps.{ITestEventListener, TestConditionManager, TestEvent}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import kafka.common.KafkaException
@@ -33,14 +31,13 @@ import org.apache.commons.io
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.scheduler._
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
 import org.slf4j.LoggerFactory
 
 /**
- * @author Pankaj on 3/8/16.
- */
+  * @author Pankaj on 3/8/16.
+  */
 trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   val kf_logger = LoggerFactory.getLogger(this.getClass)
   private var zkList: String = _
@@ -71,7 +68,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     // set up local Kafka cluster
     setupKafka
-     utils = getZKUtils
+    utils = getZKUtils
   }
 
   after {
@@ -95,7 +92,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     zk_kafka = new EmbeddedZookeeper(s"$zkList")
 
     // for local as well as jenkins build
-    if (ApplicationManager.getConfig().env == "local" ) {
+    if (ApplicationManager.getConfig().env == "local") {
 
       // Use port that is available
       zkList = EmbeddedZookeeper.zkConnectString
@@ -244,16 +241,16 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     kf_logger.info(s"=============== Sent Messages ===================")
   }
 
-  private[framework]  def sendMessages(producer: KafkaProducer[String,String], topic: String, messages: Array[String]) = {
+  private[framework] def sendMessages(producer: KafkaProducer[String, String], topic: String, messages: Array[String]) = {
     for (msg <- messages)
       producer.send(
         new org.apache.kafka.clients.producer.ProducerRecord[String, String](topic, null, msg)
       )
   }
 
-  private def deleteRecursively(in : File): Unit = {
+  private def deleteRecursively(in: File): Unit = {
 
-    if ( in.isDirectory ) {
+    if (in.isDirectory) {
       io.FileUtils.deleteDirectory(in)
     } else {
       in.delete()
@@ -267,7 +264,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     props.put("host.name", kafkaBrokerList(0).split(":")(0))
 
     // for local as well as jenkins build
-    if (ApplicationManager.getConfig().env == "local" ) {
+    if (ApplicationManager.getConfig().env == "local") {
 
       val socket = new ServerSocket(0)
       val tempPort = socket.getLocalPort
@@ -286,7 +283,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     }
 
 
-    deleteRecursively( new File("target/kafka"))
+    deleteRecursively(new File("target/kafka"))
     props.put("log.dir", "target/kafka")
     props.put("zookeeper.connect", zkAddress)
     props.put("log.flush.interval.messages", "1")
@@ -316,8 +313,10 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     props
   }
+
   /**
     * create topic
+    *
     * @param topic
     * @param nparts
     */
@@ -327,15 +326,15 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   }
 
   private def getZKUtils: KafkaApplicationUtils = {
-//    TODO: Switch to this API in the near future
-//    ZkUtils.createZkClientAndConnection(zkList , 100, 100)
+    //    TODO: Switch to this API in the near future
+    //    ZkUtils.createZkClientAndConnection(zkList , 100, 100)
     val zkUtils: ZkUtils = new ZkUtils(zkClient, new ZkConnection(zkList), false)
     val utils = new KafkaApplicationUtils(zkUtils, kafkaBrokers)
     utils
   }
 
-  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]],
-                    adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
+  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]], repeatCalls: Int = 1,
+                    testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  ( Conditionality)  = null): Unit = {
 
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
@@ -345,19 +344,16 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val topicName = streamsInfo.get(0).getString("topicName")
     val newInputSeq = inputSeq.map(seq => Seq((topicName, seq)))
 
-    setupWorkflowForMultipleTopics(workflowName, newInputSeq, adapt)
+    setupWorkflowForMultipleTopics(workflowName, newInputSeq, repeatCalls, testCondition)
 
   }
 
   def setupWorkflowForMultipleTopics(workflowName: String,
-                                     inputSeq: Seq[Seq[(String, Seq[String])]],
-                                     adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
+                                     inputSeq: Seq[Seq[(String, Seq[String])]], repeatCalls: Int = 1,
+                                     testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  ( Conditionality)  = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
-
-    if(adapt!=null)
-      adapt(workflowConfig, appConfig)
 
     // create topcis
     utils.createTopics(workflowConfig)
@@ -366,11 +362,13 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val currentTimeStamp = System.currentTimeMillis()
     ApplicationManager.updateWorkflowTime(currentTimeStamp)
 
-    startApplication(inputSeq, workflowConfig, kafkaConfig, appConfig)
+    startApplication(inputSeq, workflowConfig, kafkaConfig, appConfig, repeatCalls, testCondition)
 
   }
 
-  private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig, kafkaConfig: Config, appConfig: ApplicationConfig) = {
+  private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig,
+                                          kafkaConfig: Config, appConfig: ApplicationConfig, repeatCalls: Int,
+                                          testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  (Conditionality) ) = {
     val sparkConf = ApplicationManager.getSparkConf(appConfig)
     val ssc = KafkaDStream.createStreamingContext(sparkConf)
 
@@ -380,38 +378,22 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     inputSeq.foreach(input => {
       input.foreach(seq => {
-        size+=seq._2.size
+        size += seq._2.size
       })
     })
 
-    val messages = size * 1 // Only AlgorithmETL sends the messages
-
-    var total_messages = 0;
-
-    val latch = new CountDownLatch(size);
-
-
-    val listener = new ITestListener {
-      override def notify(condition: ITestCondition): Unit = {
-        val testConditionMap: TestConditionMap = condition.asInstanceOf[TestConditionMap]
-        val count = testConditionMap.getMap().get(KEYS.COUNT.toString).get
-        val klass = testConditionMap.getMap().get(KEYS.CLASS_NAME.toString).get
-        val batch = testConditionMap.getMap().get(KEYS.BATCH.toString).get
-        var cnt = count.toInt
-        total_messages += cnt
-        kf_logger.info(s" [${klass}] ----------------------> current_latch[${latch.toString}] = ${latch.getCount} ; Batch = ${batch} ; message_count = ${cnt} ;  expected = ${size} ; totalTillNow = ${total_messages}")
-        while (cnt > 0) {
-          latch.countDown()
-          cnt -= 1
-        }
-
-      }
+    val conditionality: Conditionality =  {
+      if(testCondition==null) setupTestCondition(repeatCalls, size)
+      else testCondition(workflowConfig, appConfig, size)
     }
+
+    val condition: ConditionSupport = conditionality.condition
+    val listener: ITestEventListener = conditionality.listener
+
     TestConditionManager.addListener(listener)
 
     // start streaming
     ssc.start
-
 
     inputSeq.foreach(input => {
 
@@ -426,42 +408,41 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     })
 
-    latch.await(kafkaConfig.getLong("batchTime"),TimeUnit.SECONDS)
+    completeTest(kafkaConfig, ssc, condition, listener)
+  }
 
-    if(latch.getCount!=0) {
-      ssc.awaitTerminationOrTimeout(
-        kafkaConfig.getLong("batchTime") * 1000)
+   def setupTestCondition(repeatCalls: Int, size: Int): Conditionality = {
+
+    val messages = size * repeatCalls // defined by the test for persist usages
+
+     val condition = new PersistStreamCheckConditionSupport(size, messages.toLong)
+
+    val listener = new ITestEventListener {
+
+      override def notify(event: TestEvent): Unit = {
+
+        condition.notifyEvent(event)
+      }
+
+      override def getName(): String = "generic.Kafka.listener"
     }
 
-    TestConditionManager.removeListener(listener)
-
-    if (ssc != null) {
-      kf_logger.info("Stopping streaming context from test Thread.")
-      ssc.stop(true, false)
-
-      // reset option
-      KafkaDStream.sparkcontext = None
-    }
-
-    assert(!ApplicationManager.stopStreaming)
-    assert(latch.getCount==0,s"received only ${messages - latch.getCount} out of ${messages}")
+     Conditionality( condition, listener)
   }
 
   /**
-   * Added method to test multiple kafka workflows reading from multiple Kafka topics
- *
-   * @param workflowNames
-   * @param inputSeq
-   */
+    * Added method to test multiple kafka workflows reading from multiple Kafka topics
+    *
+    * @param workflowNames
+    * @param inputSeq
+    */
   def setupMultipleWorkflowForMultipleTopics(workflowNames: List[String],
-                                     inputSeq: Seq[Seq[(String, Seq[String])]],
-                                      adapt: (WorkflowConfig, ApplicationConfig) => Unit = null): Unit = {
+                                             inputSeq: Seq[Seq[(String, Seq[String])]],
+                                             repeatCalls: Int = 1,
+                                             testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  (Conditionality) =null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowNames(0))
-
-    if(adapt!=null)
-      adapt(workflowConfig,appConfig)
 
     // create topcis
     utils.createTopics(workflowConfig)
@@ -473,16 +454,33 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val sparkConf = ApplicationManager.getSparkConf(appConfig)
     val ssc = KafkaDStream.createStreamingContext(sparkConf)
 
-    workflowNames.foreach( workflowName => {
+    var size = 0
+
+    inputSeq.foreach(input => {
+      input.foreach(seq => {
+        size += seq._2.size
+      })
+    })
+
+    workflowNames.foreach(workflowName => {
       val thread = new KafkaWorkflowThread(workflowName, ssc, utils)
       thread.start()
-      do{
+      do {
 
         kf_logger.info(s"Waiting for workflow ${workflowName} to start...")
         Thread.sleep(1000)
-      }while (!thread.isStarted)
+      } while (!thread.isStarted)
     })
 
+    val conditionality: Conditionality =  {
+      if(testCondition==null) setupTestCondition(repeatCalls, size)
+      else testCondition(workflowConfig, appConfig, size)
+    }
+
+    val condition: ConditionSupport = conditionality.condition
+    val listener: ITestEventListener = conditionality.listener
+
+    TestConditionManager.addListener(listener)
     // start streaming
     ssc.start
 
@@ -499,10 +497,22 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     })
 
-    ssc.awaitTerminationOrTimeout(
-      kafkaConfig.getLong("batchTime") * 10000)
+    completeTest(kafkaConfig, ssc, condition, listener)
+  }
 
-    if( ssc != null ) {
+  private def completeTest(kafkaConfig: Config, ssc: StreamingContext, condition: ConditionSupport,
+                           listener: ITestEventListener ): Unit = {
+
+    condition.await(kafkaConfig.getLong("batchTime"))
+
+    if ( ! condition.isCompleted() ) {
+      ssc.awaitTerminationOrTimeout(
+        kafkaConfig.getLong("batchTime") * 10000)
+    }
+
+    TestConditionManager.removeListener(listener)
+
+    if (ssc != null) {
       kf_logger.info(s"Stopping streaming context from test Thread.")
       ssc.stop(true, false)
 
@@ -510,65 +520,16 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       KafkaDStream.sparkcontext = None
     }
 
-    assert (!ApplicationManager.stopStreaming)
+    assert(!ApplicationManager.stopStreaming)
+    condition.verify()
 
-  }
-
-  /**
-    * @deprecated   - because not getting enough calls to send mesages
-    *
-    * @param inputSeq
-    * @param ssc
-    * @return
-    */
-  private def registerForListener(inputSeq: Seq[Seq[(String, Seq[String])]], ssc: StreamingContext):StreamingListener = {
-
-    val streamingListener = new StreamingListener() {
-      var batchID = 0
-
-
-      /** Called when processing of a batch of jobs has completed. */
-      override def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted): Unit = {
-        kf_logger.info(s"batch-completed [${batchID}] with - ${batchCompleted.batchInfo.numRecords}")
-        postMessages
-      }
-
-
-      override def onBatchSubmitted(batchSubmitted: StreamingListenerBatchSubmitted): Unit = {
-//        kf_logger.info(s"OutputOperation completed..... ${outputOperationCompleted.outputOperationInfo.startTime} to ${outputOperationCompleted.outputOperationInfo.endTime}")
-//        postMessages
-      }
-
-      override def onBatchStarted(batchStarted: StreamingListenerBatchStarted): Unit = {
-//        postMessages
-      }
-
-      override def onOutputOperationCompleted(outputOperationCompleted: StreamingListenerOutputOperationCompleted): Unit = {
-      }
-      private def postMessages = {
-        kf_logger.info(s"SUbmitting messages for batch - ${batchID}")
-        if (batchID < inputSeq.size) {
-          val input = inputSeq(batchID)
-          batchID += 1
-          input.foreach(seq => {
-            kf_logger.info(s"Size of the input: ${seq._2.size}")
-            sendMessages(seq._1, seq._2.toArray)
-          })
-        }
-      }
-    }
-
-
-    ssc.addStreamingListener(streamingListener)
-
-    streamingListener
   }
 
 }
 
-class KafkaWorkflowThread (workflowName: String,
-                           ssc: StreamingContext,
-                           utils: KafkaApplicationUtils) extends Thread {
+class KafkaWorkflowThread(workflowName: String,
+                          ssc: StreamingContext,
+                          utils: KafkaApplicationUtils) extends Thread {
 
   var isStarted: Boolean = false
 
@@ -580,4 +541,9 @@ class KafkaWorkflowThread (workflowName: String,
     isStarted = true
   }
 
+
+
 }
+
+case class Conditionality ( condition:ConditionSupport, listener:ITestEventListener)
+

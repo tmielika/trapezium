@@ -187,6 +187,7 @@ private[framework] object StreamingHandler {
         persistDStream.foreachRDD((rdd, time) => {
           try {
             logger.info(s"persisting RDD of: $persistDStreamName for class $workflowClass")
+
             workflowClass.persistStream(rdd, new Time(time.milliseconds))
             DataValidator.printStats()
           } catch {
