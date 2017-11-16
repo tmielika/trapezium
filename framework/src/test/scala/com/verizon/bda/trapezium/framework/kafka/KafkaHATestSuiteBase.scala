@@ -106,17 +106,19 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
       */
     latch.await(getWaitTime(waitTime), TimeUnit.SECONDS)
 
-    ssc1.awaitTerminationOrTimeout(
-      kafkaConfig.getLong("batchTime") * 1000)
+    if(latch.getCount!=0) {
+      ssc1.awaitTerminationOrTimeout(
+        kafkaConfig.getLong("batchTime") * 1000)
+    }
 
-    kf_logger.info("Stopping the streamign context")
+    kf_logger.info("Stopping the streaming context")
     ssc1.stop(true, false)
 
     // reset option
     KafkaDStream.sparkcontext = None
 
     kf_logger.info(s"Latch BATCH_COUNT on  on ${latch} =  ${latch.getCount}")
-    assert(latch.getCount == 0)
+    assert(latch.getCount == 0, s"Expected count =${totalCount} and received count = ${totalCount-latch.getCount}")
 
     assert(!ApplicationManager.stopStreaming)
   }

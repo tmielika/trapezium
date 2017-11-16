@@ -173,7 +173,7 @@ object ApplicationManager {
             initStreamThread(workFlowToRun)
           }
           case _ => {
-            var spark: SparkSession = SparkSession.builder().getOrCreate()
+            var spark: SparkSession = null //SparkSession.builder().config(getSparkConf(appConfig)).getOrCreate()
             runBatchWorkFlow(workflowConfig, appConfig)(spark)
             // if spark context is not stopped, stop it
             if (spark != null && !spark.sparkContext.isStopped) {
