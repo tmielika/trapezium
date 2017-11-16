@@ -503,21 +503,24 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   private def completeTest(kafkaConfig: Config, ssc: StreamingContext, condition: ConditionSupport,
                            listener: ITestEventListener ): Unit = {
 
-    condition.await(kafkaConfig.getLong("batchTime"))
+    try {
+      condition.await(kafkaConfig.getLong("batchTime"))
 
-    if ( ! condition.isCompleted() ) {
-      ssc.awaitTerminationOrTimeout(
-        kafkaConfig.getLong("batchTime") * 10000)
-    }
+      if (!condition.isCompleted()) {
+        ssc.awaitTerminationOrTimeout(
+          kafkaConfig.getLong("batchTime") * 10000)
+      }
 
-    TestConditionManager.removeListener(listener)
 
-    if (ssc != null) {
-      kf_logger.info(s"Stopping streaming context from test Thread.")
-      ssc.stop(true, false)
+      if (ssc != null) {
+        kf_logger.info(s"Stopping streaming context from test Thread.")
+        ssc.stop(true, false)
 
-      // reset option
-      KafkaDStream.sparkcontext = None
+        // reset option
+        KafkaDStream.sparkcontext = None
+      }
+    }finally{
+      TestConditionManager.removeListener(listener)
     }
 
     assert(!ApplicationManager.stopStreaming)
