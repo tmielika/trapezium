@@ -19,8 +19,8 @@ abstract class BaseStreamingTransaction extends StreamingTransaction {
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
     count = rdd.count
     logger.info(s" ${getClass.getSimpleName}: BATCH_ID ${batchID} with ${count}")
-    val condition = TestEventFactory.createTestEventMap(getClass.getSimpleName, STAGE.persistStream, batchID, count)
-    TestConditionManager.notify(condition)
+    val event = TestEventFactory.createTestEvent(getClass.getSimpleName, STAGE.persistStream, batchID, count)
+    TestConditionManager.notify(event)
     batchID += 1
   }
 

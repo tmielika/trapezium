@@ -63,7 +63,7 @@ class TestEventImpl(val name: String, val stage: STAGE.Value, val batch: Int, va
 
 object TestEventFactory {
 
-  def createTestEventMap(name: String, stage: STAGE.Value, batch: Int, count: Long): TestEvent = {
+  def createTestEvent(name: String, stage: STAGE.Value, batch: Int, count: Long): TestEvent = {
     val countVal = count.toInt.toString
     val map = Map[String,String]()
     new TestEventImpl(name, stage, batch,count,map)
