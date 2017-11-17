@@ -53,11 +53,11 @@ class ComplexConditionSupportSet(conditions : List[ConditionSupport]) extends Co
 }
 
 
-class PersistStreamCheckConditionSupport(size:Int, messages:Long) extends ConditionSupport {
+class PersistStreamCheckConditionSupport(messages:Long) extends ConditionSupport {
   var total_messages = 0L
   val logger = LoggerFactory.getLogger(this.getClass)
 
-  val latch = new CountDownLatch(size)
+  val latch = new CountDownLatch(messages.toInt)
 
   override def await(wait:Long) = latch.await(wait, TimeUnit.SECONDS)
 
@@ -72,7 +72,7 @@ class PersistStreamCheckConditionSupport(size:Int, messages:Long) extends Condit
 
     var count = event.count
     total_messages += count
-    logger.info(s" [${event.name}] ; current_latch = ${latch.getCount} ; Batch = ${event.batch} ; message_count = ${event.count} ;  expected = ${size} ; totalTillNow = ${total_messages}")
+    logger.info(s" [${event.name}] ; current_latch = ${latch.getCount} ; Batch = ${event.batch} ; message_count = ${event.count} ;  expected = ${messages} ; totalTillNow = ${total_messages}")
     while (count > 0) {
       latch.countDown()
       count -= 1

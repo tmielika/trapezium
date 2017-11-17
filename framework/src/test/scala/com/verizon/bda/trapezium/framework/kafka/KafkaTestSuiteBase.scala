@@ -20,7 +20,7 @@ import java.util.Properties
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.apps.{ITestEventListener, TestConditionManager, TestEvent}
+import com.verizon.bda.trapezium.framework.apps.{ITestEventListener, TestConditionManager}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import kafka.common.KafkaException
@@ -60,6 +60,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   before {
 
     // Load the config file
+    ApplicationManager.stopStreaming = false
+    ApplicationManager.throwable = null
     val appConfig = ApplicationManager.getConfig()
     kafkaBrokers = appConfig.kafkabrokerList
     zkList = appConfig.zookeeperList
@@ -333,8 +335,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     utils
   }
 
-  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]], repeatCalls: Int = 1,
-                    testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  ( Conditionality)  = null): Unit = {
+  def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]],
+                    testCondition: (WorkflowConfig, ApplicationConfig, Int) => (Conditionality) = null): Unit = {
 
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
@@ -344,13 +346,13 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val topicName = streamsInfo.get(0).getString("topicName")
     val newInputSeq = inputSeq.map(seq => Seq((topicName, seq)))
 
-    setupWorkflowForMultipleTopics(workflowName, newInputSeq, repeatCalls, testCondition)
+    setupWorkflowForMultipleTopics(workflowName, newInputSeq, testCondition)
 
   }
 
   def setupWorkflowForMultipleTopics(workflowName: String,
-                                     inputSeq: Seq[Seq[(String, Seq[String])]], repeatCalls: Int = 1,
-                                     testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  ( Conditionality)  = null): Unit = {
+                                     inputSeq: Seq[Seq[(String, Seq[String])]],
+                                     testCondition: (WorkflowConfig, ApplicationConfig, Int) => (Conditionality) = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
@@ -362,13 +364,14 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val currentTimeStamp = System.currentTimeMillis()
     ApplicationManager.updateWorkflowTime(currentTimeStamp)
 
-    startApplication(inputSeq, workflowConfig, kafkaConfig, appConfig, repeatCalls, testCondition)
+    startApplication(inputSeq, workflowConfig, kafkaConfig, appConfig, testCondition)
 
   }
 
   private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig,
-                                          kafkaConfig: Config, appConfig: ApplicationConfig, repeatCalls: Int,
-                                          testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  (Conditionality) ) = {
+                                          kafkaConfig: Config, appConfig: ApplicationConfig,
+                                          testCondition: (WorkflowConfig, ApplicationConfig, Int) => (Conditionality)) = {
+
     val sparkConf = ApplicationManager.getSparkConf(appConfig)
     val ssc = KafkaDStream.createStreamingContext(sparkConf)
 
@@ -382,8 +385,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       })
     })
 
-    val conditionality: Conditionality =  {
-      if(testCondition==null) setupTestCondition(repeatCalls, size)
+    val conditionality: Conditionality = {
+      if (testCondition == null) ConditionalityFactory.createDefaultTestCondition(size)
       else testCondition(workflowConfig, appConfig, size)
     }
 
@@ -408,27 +411,14 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     })
 
-    completeTest(kafkaConfig, ssc, condition, listener)
-  }
-
-   def setupTestCondition(repeatCalls: Int, size: Int): Conditionality = {
-
-    val messages = size * repeatCalls // defined by the test for persist usages
-
-     val condition = new PersistStreamCheckConditionSupport(size, messages.toLong)
-
-    val listener = new ITestEventListener {
-
-      override def notify(event: TestEvent): Unit = {
-
-        condition.notifyEvent(event)
-      }
-
-      override def getName(): String = "generic.Kafka.listener"
+    try {
+      completeTest(kafkaConfig, ssc, condition)
+    } finally {
+      if (listener != null)
+        TestConditionManager.removeListener(listener)
     }
-
-     Conditionality( condition, listener)
   }
+
 
   /**
     * Added method to test multiple kafka workflows reading from multiple Kafka topics
@@ -438,8 +428,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     */
   def setupMultipleWorkflowForMultipleTopics(workflowNames: List[String],
                                              inputSeq: Seq[Seq[(String, Seq[String])]],
-                                             repeatCalls: Int = 1,
-                                             testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  (Conditionality) =null): Unit = {
+                                             testCondition: (WorkflowConfig, ApplicationConfig, Int) => (Conditionality) = null): Unit = {
 
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowNames(0))
@@ -472,15 +461,15 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       } while (!thread.isStarted)
     })
 
-    val conditionality: Conditionality =  {
-      if(testCondition==null) setupTestCondition(repeatCalls, size)
+    val conditionality: Conditionality = {
+      if (testCondition == null) ConditionalityFactory.createDefaultTestCondition(size)
       else testCondition(workflowConfig, appConfig, size)
     }
 
     val condition: ConditionSupport = conditionality.condition
     val listener: ITestEventListener = conditionality.listener
 
-    if(listener!=null)
+    if (listener != null)
       TestConditionManager.addListener(listener)
     // start streaming
     ssc.start
@@ -497,41 +486,42 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       Thread.sleep(kafkaConfig.getLong("batchTime") * 1000)
 
     })
-
-    completeTest(kafkaConfig, ssc, condition, listener)
-  }
-
-  private def completeTest(kafkaConfig: Config, ssc: StreamingContext, condition: ConditionSupport,
-                           listener: ITestEventListener ): Unit = {
-
     try {
-      if(condition!=null)
-        condition.await(kafkaConfig.getLong("batchTime"))
-
-      if (condition==null || !condition.isCompleted()) {
-        ssc.awaitTerminationOrTimeout(
-          kafkaConfig.getLong("batchTime") * 10000)
-      }
-
-
-      if (ssc != null) {
-        kf_logger.info(s"Stopping streaming context from test Thread.")
-        ssc.stop(true, false)
-
-        // reset option
-        KafkaDStream.sparkcontext = None
-      }
-    }finally{
-      if(listener!=null)
+      completeTest(kafkaConfig, ssc, condition)
+    } finally {
+      if (listener != null)
         TestConditionManager.removeListener(listener)
     }
+  }
 
-//    assert(!ApplicationManager.stopStreaming, ApplicationManager.throwable)
+  private def completeTest(kafkaConfig: Config, ssc: StreamingContext, condition: ConditionSupport): Unit = {
 
-    if(ApplicationManager.stopStreaming)
+
+    if (condition != null)
+      condition.await(kafkaConfig.getLong("batchTime"))
+
+    if (condition == null || !condition.isCompleted()) {
+      ssc.awaitTerminationOrTimeout(
+        kafkaConfig.getLong("batchTime") * 10000)
+    }
+
+
+    if (ssc != null) {
+      kf_logger.info(s"Stopping streaming context from test Thread.")
+      ssc.stop(true, false)
+
+      // reset option
+      KafkaDStream.sparkcontext = None
+    }
+
+    if (ApplicationManager.stopStreaming) {
+
+      ApplicationManager.throwable.printStackTrace()
       fail(s"stopStreaming is true ${ApplicationManager.throwable}", ApplicationManager.throwable)
+    }
 
-    if(condition!=null)
+
+    if (condition != null)
       condition.verify()
 
   }
@@ -552,9 +542,4 @@ class KafkaWorkflowThread(workflowName: String,
     isStarted = true
   }
 
-
-
 }
-
-case class Conditionality ( condition:ConditionSupport, listener:ITestEventListener)
-

@@ -63,7 +63,7 @@ class KafkaDStreamSuite extends KafkaTestSuiteBase {
         Seq(
           ("kafkaMultipleTopics_stream_1", input2),
           ("kafkaMultipleTopics_stream_2", input2))
-      ), repeatCalls = 1)
+      ))
   }
 
   test("Application Manager Kafka multiple topics test with new topic") {
@@ -81,7 +81,7 @@ class KafkaDStreamSuite extends KafkaTestSuiteBase {
         Seq(
           ("kafkaMultipleTopicsWithNewTopic_stream_1", input2),
           ("kafkaMultipleTopicsWithNewTopic_stream_2", input2))
-      ), repeatCalls = 1)
+      ))
   }
 
   test("Read json data from Kafka") {

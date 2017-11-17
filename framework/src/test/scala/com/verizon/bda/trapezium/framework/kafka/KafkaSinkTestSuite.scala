@@ -40,10 +40,10 @@ class KafkaSinkTestSuite extends KafkaTestSuiteBase {
       * @param i
       * @return
       */
-    def testCondition(w:WorkflowConfig, a:ApplicationConfig, i:Int): Conditionality = {Conditionality(null,null)}
+    def testCondition(w:WorkflowConfig, a:ApplicationConfig, i:Int): Conditionality = {ConditionalityFactory.createEmptyTestCondition()}
 
     // Write the messages to a kafka topic via a Streaming transaction
-    setupWorkflow("kafkaSinkWF1", Seq(input1, input2), 1, testCondition)
+    setupWorkflow("kafkaSinkWF1", Seq(input1, input2), testCondition)
     Thread.sleep(200)
 
     // Consume the previously written messages in a different Streaming transaction

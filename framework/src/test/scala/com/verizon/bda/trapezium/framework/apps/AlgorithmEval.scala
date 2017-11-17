@@ -43,8 +43,8 @@ object AlgorithmEval extends StreamingTransaction {
 
     val count = rdd.count
     logger.info(s" AlgorithmEval: BATCH_ID ${batchID} with ${count}")
-    if (batchID == 1) require(count == 490, s"Expecting 490 but got ${count} ")
-    if (batchID == 2) require(count == 499, s"Expecting 499 but got ${count} ")
+    if (batchID == 1) require(count == 490, s"AlgorithmEval: Expecting 490 but got ${count} ")
+    if (batchID == 2) require(count == 499, s"AlgorithmEval: Expecting 499 but got ${count} ")
     batchID += 1
   }
 

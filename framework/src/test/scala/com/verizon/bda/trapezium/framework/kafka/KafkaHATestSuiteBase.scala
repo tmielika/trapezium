@@ -32,7 +32,7 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
    def repeatMessageSendCount : Int  = 1
 
   override  private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig,
-                                                    kafkaConfig: Config, appConfig: ApplicationConfig, repeatCalls: Int,
+                                                    kafkaConfig: Config, appConfig: ApplicationConfig,
                                                     testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  (Conditionality) ) = {
 
     val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]

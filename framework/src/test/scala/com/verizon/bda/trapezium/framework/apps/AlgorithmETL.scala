@@ -38,8 +38,9 @@ object AlgorithmETL extends StreamingTransaction {
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
     val count = rdd.count
     logger.info(s" AlgorithmETL: BATCH_ID ${batchID} with ${count}")
-    if (batchID == 1 || batchID == 3) require(count == 490, s"Expecting 490 but got ${count} ")
-    if (batchID == 2 || batchID == 4) require(count == 499, s"Expecting 499 but got ${count} ")
+    if (batchID == 1 || batchID == 3) require(count == 490, s"${getClass.getSimpleName} : Expecting 490 but got ${count} ")
+
+    if (batchID == 2 || batchID == 4) require(count == 499, s"${getClass.getSimpleName} : Expecting 499 but got ${count} ")
     batchID += 1
   }
 
