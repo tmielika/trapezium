@@ -120,7 +120,9 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
     kf_logger.info(s"Latch BATCH_COUNT on  on ${latch} =  ${latch.getCount}")
     assert(latch.getCount == 0, s"Expected count =${totalCount} and received count = ${totalCount-latch.getCount}")
 
-    assert(!ApplicationManager.stopStreaming)
+    if(ApplicationManager.stopStreaming)
+      fail(s"stopStreaming is true ${ApplicationManager.throwable}", ApplicationManager.throwable)
+
   }
 
 

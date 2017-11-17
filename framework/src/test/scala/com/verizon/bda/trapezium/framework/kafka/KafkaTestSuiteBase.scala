@@ -480,7 +480,8 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val condition: ConditionSupport = conditionality.condition
     val listener: ITestEventListener = conditionality.listener
 
-    TestConditionManager.addListener(listener)
+    if(listener!=null)
+      TestConditionManager.addListener(listener)
     // start streaming
     ssc.start
 
@@ -504,9 +505,10 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
                            listener: ITestEventListener ): Unit = {
 
     try {
-      condition.await(kafkaConfig.getLong("batchTime"))
+      if(condition!=null)
+        condition.await(kafkaConfig.getLong("batchTime"))
 
-      if (!condition.isCompleted()) {
+      if (condition==null || !condition.isCompleted()) {
         ssc.awaitTerminationOrTimeout(
           kafkaConfig.getLong("batchTime") * 10000)
       }
@@ -520,11 +522,17 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
         KafkaDStream.sparkcontext = None
       }
     }finally{
-      TestConditionManager.removeListener(listener)
+      if(listener!=null)
+        TestConditionManager.removeListener(listener)
     }
 
-    assert(!ApplicationManager.stopStreaming)
-    condition.verify()
+//    assert(!ApplicationManager.stopStreaming, ApplicationManager.throwable)
+
+    if(ApplicationManager.stopStreaming)
+      fail(s"stopStreaming is true ${ApplicationManager.throwable}", ApplicationManager.throwable)
+
+    if(condition!=null)
+      condition.verify()
 
   }
 

@@ -51,6 +51,7 @@ object ApplicationManager {
   private var appConfig: ApplicationConfig = _
   private val threadLocalWorkflowConfig = new ThreadLocal[WorkflowConfig]();
   var stopStreaming: Boolean = false
+  var throwable: Throwable = null
   val ERROR_EXIT_CODE = -1
   private var embeddedServer: EmbeddedHttpServer = _
   private var uid = ""
@@ -566,6 +567,7 @@ class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
 
         logger.error("Stopping job", ex)
         ApplicationManager.stopStreaming = true
+        ApplicationManager.throwable = ex
       }
     }
 

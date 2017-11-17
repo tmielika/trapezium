@@ -239,6 +239,7 @@ private[framework] object StreamingHandler {
 
                   logger.error("ERROR", "Notifying ApplicationManager to shutdown.")
                   ApplicationManager.stopStreaming = true
+                  ApplicationManager.throwable = e
                   ApplicationManager.notifyAll()
                 }
               }
