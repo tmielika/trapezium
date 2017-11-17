@@ -59,9 +59,10 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
   before {
 
-    // Load the config file
+    // Re-initialize the state of the Application Manager. It should be limited to tests.
     ApplicationManager.stopStreaming = false
     ApplicationManager.throwable = null
+    // Load the config file
     val appConfig = ApplicationManager.getConfig()
     kafkaBrokers = appConfig.kafkabrokerList
     zkList = appConfig.zookeeperList
@@ -516,7 +517,9 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
 
     if (ApplicationManager.stopStreaming) {
 
-      ApplicationManager.throwable.printStackTrace()
+      if(ApplicationManager.throwable!=null)
+        ApplicationManager.throwable.printStackTrace()
+
       fail(s"stopStreaming is true ${ApplicationManager.throwable}", ApplicationManager.throwable)
     }
 
