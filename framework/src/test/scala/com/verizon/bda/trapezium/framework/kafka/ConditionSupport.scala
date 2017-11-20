@@ -19,11 +19,34 @@ import com.verizon.bda.trapezium.framework.apps.{STAGE, TestEvent, TestEventImpl
 import org.slf4j.LoggerFactory
 
 
+
+/**
+  * A condition call back support for each test. It encompasses condition checks for the tests
+  */
 trait ConditionSupport {
+
+  /**
+    * wait to check for any conditions
+    * @param time
+    */
   def await(time:Long)
+
+  /**
+    * notifies whenever an event has occurred
+    * @param event
+    */
   def notifyEvent(event: TestEvent)
 
+
+  /**
+    * Check to see if the condition checks/tasks are completed.
+    * @return
+    */
   def isCompleted(): Boolean
+
+  /**
+    * Test/Verify the conditions. Raise asserts/exceptions as required if verification criteria is not met
+    */
   def verify()
 }
 
@@ -52,7 +75,10 @@ class ComplexConditionSupportSet(conditions : List[ConditionSupport]) extends Co
   }
 }
 
-
+/**
+  * Checks for events that are coming only from the persistStream() method callback
+  * @param messages
+  */
 class PersistStreamCheckConditionSupport(messages:Long) extends ConditionSupport {
   var total_messages = 0L
   val logger = LoggerFactory.getLogger(this.getClass)
@@ -62,6 +88,10 @@ class PersistStreamCheckConditionSupport(messages:Long) extends ConditionSupport
   override def await(wait:Long) = latch.await(wait, TimeUnit.SECONDS)
 
   override def notifyEvent(condition: TestEvent): Unit =  {
+
+    if(! condition.isInstanceOf[TestEventImpl])
+      return
+
     val event: TestEventImpl = condition.asInstanceOf[TestEventImpl]
 
     /**

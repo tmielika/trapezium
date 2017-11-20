@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
 
 /**
+  * A simple event passing manager.
   * Created by sankma8 on 11/13/17.
   */
 object TestConditionManager {
