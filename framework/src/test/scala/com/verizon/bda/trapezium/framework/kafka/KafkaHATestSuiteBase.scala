@@ -31,10 +31,9 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
 
    def repeatMessageSendCount : Int  = 1
 
-  override private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]],
-                                                   workflowConfig: WorkflowConfig,
-                                                   kafkaConfig: Config,
-                                                   appConfig: ApplicationConfig) = {
+  override  private[framework] def startApplication(inputSeq: Seq[Seq[(String, Seq[String])]], workflowConfig: WorkflowConfig,
+                                                    kafkaConfig: Config, appConfig: ApplicationConfig,
+                                                    testCondition: (WorkflowConfig, ApplicationConfig, Int) =>  (Conditionality) ) = {
 
     val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
     val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
@@ -57,9 +56,7 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
       * collect the count of messages
       */
     inputSeq.foreach(input => {
-
       input.foreach(seq => {
-
         count = count + seq._2.toArray.length
       })
     })
@@ -109,19 +106,23 @@ class KafkaHATestSuiteBase extends KafkaTestSuiteBase {
       */
     latch.await(getWaitTime(waitTime), TimeUnit.SECONDS)
 
-    ssc1.awaitTerminationOrTimeout(
-      kafkaConfig.getLong("batchTime") * 1000)
+    if(latch.getCount!=0) {
+      ssc1.awaitTerminationOrTimeout(
+        kafkaConfig.getLong("batchTime") * 1000)
+    }
 
-    kf_logger.info("Stopping the streamign context")
+    kf_logger.info("Stopping the streaming context")
     ssc1.stop(true, false)
 
     // reset option
     KafkaDStream.sparkcontext = None
 
-    kf_logger.info(s"Latch COUNT on  on ${latch} =  ${latch.getCount}")
-    assert(latch.getCount == 0)
+    kf_logger.info(s"Latch BATCH_COUNT on  on ${latch} =  ${latch.getCount}")
+    assert(latch.getCount == 0, s"Expected count =${totalCount} and received count = ${totalCount-latch.getCount}")
 
-    assert(!ApplicationManager.stopStreaming)
+    if(ApplicationManager.stopStreaming)
+      fail(s"stopStreaming is true ${ApplicationManager.throwable}", ApplicationManager.throwable)
+
   }
 
 
@@ -137,11 +138,11 @@ class SimpleCountingListener(latch: CountDownLatch) extends StreamingListener {
   /** Called when processing of a batch of jobs has completed. */
   override def onBatchCompleted(batchCompleted: StreamingListenerBatchCompleted): Unit = {
     var count = batchCompleted.batchInfo.numRecords
-    logger.info(s"BATCH SIZE [Before] on ${latch} = ${count}")
+    logger.info(s"BATCH_ID SIZE [Before] on ${latch} = ${count}")
     while (count > 0) {
       latch.countDown()
       count -= 1
     }
-    logger.info(s"BATCH SIZE [After] on ${latch} = ${count} and @latch = ${latch.getCount}")
+    logger.info(s"BATCH_ID SIZE [After] on ${latch} = ${count} and @latch = ${latch.getCount}")
   }
 }

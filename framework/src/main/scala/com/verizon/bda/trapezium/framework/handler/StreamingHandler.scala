@@ -181,9 +181,13 @@ private[framework] object StreamingHandler {
 
         logger.info(s"Adding dstream $persistDStreamName to persist workflow $workflowClass")
         val persistDStream = workflowDStreams(persistDStreamName)
+
+        logger.info(s"Iterating on the persistentDStream ${persistDStream} with count = ${persistDStream.count()}")
+
         persistDStream.foreachRDD((rdd, time) => {
           try {
-            logger.info(s"persisting RDD of: $persistDStreamName")
+            logger.info(s"persisting RDD of: $persistDStreamName for class $workflowClass")
+
             workflowClass.persistStream(rdd, new Time(time.milliseconds))
             DataValidator.printStats()
           } catch {
@@ -235,6 +239,7 @@ private[framework] object StreamingHandler {
 
                   logger.error("ERROR", "Notifying ApplicationManager to shutdown.")
                   ApplicationManager.stopStreaming = true
+                  ApplicationManager.throwable = e
                   ApplicationManager.notifyAll()
                 }
               }

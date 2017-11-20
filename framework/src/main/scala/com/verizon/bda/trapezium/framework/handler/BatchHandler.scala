@@ -24,7 +24,7 @@ import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, Waiter}
 import com.verizon.bda.trapezium.framework.{ApplicationManager, BatchTransaction}
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SparkSession, DataFrame}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable.{Map => MMap}

@@ -14,6 +14,8 @@
 */
 package com.verizon.bda.trapezium.framework.kafka
 
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
+
 import scala.io.Source
 
 /**
@@ -31,12 +33,23 @@ class KafkaSinkTestSuite extends KafkaTestSuiteBase {
   test("test kafka sink workflows") {
     createTopic("topic2")
 
+    /**
+      * empty conditionality to avoid the default
+      * @param w
+      * @param a
+      * @param i
+      * @return
+      */
+    def testCondition(w:WorkflowConfig, a:ApplicationConfig, i:Int): Conditionality = {ConditionalityFactory.createEmptyTestCondition()}
+
     // Write the messages to a kafka topic via a Streaming transaction
-    setupWorkflow("kafkaSinkWF1", Seq(input1, input2))
+    setupWorkflow("kafkaSinkWF1", Seq(input1, input2), testCondition)
     Thread.sleep(200)
 
     // Consume the previously written messages in a different Streaming transaction
     setupWorkflow("kafkaSinkWF2", Seq())
     Thread.sleep(200)
   }
+
+
 }
