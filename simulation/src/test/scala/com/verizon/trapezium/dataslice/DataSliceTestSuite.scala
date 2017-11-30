@@ -45,7 +45,7 @@ class DataSliceTestSuite extends ApplicationManagerTestSuite {
 
 
   test("data validation") {
-    val sourcedata = spark.sparkContext.textFile(s + "/src/test/data/testdata")
+    val sourcedata = spark.read.textFile(s + "/src/test/data/testdata")
     val growthdata = spark.sqlContext.read.parquet("target/dataslice")
     val sourceDataCount = sourcedata.count()
     val growthdataCount = growthdata.count()
