@@ -14,16 +14,15 @@
 */
 package com.verizon.bda.trapezium.dal.core.cassandra
 
-import com.datastax.driver.core.{ResultSet, Cluster}
+import com.datastax.driver.core.ResultSet
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import com.verizon.bda.trapezium.dal.core.cassandra.utils.CassandraDAOUtils
-import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.sql.SQLContext
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
-import scala.collection.mutable.ListBuffer
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 /**
   * Created by Faraz on 2/29/16.
@@ -93,14 +92,10 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
       logger.info("ipDaoTTL = " + ipDaoTTL)
 
-
     }
     catch {
-      case e: Exception => {
-        logger.info("exception we got is " , e.getMessage)
-      }
-      case err: Throwable => {
-        logger.info("exception we got is " , err.getMessage)
+      case e: Throwable => {
+        logger.error(s"exception setting up cassandra database - '${e.getMessage}' ", e)
       }
     }
 

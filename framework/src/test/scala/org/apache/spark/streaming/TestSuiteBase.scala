@@ -287,8 +287,8 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
   }
 
   override def afterAll() {
-    if (sc != null) {
-      sc.stop()
+    if (spark.sparkContext != null) {
+      spark.sparkContext.stop()
     }
     System.clearProperty("spark.streaming.clock")
     super.afterAll()
@@ -406,7 +406,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
                                       numPartitions: Int = numInputPartitions
                                       ): StreamingContext = {
     // Create StreamingContext
-    val ssc = new StreamingContext(sc, batchDuration)
+    val ssc = new StreamingContext(spark.sparkContext, batchDuration)
     if (checkpointDir != null) {
        ssc.checkpoint(checkpointDir)
     }
