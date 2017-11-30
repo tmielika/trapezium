@@ -56,7 +56,7 @@ class DataSliceTestSuite extends ApplicationManagerTestSuite {
     val growthColDistinctCount = growthdata.select("col12").distinct().count()
     logger.info("growthColDistinctCount : " + growthColDistinctCount)
     assert(5 == growthColDistinctCount , "Growth column has not correct data")
-    val datasimulationSource = spark.sparkContext.textFile("target/datasimulation/*/*")
+    val datasimulationSource = spark.read.textFile("target/datasimulation/*/*")
     val datasimulationcount = datasimulationSource.count()
     logger.info("datasimulationcount : " + datasimulationcount)
     //TODO: uncomment the test after fixing the bug in groupFile
