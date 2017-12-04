@@ -2,7 +2,6 @@ package com.verizon.bda.trapezium.dal.lucene
 
 import java.io.IOException
 
-import org.apache.lucene.misc.IndexMergeTool
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, PathFilter, Path => HadoopPath}
@@ -27,7 +26,6 @@ import scala.collection.mutable
 import scala.util.Random
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.lucene.analysis.Analyzer
-import org.apache.lucene.util.Version
 
 class LuceneDAO(val location: String,
                 val searchFields: Set[String],
