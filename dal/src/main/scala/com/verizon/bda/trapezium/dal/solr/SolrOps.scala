@@ -68,7 +68,9 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     log.info(s"creating collection : ${collectionName} ")
 
     val nodeCount = SolrClusterStatus.solrNodes.size
-    val numShards = CollectIndices.getHdfsList(solrMap, this.indexFilePath).length
+    val nameNode = solrMap("nameNode")
+    val folderPrefix = solrMap("folderPrefix")
+    val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix, this.indexFilePath).length
     if (numShards == 0) {
       throw new SolrOpsException(s"Cannot create collection with numshard count $numShards")
     }

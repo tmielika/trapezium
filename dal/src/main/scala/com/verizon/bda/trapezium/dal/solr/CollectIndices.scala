@@ -45,7 +45,7 @@ class CollectIndices {
       do {
         val channel: ChannelExec = getConnectedChannel(command)
         if (channel == null) {
-          throw new SolrOpsException(s"could not execute command: $command")
+          throw new SolrOpsException(s"could not execute command: $command on ${session.getHost}")
         }
         log.info(s"running command : ${command} in ${session.getHost}" +
           s" with user ${session.getUserName}")
@@ -60,6 +60,10 @@ class CollectIndices {
         retries = retries - 1
       }
       while (code != 0 && retries > 0)
+      if (code != 0) {
+        throw new SolrOpsException(s"could not execute $command has" +
+          s" returned $code ${session.getHost}")
+      }
     } catch {
       case e: Exception => {
         log.warn(s"Has problem running the command :$command", e)
@@ -95,12 +99,13 @@ class CollectIndices {
 
   def printResult(in: InputStream, channel: ChannelExec): Int = {
     val tmp = new Array[Byte](1024)
+    val strBuilder = new StringBuilder
     var continueLoop = true
     while (continueLoop) {
       while (in.available > 0) {
         val i = in.read(tmp, 0, 1024)
         if (i < 0) continueLoop = false
-        log.info(new String(tmp, 0, i))
+        strBuilder.append(new String(tmp, 0, i))
       }
       if (continueLoop && channel.isClosed) {
         log.warn("exit-status:" + channel.getExitStatus)
@@ -108,7 +113,7 @@ class CollectIndices {
         continueLoop = false
       }
     }
-
+    log.warn(strBuilder.toString)
     channel.getExitStatus
   }
 
@@ -134,6 +139,19 @@ object CollectIndices {
     }
   }
 
+//  def moveFilesFromHdfsToLocalAllAtOnce(solrMap: Map[String, String],
+//                                        indexFilePath: String,
+//                                        movingDirectory: String, coreMap: Map[String, String]):
+//  Map[String, ListBuffer[(String, String)]] = {
+//    "for element in ${array[@]}  " +
+//      "do  " +
+//      "echo $element   " +
+//      "done"
+//    coreMap.foreach((file: String, node: String) => {
+//
+//    })
+//  }
+
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
                                indexFilePath: String,
                                movingDirectory: String, coreMap: Map[String, String])
@@ -144,6 +162,8 @@ object CollectIndices {
     val solrNodes = new ListBuffer[CollectIndices]
 
     val shards = coreMap.keySet.toArray
+
+
     val sshSequenceMap: Map[CollectIndices,
       Array[(CollectIndices, String, String, String)]] = shards.map(shard => {
       log.info(s"shard ${shard}")
@@ -167,6 +187,7 @@ object CollectIndices {
     val sshSequence = getWellDistributed(sshSequenceMap, coreMap.keySet.size)
     val command = s"mkdir ${movingDirectory}"
     machineMap.values.foreach(_.runCommand(command, false))
+
     val fileMap = parallelSshFire(sshSequence, movingDirectory, coreMap)
     machineMap.values.foreach(_.disconnectSession())
     machineMap.clear()
@@ -231,19 +252,15 @@ object CollectIndices {
 
   }
 
-  def getHdfsList(solrMap: Map[String, String], indexFilePath: String): Array[String] = {
+  def getHdfsList(nameNode: String, folderPrefix: String, indexFilePath: String): Array[String] = {
     val configuration: Configuration = new Configuration()
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
     // 2. Get the instance of the HDFS
-    val nameNaode = solrMap("nameNode")
-    // + config.getString("indexFilesPath")
-    // config.getString("hdfs")
-    val hdfs = FileSystem.get(new URI(s"hdfs://${nameNaode}"), configuration)
+    val hdfs = FileSystem.get(new URI(s"hdfs://${nameNode}"), configuration)
     // 3. Get the metadata of the desired directory
-    val fileStatus = hdfs.listStatus(new Path(s"hdfs://${nameNaode}" + indexFilePath))
+    val fileStatus = hdfs.listStatus(new Path(s"hdfs://${nameNode}" + indexFilePath))
     // 4. Using FileUtil, getting the Paths for all the FileStatus
     val paths = FileUtil.stat2Paths(fileStatus)
-    val folderPrefix = solrMap("folderPrefix")
     paths.map(_.toString).filter(p => p.contains(folderPrefix))
   }
 
