@@ -14,6 +14,8 @@ import org.apache.spark.sql.types._
 import org.apache.lucene.document._
 import java.sql.Timestamp
 
+import org.apache.lucene.index.IndexableField
+
 trait SparkLuceneConverter extends SparkSQLProjections with Serializable with Logging {
 
   def rowToDoc(r: Row): Document
@@ -33,16 +35,11 @@ trait SparkLuceneConverter extends SparkSQLProjections with Serializable with Lo
       case StringType => new TextField(name, value.asInstanceOf[String], store)
       // On integer, long, float and double we do want to push range queries and indexing distinct
       // value makes no sense
-      case IntegerType =>
-        new IntPoint(name, value.asInstanceOf[Int])
-      case LongType =>
-        new LongPoint(name, value.asInstanceOf[Long])
-      case FloatType =>
-        new FloatPoint(name, value.asInstanceOf[Float])
-      case DoubleType =>
-        new DoublePoint(name, value.asInstanceOf[Double])
-      case _ =>
-        throw new LuceneDAOException(s"unsupported sparksql ${dataType} for indexed field")
+      case IntegerType => new LegacyIntField(name, value.asInstanceOf[Int], store)
+      case LongType => new LegacyLongField(name, value.asInstanceOf[Long], store)
+      case FloatType => new LegacyFloatField(name, value.asInstanceOf[Float], store)
+      case DoubleType => new LegacyDoubleField(name, value.asInstanceOf[Double], store)
+      case _ => throw new LuceneDAOException(s"unsupported sparksql ${dataType} for indexed field")
     }
   }
 
@@ -84,9 +81,16 @@ trait SparkLuceneConverter extends SparkSQLProjections with Serializable with Lo
     }
   }
 
-  def toStoredField(name: String,
-                    dataType: DataType,
-                    value: Any): Field = {
-    new StoredField(name, ser.serialize(value).array())
+  def fromStoredField(field: IndexableField,
+                      dataType: DataType) : Any = {
+    dataType match {
+      case StringType => field.stringValue()
+      case IntegerType => field.numericValue().intValue()
+      case LongType => field.numericValue().longValue()
+      case FloatType => field.numericValue().floatValue()
+      case DoubleType => field.numericValue().doubleValue()
+      case _ =>
+        throw new LuceneDAOException(s"unsupported sparksql ${dataType} from indexed field")
+    }
   }
 }
