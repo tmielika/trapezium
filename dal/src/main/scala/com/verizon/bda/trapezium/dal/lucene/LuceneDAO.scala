@@ -170,7 +170,7 @@ class LuceneDAO(val location: String,
       directory.close()
 
       //Remove the lock for Solr HDFS/Local Uploads, Windows will handle / differently
-      val lockFile = new File(shuffleIndexFile + File.separator + IndexWriter.WRITE_LOCK_NAME)
+      val lockFile = new File(shuffleIndexFile , IndexWriter.WRITE_LOCK_NAME)
 
       if (!lockFile.delete()) {
         log.error(s"Error deleting lock file after index writer is closed ${lockFile.getAbsolutePath()}")
@@ -231,6 +231,12 @@ class LuceneDAO(val location: String,
     log.info(s"Loading ${numPartitions} indices from path ${indexPath}")
 
     val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
+
+    /**
+      * release/unpersist older shards so that they are garbage collected
+      */
+    if(_shards!=null)
+      _shards.unpersist(true)
 
     _shards = RDDUtils.mapPartitionsInternal(partitionIds, (indices: Iterator[Int]) => {
       indices.map((index: Int) => {
