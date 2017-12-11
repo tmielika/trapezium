@@ -1,6 +1,6 @@
 package com.verizon.bda.trapezium.dal.solr
 
-import java.io.InputStream
+import java.io.{File, InputStream}
 import java.net.URI
 
 import com.jcraft.jsch.{ChannelExec, JSch, Session}
@@ -139,18 +139,18 @@ object CollectIndices {
     }
   }
 
-//  def moveFilesFromHdfsToLocalAllAtOnce(solrMap: Map[String, String],
-//                                        indexFilePath: String,
-//                                        movingDirectory: String, coreMap: Map[String, String]):
-//  Map[String, ListBuffer[(String, String)]] = {
-//    "for element in ${array[@]}  " +
-//      "do  " +
-//      "echo $element   " +
-//      "done"
-//    coreMap.foreach((file: String, node: String) => {
-//
-//    })
-//  }
+  //  def moveFilesFromHdfsToLocalAllAtOnce(solrMap: Map[String, String],
+  //                                        indexFilePath: String,
+  //                                        movingDirectory: String, coreMap: Map[String, String]):
+  //  Map[String, ListBuffer[(String, String)]] = {
+  //    "for element in ${array[@]}  " +
+  //      "do  " +
+  //      "echo $element   " +
+  //      "done"
+  //    coreMap.foreach((file: String, node: String) => {
+  //
+  //    })
+  //  }
 
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
                                indexFilePath: String,
@@ -162,37 +162,42 @@ object CollectIndices {
     val solrNodes = new ListBuffer[CollectIndices]
 
     val shards = coreMap.keySet.toArray
-
-
-    val sshSequenceMap: Map[CollectIndices,
-      Array[(CollectIndices, String, String, String)]] = shards.map(shard => {
-      log.info(s"shard ${shard}")
-      val tmp = shard.split("_")
-      val folderPrefix = if (solrMap("folderPrefix").charAt(0) == '/') {
-        solrMap("folderPrefix")
-      } else {
-        "/" + solrMap("folderPrefix")
-      }
+    var partFileMap = MMap[String, ListBuffer[String]]()
+    //    coreMap.toList.foreach((shardId: String, host: String) => {
+    //      val tmp = shardId.split("_")
+    //
+    //    })
+    for ((shardId, host) <- coreMap) {
+      val tmp = shardId.split("_")
+      val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
       val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1)
-      log.info(s"partFile ${partFile}")
-      val file = indexFilePath + partFile
-      val machine: CollectIndices = getMachine(coreMap(shard)
-        .split(":")(0), solrNodeUser, machinePrivateKey)
-      val command = s"hdfs dfs -copyToLocal $file ${movingDirectory};" +
-        s"chmod 777 -R ${movingDirectory};"
-      log.info(s"command: ${command}")
-      (machine, command, partFile, shard)
-    }).groupBy(_._1)
+      if (partFileMap.contains(host)) {
+        partFileMap(host).append((partFile))
+      } else {
+        partFileMap(host) = new ListBuffer[String]
+        partFileMap(host).append((partFile))
+      }
+    }
+    var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
+    for ((host: String, partFileList: ListBuffer[String]) <- partFileMap) {
+      val machine: CollectIndices = getMachine(host.split(":")(0), solrNodeUser, machinePrivateKey)
+      val command = s"partFiles=(" + partFileList.mkString("\t") + ")" +
+        ";for partFile in ${partFiles[@]};" +
+        " do " +
+        "hdfs dfs -copyToLocal " + indexFilePath + "$partFile  " + movingDirectory + " ;" +
+        " done ;chmod  -R 777  " + movingDirectory
+      log.info(s"$machine running $command")
+      array.append((machine, command))
+    }
 
-    val sshSequence = getWellDistributed(sshSequenceMap, coreMap.keySet.size)
-    val command = s"mkdir ${movingDirectory}"
-    machineMap.values.foreach(_.runCommand(command, false))
-
-    val fileMap = parallelSshFire(sshSequence, movingDirectory, coreMap)
-    machineMap.values.foreach(_.disconnectSession())
-    machineMap.clear()
-    log.info(s"map prepared was " + fileMap.toMap)
-    fileMap.toMap[String, ListBuffer[(String, String)]]
+    val pc1: ParArray[(CollectIndices, String)] = ParArray
+      .createFromCopy(array.toArray)
+    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
+    .forkjoin.ForkJoinPool(array.length))
+    pc1.map(p => {
+      p._1.runCommand(p._2, true)
+    })
+    return null
   }
 
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
@@ -221,36 +226,38 @@ object CollectIndices {
     map
   }
 
-  def getWellDistributed[A: ClassTag, B: ClassTag](map: Map[A, Array[B]], size: Int): Array[B] = {
-    val numMachines = map.keySet.size
-    val map1 = new java.util.HashMap[A, Int]
-    val lb = new ListBuffer[B]
-    val li = map.keySet.toList
-    var recordCount = 0
-    var tempcount = 0
-    var name: A = map.head._1
-    var j = 0
-    for (i <- 0 until size) {
-      j = i
-      do {
-        name = li(j % numMachines)
-        if (!map1.containsKey(name)) {
-          map1.put(name, 0)
-        }
-        tempcount = map1.get(name)
-        recordCount = map(name).size
-        j = j + 1
-      }
-      while (recordCount <= tempcount && (j - i) != numMachines)
-      if ((j - i) != numMachines) {
-        lb.append(map.get(name).get(tempcount))
-      }
-
-      map1.put(name, tempcount + 1)
-    }
-    lb.toArray
-
-  }
+  //
+  // def getWellDistributed[A: ClassTag, B:
+  // ClassTag](map: Map[A, Array[B]], size: Int): Array[B] = {
+  //    val numMachines = map.keySet.size
+  //    val map1 = new java.util.HashMap[A, Int]
+  //    val lb = new ListBuffer[B]
+  //    val li = map.keySet.toList
+  //    var recordCount = 0
+  //    var tempcount = 0
+  //    var name: A = map.head._1
+  //    var j = 0
+  //    for (i <- 0 until size) {
+  //      j = i
+  //      do {
+  //        name = li(j % numMachines)
+  //        if (!map1.containsKey(name)) {
+  //          map1.put(name, 0)
+  //        }
+  //        tempcount = map1.get(name)
+  //        recordCount = map(name).size
+  //        j = j + 1
+  //      }
+  //      while (recordCount <= tempcount && (j - i) != numMachines)
+  //      if ((j - i) != numMachines) {
+  //        lb.append(map.get(name).get(tempcount))
+  //      }
+  //
+  //      map1.put(name, tempcount + 1)
+  //    }
+  //    lb.toArray
+  //
+  //  }
 
   def getHdfsList(nameNode: String, folderPrefix: String, indexFilePath: String): Array[String] = {
     val configuration: Configuration = new Configuration()
