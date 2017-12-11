@@ -310,8 +310,10 @@ class LuceneDAO(val location: String,
     /**
       * release/unpersist older shards so that they are garbage collected
       */
-    if(_shards!=null)
+    if(_shards!=null) {
+      log.info("Removing the previous shards and unpersisting that RDD")
       _shards.unpersist(true)
+    }
 
     _shards = RDDUtils.mapPartitionsInternal(partitionIds, (indices: Iterator[Int]) => {
       indices.map((index: Int) => {
