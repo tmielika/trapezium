@@ -57,6 +57,13 @@
             <artifactId>trapezium-api</artifactId>
             <version>2.0.0-SNAPSHOT</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.verizon.bda</groupId>
+            <artifactId>open-auth</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.binary.version}</artifactId>
