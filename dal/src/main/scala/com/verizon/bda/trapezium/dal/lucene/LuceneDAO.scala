@@ -1,18 +1,22 @@
 package com.verizon.bda.trapezium.dal.lucene
 
-import java.io.IOException
+import java.io._
 
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, FileSystem, PathFilter, Path => HadoopPath}
+import org.apache.hadoop.fs.{FileStatus, FileSystem, FileUtil, PathFilter, Path => HadoopPath}
 import org.apache.log4j.Logger
-import org.apache.lucene.index._
+import org.apache.lucene.analysis.Analyzer
+import org.apache.lucene.document.Field
 import org.apache.lucene.index.IndexWriterConfig.OpenMode
-import org.apache.lucene.store.{Directory, HardlinkCopyDirectoryWrapper, MMapDirectory}
-import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.lucene.store.{HardlinkCopyDirectoryWrapper}
+import org.apache.lucene.index._
+import org.apache.lucene.store.{Directory, LockFactory, MMapDirectory, NoLockFactory}
+import org.apache.solr.store.hdfs.HdfsDirectory
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
 import java.sql.Time
@@ -21,12 +25,10 @@ import java.io.File
 import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.spark.util.{DalUtils, RDDUtils}
+import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable
 import scala.util.Random
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.lucene.analysis.Analyzer
-import org.apache.lucene.document.Field
 
 class LuceneDAO(val location: String,
                 val searchFields: Set[String],
@@ -35,9 +37,12 @@ class LuceneDAO(val location: String,
                 val luceneAnalyzer: String = "keyword",
                 val stored: Boolean = false,
                 storageLevel: StorageLevel = StorageLevel.DISK_ONLY) extends Serializable {
+
+  import LuceneDAO._
+
   @transient lazy val log = Logger.getLogger(classOf[LuceneDAO])
 
-  @transient private lazy val analyzer : Analyzer = luceneAnalyzer match {
+  @transient private lazy val analyzer: Analyzer = luceneAnalyzer match {
     case "keyword" => new KeywordAnalyzer()
     case "standard" => new StandardAnalyzer()
     case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
@@ -48,15 +53,6 @@ class LuceneDAO(val location: String,
     else Field.Store.NO
 
   log.info(s"Using ${luceneAnalyzer} analyzer")
-
-  val PREFIX = "trapezium-lucenedao"
-  val SUFFIX = "part-"
-
-  val INDICES_PREFIX = "indices"
-  val INDEX_PREFIX = "index"
-
-  val DICTIONARY_PREFIX = "dictionary"
-  val SCHEMA_PREFIX = "schema"
 
   val converter = OLAPConverter(searchFields, store, searchAndStoredFields, storedFields)
   private var _dictionary: DictionaryManager = _
@@ -79,10 +75,11 @@ class LuceneDAO(val location: String,
 
   import org.apache.lucene.store.FSDirectory
   import java.nio.file.Paths
+
   /**
     * @param sc
     * @param outputPath desired outpath of merged shards
-    * @param numShards total shards
+    * @param numShards  total shards
     */
   def merge(sc: SparkContext,
             outputPath: String,
@@ -129,8 +126,9 @@ class LuceneDAO(val location: String,
   val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
                                m: mutable.WrappedArray[Map[String, Double]]) =>
     val indVal = s.zip(m).flatMap { x =>
-      if (x._2 == null)
+      if (x._2 == null) {
         Map[Int, Double]()
+      }
       else {
         val output: Map[Int, Double] = x._2.map(kv => (_dictionary.indexOf(x._1, kv._1), kv._2))
         output.filter(_._1 >= 0)
@@ -255,19 +253,100 @@ class LuceneDAO(val location: String,
   // TODO: load logic will move to LuceneRDD
   @transient private var _shards: RDD[LuceneShard] = _
 
+  /**
+    * @param sc
+    * @param outputPath desired outpath of merged shards
+    * @param numShards  total shards
+    */
+  def merge(sc: SparkContext,
+            outputPath: String,
+            numShards: Int): Unit = {
+    val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
+    val indexDir = new HadoopPath(indexPath)
+    val fs = FileSystem.get(indexDir.toUri, sc.hadoopConfiguration)
+
+    val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
+    val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
+
+    val files: Seq[String] = fs.listStatus(indexDir, new PathFilter {
+      override def accept(path: HadoopPath): Boolean = {
+        path.getName.startsWith(SUFFIX)
+      }
+    }).map(status => s"${status.getPath.toString}/${INDEX_PREFIX}")
+
+    val mergePathPrefix = outputPath.stripSuffix("/") + "/" + INDICES_PREFIX + "/"
+
+    sc.parallelize(files, numShards).mapPartitionsWithIndex((partition, fileIterator) => {
+      val mergePath = mergePathPrefix + s"${SUFFIX}${partition}" + "/" + INDEX_PREFIX
+      val conf = new Configuration
+
+      val mergedIndex =
+        new HdfsDirectory(new HadoopPath(mergePath),
+          NoLockFactory.INSTANCE.asInstanceOf[LockFactory],
+          conf, 4096)
+
+      val mergePolicy: TieredMergePolicy = new TieredMergePolicy()
+
+      mergePolicy.setNoCFSRatio(0.0)
+      mergePolicy.setMaxMergeAtOnce(10000)
+      mergePolicy.setSegmentsPerTier(10000)
+
+      val writerConfig = new IndexWriterConfig()
+        .setOpenMode(OpenMode.CREATE)
+        .setUseCompoundFile(false)
+        .setRAMBufferSizeMB(1024.0)
+        .setMergePolicy(mergePolicy)
+
+      log.info(s"Using mergePolicy: ${mergePolicy}")
+
+      val files = fileIterator.toArray
+
+      val writer = new IndexWriter(mergedIndex, writerConfig)
+      val indexes = new Array[Directory](files.length)
+
+      var i = 0
+      while (i < files.length) {
+        val fileName = files(i)
+        indexes(i) = new HdfsDirectory(new HadoopPath(fileName),
+          NoLockFactory.INSTANCE.asInstanceOf[LockFactory],
+          conf, 4096)
+        i += 1
+      }
+
+      log.info(s"Logically merging ${files.size} shards into one shard")
+      val start = System.currentTimeMillis
+
+      writer.addIndexes(indexes: _*)
+
+      val elapsedSecs = (System.currentTimeMillis() - start) / 1000.0f
+      log.info(s"Logical merge took ${elapsedSecs} secs")
+
+      writer.close()
+      Iterator.empty
+    }).count()
+
+    val outputDictionaryPath = new HadoopPath(outputPath.stripSuffix("/") + "/" + DICTIONARY_PREFIX)
+    val outputSchemaPath = new HadoopPath(outputPath.stripSuffix("/") + "/" + SCHEMA_PREFIX)
+
+    FileUtil.copy(fs, new HadoopPath(dictionaryPath), fs, outputDictionaryPath, false, true, sc.hadoopConfiguration)
+    FileUtil.copy(fs, new HadoopPath(schemaPath), fs, outputSchemaPath, false, true, sc.hadoopConfiguration)
+
+  }
+
   def load(sc: SparkContext): Unit = {
     val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
     val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
     val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
 
     // load the schema object into RDD
-    val schemaRDD = sc.objectFile(schemaPath).map{x: Any => x.asInstanceOf[StructField]}
+    val schemaRDD = sc.objectFile(schemaPath).map { x: Any => x.asInstanceOf[StructField] }
     val schema = StructType(schemaRDD.collect)
 
     converter.setSchema(schema)
 
     val indexDir = new HadoopPath(indexPath)
     val fs = FileSystem.get(indexDir.toUri, sc.hadoopConfiguration)
+
     val status: Array[FileStatus] = fs.listStatus(indexDir, new PathFilter {
       override def accept(path: HadoopPath): Boolean = {
         path.getName.startsWith(SUFFIX)
@@ -342,7 +421,7 @@ class LuceneDAO(val location: String,
   }
 
   //search a query and retrieve for all stored fields
-  def search(queryStr: String, sample: Double = 1.0) : RDD[Row] = {
+  def search(queryStr: String, sample: Double = 1.0): RDD[Row] = {
     search(queryStr, storedFields.toSeq ++ searchAndStoredFields.toSeq, sample)
   }
 
@@ -369,7 +448,7 @@ class LuceneDAO(val location: String,
                         other: OLAPAggregator) => {
     agg.merge(other)
   }
-  
+
   // TODO: Multiple  measures can be aggregated at same time
   def aggregate(queryStr: String,
                 measure: String,
@@ -525,4 +604,17 @@ class LuceneDAO(val location: String,
     }.toMap
     transformed
   }
+}
+
+object LuceneDAO {
+
+  val PREFIX = "trapezium-lucenedao"
+  val SUFFIX = "part-"
+
+  val INDICES_PREFIX = "indices"
+  val INDEX_PREFIX = "index"
+
+  val DICTIONARY_PREFIX = "dictionary"
+  val SCHEMA_PREFIX = "schema"
+
 }

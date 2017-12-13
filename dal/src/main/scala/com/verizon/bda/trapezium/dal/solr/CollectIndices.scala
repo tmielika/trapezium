@@ -109,12 +109,12 @@ class CollectIndices {
         strBuilder.append(new String(tmp, 0, i))
       }
       if (continueLoop && channel.isClosed) {
-        log.warn("exit-status:" + channel.getExitStatus)
-        log.warn("with error stream as " + channel.getErrStream.toString)
+        log.info("exit-status:" + channel.getExitStatus)
+        log.info("with error stream as " + channel.getErrStream.toString)
         continueLoop = false
       }
     }
-    log.warn(strBuilder.toString)
+    log.info(strBuilder.toString)
     channel.getExitStatus
   }
 
@@ -207,9 +207,23 @@ object CollectIndices {
     pc1.map(p => {
       p._1.runCommand(p._2, true)
     })
-    return null
+
   }
 
+  def closeSession(): Unit = {
+    machineMap.values.foreach(_.disconnectSession())
+    machineMap.clear()
+  }
+
+  def createMovingDirectory(movingDirectory: String): Unit = {
+    val command = s"mkdir ${movingDirectory}"
+    machineMap.values.foreach(_.runCommand(command, false))
+  }
+
+  def deleteDirectory(oldCollectionDirectory: String): Unit = {
+    val command = s"rm -rf ${oldCollectionDirectory}"
+    machineMap.values.foreach(_.runCommand(command, false))
+  }
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
                       directory: String,
                       coreMap: Map[String, String]): MMap[String, ListBuffer[(String, String)]] = {
