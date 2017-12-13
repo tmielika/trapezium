@@ -9,7 +9,6 @@ import org.apache.log4j.Logger
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.document.Field
 import org.apache.lucene.index.IndexWriterConfig.OpenMode
-import org.apache.lucene.store.{HardlinkCopyDirectoryWrapper}
 import org.apache.lucene.index._
 import org.apache.lucene.store.{Directory, LockFactory, MMapDirectory, NoLockFactory}
 import org.apache.solr.store.hdfs.HdfsDirectory
@@ -76,45 +75,6 @@ class LuceneDAO(val location: String,
   import org.apache.lucene.store.FSDirectory
   import java.nio.file.Paths
 
-  /**
-    * @param sc
-    * @param outputPath desired outpath of merged shards
-    * @param numShards  total shards
-    */
-  def merge(sc: SparkContext,
-            outputPath: String,
-            numShards: Int): Unit = {
-    // 1. Read the part files from location/INDICES_PREFIX and
-    // then get all the names of the part files
-    val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
-    val indexDir = new HadoopPath(indexPath)
-    val fs = FileSystem.get(indexDir.toUri, sc.hadoopConfiguration)
-
-    val status: Array[FileStatus] = fs.listStatus(indexDir, new PathFilter {
-      override def accept(path: HadoopPath): Boolean = {
-        path.getName.startsWith(SUFFIX)
-      }
-    })
-
-    sc.parallelize(status, numShards).mapPartitionsWithIndex((partition, files) => {
-      val mergePath = outputPath + s"part-${partition}"
-      val mergedIndex = FSDirectory.open(Paths.get(mergePath))
-      val writer = new IndexWriter(mergedIndex, new IndexWriterConfig(null)
-        .setOpenMode(OpenMode.CREATE))
-      val indexes = new Array[Directory](files.length)
-      var i = 0
-      while (files.hasNext) {
-        indexes(i) = new HardlinkCopyDirectoryWrapper(FSDirectory
-          .open(Paths.get(files.next().getPath.getName)))
-        i = i + 1
-      }
-      writer.addIndexes(indexes: _*)
-      writer.commit()
-      writer.close()
-      Iterator.empty
-    }).count()
-
-  }
 
 
   /**
