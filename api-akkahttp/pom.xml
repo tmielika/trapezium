@@ -60,7 +60,7 @@
 
         <dependency>
             <groupId>com.verizon.bda</groupId>
-            <artifactId>open-auth</artifactId>
+            <artifactId>authorization</artifactId>
             <version>2.0.0</version>
         </dependency>
 
