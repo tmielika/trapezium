@@ -13,6 +13,7 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map => MMap}
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
+import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 /**
@@ -190,6 +191,15 @@ object CollectIndices {
       array.append((machine, command))
     }
 
+    val f = Future {
+      sleep(Random.nextInt(500))
+      42
+    }
+    println("before onComplete")
+    f.onComplete {
+      case Success(value) => println(s"Got the callback, meaning = $value")
+      case Failure(e) => e.printStackTrace
+    }
     val pc1: ParArray[(CollectIndices, String)] = ParArray
       .createFromCopy(array.toArray)
     pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
