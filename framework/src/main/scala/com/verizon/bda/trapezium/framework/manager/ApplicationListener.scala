@@ -44,20 +44,15 @@ class ApplicationListener(workflowConfig: WorkflowConfig) extends StreamingListe
     DataValidator.resetAccumulators
 
     workflowConfig.dataSource match {
-
       case "KAFKA" => {
-
         if (KafkaDStream.saveKafkaStreamOffsets (workflowConfig)) {
           ApplicationManager.synchronized {
             ApplicationManager.notifyAll()
           }
           logger.info("Detected new partition, notify restart streaming context")
-
         }
       }
-
     }
-
   }
 
   override def onBatchStarted(batchStarted: StreamingListenerBatchStarted): Unit = {

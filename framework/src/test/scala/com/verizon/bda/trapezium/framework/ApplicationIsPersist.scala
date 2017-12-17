@@ -16,7 +16,7 @@ package com.verizon.bda.trapezium.framework
 
 import com.verizon.bda.trapezium.framework.handler.FileCopy
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
 
 /**
@@ -34,20 +34,22 @@ class ApplicationIsPersist extends ApplicationManagerTestSuite {
     FileCopy.fileDelete("target/testdata")
     ApplicationManager.updateWorkflowTime(startTime, "isPersistTest")
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("isPersistTest")
+    val spark = SparkSession.builder().config(ApplicationManager.getSparkConf(appConfig)).getOrCreate()
+
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1)(sc)
-    val sqlContext = new SQLContext(sc)
+      appConfig, maxIters = 1)(spark)
+
     logger.info("file should not present")
     intercept[AssertionError] {
-      val dfTestBatchTxn6 = sqlContext.read.parquet(
+      val dfTestBatchTxn6 = spark.read.parquet(
         "../commons-framework/target/testdata/TestBatchTxn6")
       assert(dfTestBatchTxn6.count() > 1)
     }
-    val dfTestBatchTxn7 = sqlContext.read.parquet(
+    val dfTestBatchTxn7 = spark.read.parquet(
       "../commons-framework/target/testdata/TestBatchTxn7")
     assert(dfTestBatchTxn7.count() > 1)
-    val dfTestBatchTxn8 = sqlContext.read.parquet(
+    val dfTestBatchTxn8 = spark.read.parquet(
       "../commons-framework/target/testdata/TestBatchTxn8")
     assert(dfTestBatchTxn8.count() > 1)
   }

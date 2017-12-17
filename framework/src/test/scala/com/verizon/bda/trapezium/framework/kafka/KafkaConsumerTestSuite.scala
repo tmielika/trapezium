@@ -219,7 +219,7 @@ class KafkaConsumerTestSuite extends KafkaTestSuiteBase {
     balancedKafkaConsumer2.shutdown();
 
     logger.info("waiting for rebalance on consumer-1")
-    offsetLatch.await(10, TimeUnit.SECONDS)
+    offsetLatch.await(20 * 3, TimeUnit.SECONDS) // Give sufficient time for consumer switch
 
     producer.send(new ProducerRecord[String, String](topiczz,0,System.currentTimeMillis(), "0", "VALUE-1"))
     producer.send(new ProducerRecord[String, String](topiczz,1,System.currentTimeMillis(), "1", "VALUE-0"))
@@ -250,8 +250,12 @@ class KafkaConsumerTestSuite extends KafkaTestSuiteBase {
 
     var untilOffsetReference : AtomicReference[util.Map[TopicPartition, java.lang.Long]] = new AtomicReference[util.Map[TopicPartition, java.lang.Long]]()
 
+    var offsetCount = 0
     val offsetManager = new IOffsetManager {
       override def getOffsets(kafkaTopicName: String): Offsets = {
+        offsetCount+=1
+        logger.info(s"Offset switch callback count = ${offsetCount}")
+
         //do nothing just catch it.
         offsetLatch.countDown()
         if(untilOffsetReference==null || untilOffsetReference.get()==null ) {
@@ -317,7 +321,7 @@ class KafkaConsumerTestSuite extends KafkaTestSuiteBase {
     balancedKafkaConsumer3.start()
 
     logger.info("waiting for rebalance on consumer-1")
-    offsetLatch.await(10, TimeUnit.SECONDS)
+    offsetLatch.await(20, TimeUnit.SECONDS)
 
     producer.send(new ProducerRecord[String, String](topiczz,0,System.currentTimeMillis(), "0", "VALUE-1"))
     producer.send(new ProducerRecord[String, String](topiczz,1,System.currentTimeMillis(), "1", "VALUE-0"))
@@ -327,6 +331,12 @@ class KafkaConsumerTestSuite extends KafkaTestSuiteBase {
 
     logger.info("[consumers-switches] Waiting to receive messages")
     messageLatch.await(20, TimeUnit.SECONDS)
+
+//    Give it a sufficient chance for consumer switch if it did not take place
+    if(offsetLatch.getCount()!=0)
+      messageLatch.await(20 * 3, TimeUnit.SECONDS)
+
+    assert(offsetLatch.getCount()==0, "[WARNING] Offset switch did not happen in time so correct number of messages must not have been received")
     assert(messageCount.get()==8, "Correct number of Messages not received")
   }
 

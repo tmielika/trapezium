@@ -15,28 +15,26 @@
 package com.verizon.bda.trapezium.validation
 
 import java.io.File
-import java.nio.file.{Paths, Path}
-
+import java.nio.file.{Path, Paths}
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
 
 /**
- * Created by parmana on 11/14/16.
+ * @author parmana on 11/14/16.
  */
-class DropRowWithExctraColumn  extends ApplicationManagerTestSuite {
+class DropRowWithExtraColumn  extends ApplicationManagerTestSuite {
   val currentRelativePath: Path = Paths.get("")
   val path: String = currentRelativePath.toAbsolutePath.toString
   import org.apache.commons.io.FileUtils
   FileUtils.deleteDirectory(new File(path + "/tmp/dropRowWithExtraColumn"))
 
-  test("Extra Column Drop"){
+  test("Extra Column Drop") {
     val workFlowToRun: WorkflowConfig =
       ApplicationManager.setWorkflowConfig("dropRowWithExtraColumn")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
-     val cnt = sc.textFile(path + "/tmp/dropRowWithExtraColumn").count()
-     assert(cnt == 1, "Excpected numner of row is not correct")
-
+      appConfig, maxIters = 1)(spark)
+    val cnt = sc.textFile(path + "/tmp/dropRowWithExtraColumn").count()
+    assert(cnt == 1, "Excpected numner of row is not correct")
   }
 }

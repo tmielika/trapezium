@@ -14,19 +14,14 @@
 */
 package com.verizon.bda.trapezium.framework
 
-import java.util.Calendar
-
 import com.verizon.bda.trapezium.framework.handler.FileCopy
-import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
-
 /**
   * @author hutashan test wild char
   */
 class ApplicationManagerWildCharSuite extends ApplicationManagerTestSuite {
- val startTime = System.currentTimeMillis()-500000
+  val startTime = System.currentTimeMillis() - 500000
 
- override def beforeAll(): Unit = {
+  override def beforeAll(): Unit = {
     super.beforeAll()
     FileCopy.fileDelete
     FileCopy.copyFiles(5, "special")
@@ -37,16 +32,15 @@ class ApplicationManagerWildCharSuite extends ApplicationManagerTestSuite {
     val workFlowToRun = ApplicationManager.setWorkflowConfig("wildcharWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1)(spark)
   }
-
 
   test("file split with wild char workflow should successfully run the batch workflow") {
     val workFlowToRun = ApplicationManager.setWorkflowConfig("fileSplitSpecialCharWorkFlow")
     ApplicationManager.updateWorkflowTime(startTime, "fileSplitSpecialCharWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1)(spark)
   }
 
   test("file split with time stamp wild char workflow should successfully run the batch workflow") {
@@ -55,16 +49,12 @@ class ApplicationManagerWildCharSuite extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(startTime, "fileSplittimestampWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1)(spark)
   }
 
   override def afterAll(): Unit = {
     // Delete the temp directory
     FileCopy.fileDelete
-
     super.afterAll()
-
   }
-
-
 }

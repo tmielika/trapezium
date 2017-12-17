@@ -1,4 +1,4 @@
-package com.verizon.bda.trapezium.framework.kafka.custom
+package com.verizon.bda.trapezium.framework.kafka.ha
 
 import java.lang.Long
 import java.util

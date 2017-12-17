@@ -20,7 +20,7 @@ import org.apache.spark.streaming.dstream.DStream
 import org.slf4j.LoggerFactory
 import scala.collection.mutable.{Map => MMap}
 import scala.io.Source
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{Row, SparkSession}
 import com.typesafe.config.Config
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.conf.Configuration
@@ -32,7 +32,6 @@ import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
  *         pankaj added test cases for running more than one workflow in single test case
  */
 class ApplicationManagerSuite extends ApplicationManagerTestSuite {
-
   test("getConfig should read the config file") {
     assert(appConfig.env == "local")
     assert(appConfig.sparkConfParam.getString("spark.akka.frameSize") == "100")
@@ -86,7 +85,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     ApplicationManager.runBatchWorkFlow(
       workFlow,
       appConfig,
-      maxIters = 2)(sc)
+      maxIters = 2)(spark)
   }
 
   test("multiple workflows in single test"){
@@ -134,7 +133,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig)(spark)
   }
 
   test("read parquet file") {
@@ -142,7 +141,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("readParquet")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(spark)
   }
 
   test("read avro file") {
@@ -150,7 +149,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("readAvro")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(spark)
   }
 
   test("read json file") {
@@ -158,7 +157,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("readJson")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(spark)
   }
 
   test("read test local envconf file with environment values ") {
@@ -181,7 +180,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     ApplicationManager.runBatchWorkFlow(
       workFlow,
       appConfig,
-      maxIters = 2 )(sc)
+      maxIters = 2 )(spark)
     fileDelete
   }
 
@@ -208,7 +207,6 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     fsystem.delete(scrPath, true)
   }
 
-
   test("test registerhostname") {
 
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
@@ -227,7 +225,6 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     assert(hostNAmeFromApplication.equals(hostName))
 
   }
-
 }
 
 class WorkflowThread (val workflowName: String) extends Thread {
@@ -247,17 +244,10 @@ class WorkflowThread (val workflowName: String) extends Thread {
       localWorkflowName = ApplicationManager.getWorkflowConfig.workflow
       this.wait
     }
-
   }
 
   def getWorkflowName: String = {
-
     logger.info(s"localWorkflowName is $localWorkflowName")
     localWorkflowName
   }
-
-
-
-
-
 }

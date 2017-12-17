@@ -1,4 +1,4 @@
-package com.verizon.bda.trapezium.framework.kafka.custom
+package com.verizon.bda.trapezium.framework.kafka.ha
 
 import org.apache.kafka.common.TopicPartition
 import java.util

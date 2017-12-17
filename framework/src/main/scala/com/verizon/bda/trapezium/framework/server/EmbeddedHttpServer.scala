@@ -64,6 +64,9 @@ sealed trait EmbeddedHttpServer {
   def start(config: Config)
 
   def stop(stopSparkContext: Boolean = false)
+
+  // captures whether the attempt to start is completed - it is possible that start may have failed
+  def isStarted() : Boolean
 }
 
 class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
@@ -133,6 +136,14 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
   }
 
   def compose(routes: List[Route]): Route = routes.reduce((r1, r2) => r1 ~ r2)
+
+  override def isStarted(): Boolean = {
+    if(bindingFuture==null)
+      return false
+
+    logger.info(s"Status of the future is ${bindingFuture.isCompleted}")
+    bindingFuture.isCompleted
+  }
 }
 
 class JettyServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHttpServer {
@@ -188,6 +199,12 @@ class JettyServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHt
     }
 
     server.stop()
+  }
+
+  override def isStarted(): Boolean = {
+    if(server==null)
+      return false
+    "STARTED".equals(server.getState())
   }
 }
 
