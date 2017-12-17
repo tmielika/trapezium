@@ -15,7 +15,6 @@
 package com.verizon.bda.trapezium.framework
 
 import java.util.Calendar
-
 import com.verizon.bda.trapezium.framework.handler.FileCopy
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
@@ -32,12 +31,19 @@ class ApplicationManagerFileSplitSuite extends ApplicationManagerTestSuite {
     FileCopy.copyFiles(2)
   }
 
+  test("Workflow parquet file readfull data set") {
+    val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("readParquet_readOnly")
+    ApplicationManager.runBatchWorkFlow(
+      workFlowToRun,
+      appConfig, maxIters = 1)(spark)
+  }
+
   test("testDataSplitFiles workflow should successfully run the batch workflow") {
     ApplicationManager.updateWorkflowTime(startTime, "fileSplitWorkFlow")
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("fileSplitWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig , maxIters = 1)(sc)
+      appConfig , maxIters = 1)(spark)
   }
 
   test("testDataSplitFiles ") {
@@ -51,7 +57,7 @@ class ApplicationManagerFileSplitSuite extends ApplicationManagerTestSuite {
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("fileSplitWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(spark)
   }
 
   def getStartOfDay(dt : java.util.Date) : java.util.Date = {
@@ -67,10 +73,6 @@ class ApplicationManagerFileSplitSuite extends ApplicationManagerTestSuite {
   override def afterAll(): Unit = {
     // Delete the temp directory
     FileCopy.fileDelete
-
     super.afterAll()
-
   }
-
-
 }

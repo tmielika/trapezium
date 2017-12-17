@@ -15,7 +15,6 @@
 package com.verizon.bda.trapezium.framework
 
 import java.util.{Date, Calendar}
-
 import com.typesafe.config.{ConfigObject, Config}
 import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, FileCopy}
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
@@ -28,8 +27,8 @@ import scala.collection.JavaConversions._
   * @author hutashan test read by offset
   */
 class ApplicationManagerReadByFileSuite extends ApplicationManagerTestSuite {
-
   var startTime = System.currentTimeMillis()-500000
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     FileCopy.fileDelete
@@ -43,7 +42,7 @@ class ApplicationManagerReadByFileSuite extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(updatedDate, "readByOffset")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig , maxIters = 1)(sc)
+      appConfig , maxIters = 1)(spark)
   }
   test("getElligbleFiles Test") {
     ApplicationManager.updateWorkflowTime(startTime, "readByOffset")
@@ -102,7 +101,7 @@ class ApplicationManagerReadByFileSuite extends ApplicationManagerTestSuite {
      val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("readByOffset")
      ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(spark)
   }
 
   def getStartOfDay(dt : java.util.Date) : java.util.Date = {
@@ -118,10 +117,6 @@ class ApplicationManagerReadByFileSuite extends ApplicationManagerTestSuite {
   override def afterAll(): Unit = {
     // Delete the temp directory
     FileCopy.fileDelete
-
     super.afterAll()
-
   }
-
-
 }

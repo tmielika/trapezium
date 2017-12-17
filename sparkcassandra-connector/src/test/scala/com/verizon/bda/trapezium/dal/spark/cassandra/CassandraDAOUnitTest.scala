@@ -14,13 +14,13 @@
 */
 package com.verizon.bda.trapezium.dal.spark.cassandra
 
-import org.apache.spark.sql.cassandra.CassandraSQLContext
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.slf4j.LoggerFactory
-import scala.collection.mutable.ListBuffer
 import com.verizon.bda.trapezium.dal.core.cassandra.CassandraTestSuiteBase
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.{DataFrame, Row, _}
+import org.slf4j.LoggerFactory
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * Created by Faraz on 2/29/16.
@@ -33,8 +33,7 @@ import com.verizon.bda.trapezium.dal.core.cassandra.CassandraTestSuiteBase
 class CassandraDAOUnitTest extends CassandraTestSuiteBase {
   val logger = LoggerFactory.getLogger(this.getClass)
   var ipDao: CassandraDAO = null
-  implicit var sc: SparkContext = _
-  implicit var sqlContext: CassandraSQLContext = _
+  implicit var spark: SparkSession = _
 
   val daoTestSchema = StructType(
     Seq(StructField("ipaddress", LongType, true),
@@ -58,11 +57,12 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
       .set("spark.cassandra.connection.port", port)
       .set("spark.driver.allowMultipleContexts", "true")
 
-    sc = new SparkContext(conf)
-    sqlContext = new CassandraSQLContext(sc)
+    val sparkBuilder = SparkSession.builder()
+    val builder = sparkBuilder.config(conf)
+    spark = builder.getOrCreate()
 
     cassandraDAOUtils = new CassandraDAOUtils(
-      List("localhost"), "netintel", "ipreputation2", sqlContext);
+      List("localhost"), "netintel", "ipreputation2", spark);
 
     setupDataInCassandra();
   }
@@ -177,10 +177,10 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
   test("Cassandra IP DAO Write test") {
     val ipreputation = "src/test/resources/ipreputation"
-    val inputFilesRDD = sc.textFile(ipreputation, 1)
+    val inputFilesRDD = spark.sparkContext.textFile(ipreputation, 1)
     logger.info("count of records in ipreputation is "
       + inputFilesRDD.count())
-    ipDao.write(cassandraDAOUtils.processRDD(inputFilesRDD, sqlContext))
+    ipDao.write(cassandraDAOUtils.processRDD(inputFilesRDD, spark))
 
 
     // now try to read back from data written into temp database.

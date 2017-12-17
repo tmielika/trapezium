@@ -1,58 +1,56 @@
 /**
-* Copyright (C) 2016 Verizon. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+  * Copyright (C) 2016 Verizon. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.verizon.bda.trapezium.framework.kafka
 
+import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.kafka.KafkaCluster.LeaderOffset
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import com.verizon.bda.trapezium.validation.Validator
-import org.apache.spark.rdd.RDD
-import org.slf4j.LoggerFactory
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.{Map => MMap}
-import com.typesafe.config.Config
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.Row
-import org.apache.spark.streaming.Seconds
-import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.dstream.InputDStream
-import org.apache.spark.streaming.kafka.{OffsetRange, HasOffsetRanges, KafkaUtils}
-import org.apache.zookeeper.{ZooKeeper, KeeperException}
-import org.apache.kafka.common.serialization.StringDeserializer
-import kafka.common.TopicAndPartition
-import kafka.message.MessageAndMetadata
-import kafka.serializer.StringDecoder
+import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.zookeeper.{KeeperException, ZooKeeper}
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.{Map, Set, mutable}
+import scala.collection.mutable.{Map => MMap}
+
+import scala.collection.JavaConverters._
 
 
 /**
- * @author Jiten on 10/22/15.
- *         Modified by Pankaj
- */
+  * @author Jiten on 10/22/15.
+  *         Modified by Pankaj
+  */
 private[framework] object KafkaDStream {
   val logger = LoggerFactory.getLogger(this.getClass)
-  var sparkcontext : Option[SparkContext] = None
+  var sparkcontext: Option[SparkContext] = None
 
   /**
-   * Creates streaming context from a Kafka topic
-   * Creates streaming DAG
-   * @return
-   */
+    * Creates streaming context from a Kafka topic
+    * Creates streaming DAG
+    *
+    * @return
+    */
   def createStreamingContext(sparkConf: SparkConf): StreamingContext = {
 
     val workflowConfig = ApplicationManager.getWorkflowConfig
@@ -66,11 +64,11 @@ private[framework] object KafkaDStream {
         .set("spark.streaming.receiver.maxRate", kafkaConfig.getString("maxRatePerPartition"))
         .set("spark.streaming.backpressure.enabled", "true")
     }
-
     // create new streaming context with batch duration
 
-    var ssc : StreamingContext = null
-    if (!sparkcontext.isEmpty ) {
+    var ssc: StreamingContext = null
+    if (!sparkcontext.isEmpty) {
+
       logger.info("Using existing spark context")
       ssc = new StreamingContext(sparkcontext.get,
         Seconds(kafkaConfig.getString("batchTime").toInt))
@@ -87,14 +85,15 @@ private[framework] object KafkaDStream {
   }
 
   def createDStreams(ssc: StreamingContext,
+                     workflowConfig: WorkflowConfig,
                      kafkabrokerlist: String,
                      kafkaConfig: Config,
-                     fromOffsets: Map[TopicAndPartition, Long],
+                     fromOffsets: Map[TopicPartition, Long],
                      appConfig: ApplicationConfig): MMap[String, DStream[Row]] = {
     val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
     logger.info(s"STREAM ${streamsInfo.toString}")
 
-    val dStreams = collection.mutable.Map[String, DStream[Row]]()
+    val dStreams = scala.collection.mutable.Map[String, DStream[Row]]()
 
     for (off <- 0 until streamsInfo.size()) {
 
@@ -102,62 +101,57 @@ private[framework] object KafkaDStream {
       val kafkaParams = buildKafkaParams(kafkabrokerlist, kafkaConfig: Config)
       val topicname = streamInfo.getString("topicName")
       val streamname = streamInfo.getString("name")
-      val topicset = new collection.mutable.HashSet[String]()
+      val topicset = new scala.collection.mutable.HashSet[String]()
       topicset += topicname
       var dStreamBeginning: InputDStream[(String, String)] = null
-      var dStreamOffset: InputDStream[String] = null
 
-      if (fromOffsets.size > 0) {
-        val topicOffsets = getTopicOffsets(fromOffsets, topicname)
+      //      TODO: Decide if the flag here can help differentiate the type of the stream to be created
 
-        if (topicOffsets.size > 0) {
-          dStreamOffset =
-            KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder, String](
-            ssc, kafkaParams.toMap, topicOffsets.toMap, {
-              md: MessageAndMetadata[String, String] => md.message()
-            })
-        } else {
+      var dStreamOffset: InputDStream[ConsumerRecord[String, String]] = {
 
-          logger.warn(s"No topic offset exists for ${topicname}." +
-            s" Starting streams as per KafkaParams")
-          dStreamOffset = null // reset dStreamOffset to null
-          dStreamBeginning = KafkaUtils
-            .createDirectStream[String, String, StringDecoder, StringDecoder](
-              ssc, kafkaParams.toMap, topicset.toSet)
-
-        }
-
-      } else {
-
-        logger.warn(s"No offset found for ${topicname}. Starting streams as per KafkaParams")
-        dStreamOffset = null // reset dStreamOffset to null
-        dStreamBeginning = KafkaUtils
-          .createDirectStream[String, String, StringDecoder, StringDecoder](
-            ssc, kafkaParams.toMap, topicset.toSet)
+        if ("CUSTOM".equals(workflowConfig.bridgeType))
+          KafkaDStreamFactory.createCustomKafkaSparkDStream(ssc, workflowConfig, kafkaConfig,
+            appConfig, kafkaParams, topicname)
+        else
+          KafkaDStreamFactory.createKafkaDirectStream(ssc, kafkaConfig, fromOffsets,
+            appConfig, kafkaParams, topicname, getTopicOffsets)
 
       }
 
-      val topicpartitions = new collection.mutable.HashMap[TopicAndPartition, (Long, Long)]()
       // convert dstream of String into Row
       if (dStreamOffset != null) {
+
         val dStreamRow = dStreamOffset.transform((rdd) => {
 
-          val rowRDD = rdd.map(line => Row(line.toString))
+          logger.info(s" Transform Count : ${rdd.count()}")
+          val rowRDD = rdd.map(line => {
+            logger.info(s"${line.value().toString}")
+            Row(line.value().toString)
+          })
           rowRDD
         })
 
+        val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
+
         dStreamOffset.foreachRDD { rdd =>
           var rddcount = 0L;
+
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           for (o <- offsetRanges) {
-            topicpartitions += (new TopicAndPartition(o.topic, o.partition)
+            topicpartitions += (new TopicPartition(o.topic, o.partition)
               -> (o.fromOffset, o.untilOffset))
             rddcount += (o.untilOffset - o.fromOffset)
           }
+
+
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
+
+
+          logger.info(s"TOPIC PARTITIONS = ${topicpartitions.mkString(" , ")}")
           logger.info(s"Row Count ${rddcount}")
         }
-        val validatedDStream = Validator.getValidatedStream (streamname, dStreamRow, streamInfo)
+
+        val validatedDStream = Validator.getValidatedStream(streamname, dStreamRow, streamInfo)
 
         dStreams += ((streamname, validatedDStream))
       } else if (dStreamBeginning != null) {
@@ -168,13 +162,15 @@ private[framework] object KafkaDStream {
           rowRDD
         })
         dStreamBeginning.foreachRDD { rdd =>
+          val topicpartitions = new scala.collection.mutable.HashMap[TopicPartition, (Long, Long)]()
           var rddcount = 0L;
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           for (o <- offsetRanges) {
-            topicpartitions += (new TopicAndPartition(o.topic, o.partition)
+            topicpartitions += (new TopicPartition(o.topic, o.partition)
               -> (o.fromOffset, o.untilOffset))
             rddcount += (o.untilOffset - o.fromOffset)
           }
+
           appConfig.streamtopicpartionoffset += (streamname -> topicpartitions.toMap)
           logger.info(s"Row Count ${rddcount}")
         }
@@ -186,11 +182,11 @@ private[framework] object KafkaDStream {
     dStreams
   }
 
-  def getTopicOffsets(fromOffsets: Map[TopicAndPartition, Long],
-                      topicName: String): MMap[TopicAndPartition, Long] = {
+  def getTopicOffsets(fromOffsets: Map[TopicPartition, Long],
+                      topicName: String): MMap[TopicPartition, Long] = {
 
-    val topicOffsets = MMap[TopicAndPartition, Long]()
-    val ks: Set[TopicAndPartition] = fromOffsets.keySet
+    val topicOffsets = MMap[TopicPartition, Long]()
+    val ks: Set[TopicPartition] = fromOffsets.keySet
 
     ks.foreach {
       x => {
@@ -208,20 +204,27 @@ private[framework] object KafkaDStream {
   }
 
   def fetchPartitionOffsets(kafkaTopicName: String,
-                            runMode: String,
-                            appConfig: ApplicationConfig): Map[TopicAndPartition, Long] = {
+                            appConfig: ApplicationConfig): Map[TopicPartition, Long] = {
 
     val workflowConfig = ApplicationManager.getWorkflowConfig
-    val zk = ZooKeeperConnection.create(appConfig.zookeeperList)
-
     val currentWorkflowKafkaPath =
       ApplicationUtils.getCurrentWorkflowKafkaPath(appConfig, kafkaTopicName, workflowConfig)
 
     val dependentWorkflowKafkaPath =
       ApplicationUtils.getDependentWorkflowKafkaPath(appConfig, kafkaTopicName, workflowConfig)
 
-    var dependentTopicPartitions: collection.mutable.HashMap[TopicAndPartition, Long] = null
-    var currentTopicPartitions: collection.mutable.HashMap[TopicAndPartition, Long] = null
+    fetchPartitionOffsets(kafkaTopicName, appConfig, dependentWorkflowKafkaPath, currentWorkflowKafkaPath)
+  }
+
+  def fetchPartitionOffsets(kafkaTopicName: String,
+                            appConfig: ApplicationConfig,
+                            dependentWorkflowKafkaPath: Option[String],
+                            currentWorkflowKafkaPath: String): Map[TopicPartition, Long] = {
+    var dependentTopicPartitions: mutable.HashMap[TopicPartition, Long] = null
+
+    var currentTopicPartitions: mutable.HashMap[TopicPartition, Long] = null
+
+    val zk = ZooKeeperConnection.create(appConfig.zookeeperList)
 
     try {
 
@@ -237,16 +240,23 @@ private[framework] object KafkaDStream {
 
         if (dependentTopicPartitions.size == 0) {
           // Batch has not executed yet - need to terminate Stream processing
-          throw new Exception("""KafkaStream processing is being executed
-                                | without KafkaBatch processing""".stripMargin)
+          throw new Exception(
+            """KafkaStream processing is being executed
+              | without KafkaBatch processing""".
+              stripMargin)
         }
         // Adjust the stream with respect to batch
         dependentTopicPartitions.foreach({
-          case (tp, offset) => {
-            val off = currentTopicPartitions.get(tp)
+          case (tp
+          , offset) => {
+            val off =
+              currentTopicPartitions.
+                get(tp)
             if (off.nonEmpty) {
-              currentTopicPartitions += (tp -> math.min(off.get, offset))
+              currentTopicPartitions += (tp
+                -> math.min(off.get, offset))
             } else {
+
               currentTopicPartitions += (tp -> offset)
             }
           }
@@ -255,9 +265,13 @@ private[framework] object KafkaDStream {
       }
 
     } catch {
-      case ex @ (_: KeeperException | _: Exception) => {
+      case ex@(_: KeeperException |
+               _:
 
-        logger.error("Exception  {}", ex.getMessage)
+                 Exception) => {
+
+        logger.error(
+          "Exception", ex.getMessage)
         throw ex
 
       }
@@ -268,30 +282,13 @@ private[framework] object KafkaDStream {
   }
 
 
+  def getPartitionsInfo(zk: ZooKeeper,
+                        zkNode: String,
+                        kafkaTopicName: String,
+                        appConfig: ApplicationConfig):
+  scala.collection.mutable.HashMap[TopicPartition, Long] = {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  def getPartitionsInfo( zk: ZooKeeper,
-                         zkNode: String,
-                         kafkaTopicName: String,
-                         appConfig: ApplicationConfig):
-                         collection.mutable.HashMap[TopicAndPartition, Long] = {
-
-    val topicPartitions = new collection.mutable.HashMap[TopicAndPartition, Long]()
+    val topicPartitions = new scala.collection.mutable.HashMap[TopicPartition, Long]()
     val allTopicEarliest =
       getAllTopicPartitions(appConfig.kafkabrokerList, kafkaTopicName)
     val partitions = zk.getChildren(zkNode, false).asScala
@@ -299,25 +296,25 @@ private[framework] object KafkaDStream {
     logger.info(s"Zookeeper partitions for $kafkaTopicName are ${partitions.mkString(",")}")
     for (partition <- partitions.sortWith(_.compareTo(_) < 0)) {
       val lastOffsetFromZk = zk.getData(new StringBuilder(zkNode).append("/")
-      .append(partition).toString(), false, null)
+        .append(partition).toString(), false, null)
       val lastOffset = new String(lastOffsetFromZk).toLong
 
-      val currentTopicPartition = new TopicAndPartition(kafkaTopicName, new String(partition).toInt)
+      val currentTopicPartition = new TopicPartition(kafkaTopicName, new String(partition).toInt)
       val earliest = allTopicEarliest(currentTopicPartition)
       val offset = {
-        if (earliest._2 < lastOffset){
+        if (earliest._2 < lastOffset) {
 
           logger.info(s"Earliest Kafka offset is ${earliest._2} and Zookeeper offset value " +
             s"is $lastOffset, so taking Zookeeper offset $lastOffset for streaming.")
           lastOffset
         }
         else {
-            logger.warn(s"Zookeeper offset value $lastOffset is smaller than earliest Kafka " +
+          logger.warn(s"Zookeeper offset value $lastOffset is smaller than earliest Kafka " +
             s"offset ${earliest._2}, so taking Kafka offset ${earliest._2} for streaming.")
-           // update zk
+          // update zk
           ApplicationUtils.updateZookeeperValue(new StringBuilder(zkNode).append("/")
             .append(partition).toString(), earliest._2, appConfig.zookeeperList)
-            earliest._2
+          earliest._2
         }
       }
 
@@ -331,15 +328,14 @@ private[framework] object KafkaDStream {
   }
 
   /**
-   * Saves the end kafka offsets after each batch to ZK. This method also checks
-   * for new partitions added since the DStream was first created and
-   * also saves the start offset of the new partition to ZK.
-   * The addition of new partitions is indicated by returning "true" value,
-   * otherwise a "false" value is returned
-   *
-   *
-   * @return "true" if new partition was added, "false" otherwise
-   */
+    * Saves the end kafka offsets after each batch to ZK. This method also checks
+    * for new partitions added since the DStream was first created and
+    * also saves the start offset of the new partition to ZK.
+    * The addition of new partitions is indicated by returning "true" value,
+    * otherwise a "false" value is returned
+    *
+    * @return "true" if new partition was added, "false" otherwise
+    */
   def saveKafkaStreamOffsets(workflowConfig: WorkflowConfig): Boolean = {
 
     val appConfig = ApplicationManager.getConfig()
@@ -369,12 +365,19 @@ private[framework] object KafkaDStream {
 
         var topicpart = topicpartitions.get
 
-        // Add new partitions to old map
-        newtopicpart.foreach { case (tp, (soff, eoff)) =>
-          // New partition
-          if (!topicpart.contains(tp)) {
-            topicpart += (tp -> (0, eoff))
-            modified = true
+        /* TODO: Check if it matches all cases
+           For bridgeType = 'CUSTOM' the topic offsets are split between several context
+           and hence is invalid to treat as a new or missed partition/offset. Any new additions
+           or changes will be automatically handled by the consumer
+        */
+        if(workflowConfig.dataSource.equals("KAFKA") && workflowConfig.bridgeType.equals("NATIVE")) {
+          // Add new partitions to old map
+          newtopicpart.foreach { case (tp, (soff, eoff)) =>
+            // New partition
+            if (!topicpart.contains(tp)) {
+              topicpart += (tp -> (0, eoff))
+              modified = true
+            }
           }
         }
 
@@ -437,22 +440,22 @@ private[framework] object KafkaDStream {
   }
 
   /**
-   * This method fetches earliest message offsets for all partitions of a topic
-   * This purpose is to utilize the earliest offset of a newly added partition
-   * and start reading from that offset in the stream. The method invoking
-   * this method is supposed to figure out new partitions, if any
-   * since the DStream was first created
-   *
-   */
-  def getAllTopicPartitions(kafkabrokerlist: String, topic : String)
-  : Map[TopicAndPartition, (Long, Long)] = {
+    * This method fetches earliest message offsets for all partitions of a topic
+    * This purpose is to utilize the earliest offset of a newly added partition
+    * and start reading from that offset in the stream. The method invoking
+    * this method is supposed to figure out new partitions, if any
+    * since the DStream was first created
+    *
+    */
+  def getAllTopicPartitions(kafkabrokerlist: String, topic: String)
+  : Map[TopicPartition, (Long, Long)] = {
 
     val kblist = MMap[String, String]()
     kblist += ("metadata.broker.list" -> getKafkaBrokerList(kafkabrokerlist))
 
-    val kc = new KafkaCluster( kblist.toMap )
+    val kc = new KafkaCluster(kblist.toMap)
     val res = kc.getPartitions(topic.split(",").toSet)
-    val topicparts = MMap[TopicAndPartition, (Long, Long)]()
+    val topicparts = MMap[TopicPartition, (Long, Long)]()
 
     if (res.isRight) {
       val tp = res.right.get
@@ -460,7 +463,7 @@ private[framework] object KafkaDStream {
       if (loff.isRight) {
         val off = loff.right.get
         off foreach { case (toppar, eoff) =>
-          topicparts += (toppar -> (0L, eoff.offset))
+          topicparts += (new TopicPartition(toppar.topic, toppar.partition) -> (0L, eoff.offset))
         }
       }
     }
@@ -471,26 +474,26 @@ private[framework] object KafkaDStream {
   }
 
 
-   def getAllTopicPartitionsLatest(kafkabrokerlist: String, topic : String)
-  : Map[TopicAndPartition, (Long, Long)] = {
+  def getAllTopicPartitionsLatest(kafkabrokerlist: String, topic: String)
+  : Map[TopicPartition, (Long, Long)] = {
 
     val kblist = MMap[String, String]()
     kblist += ("metadata.broker.list" -> getKafkaBrokerList(kafkabrokerlist))
 
-    val kc = new KafkaCluster( kblist.toMap )
+    val kc = new KafkaCluster(kblist.toMap)
     val res = kc.getPartitions(topic.split(",").toSet)
-    val topicparts = MMap[TopicAndPartition, (Long, Long)]()
+    val topicparts = MMap[TopicPartition, (Long, Long)]()
     if (res.isRight) {
       val tp = res.right.get
       val loff = kc.getLatestLeaderOffsets(tp)
-      if (loff.isRight ) {
+      if (loff.isRight) {
         val off = loff.right.get
         off foreach { case (toppar, eoff) => {
-          logger.info("ttest" + toppar + "eoff " + eoff.offset )
+          logger.info("ttest" + toppar + "eoff " + eoff.offset)
         }
         }
         off foreach { case (toppar, eoff) =>
-          topicparts += (toppar -> (0L, (eoff.offset)))
+          topicparts += (new TopicPartition(toppar.topic, toppar.partition) -> (0L, (eoff.offset)))
         }
       }
     }
@@ -501,35 +504,101 @@ private[framework] object KafkaDStream {
   }
 
   private def buildKafkaParams(kafkabrokerlist: String,
-                               kafkaConfig: Config): Map[String, String] = {
-    val kafkaParams = new HashMap[String, String]()
+                               kafkaConfig: Config): MMap[String, Object] = {
+    val kafkaParams = MMap[String, Object]()
 
-    kafkaParams += ("bootstrap.servers" -> getKafkaBrokerList(kafkabrokerlist))
+    val deserializer = "org.apache.kafka.common.serialization.StringDeserializer"
 
-    val offsetReset =
-      try {
-        kafkaConfig.getString("auto.offset.reset")
-      } catch {
-        case ex: Throwable => {
-          logger.warn("auto.offset.reset does not exist. Using smallest as the default value")
-          "smallest"
-        }
+    //  Convention is as follows  key = (actual_key, calculated_value, default_value, isMandatory)
+    val reservedParams = Map(
+      "bootstrap.servers" -> (null, getKafkaBrokerList(kafkabrokerlist), null, true),
+      "auto.offset.reset" -> (null, null, "earliest", true),
+      "key.deserializer" -> (null, null, deserializer, true),
+      "value.deserializer" -> (null, null, deserializer, true),
+      "default-group" -> ("group.id", null, "consumerGroup", false)
+    )
+
+    for ((k, v) <- reservedParams) {
+      var actualValue = v._2
+
+      if (actualValue == null) {
+        actualValue =
+          try {
+            kafkaConfig.getString(k)
+          } catch {
+            case ex: Throwable => {
+              logger.warn(s"value for ${k} does not exist.Using the default value = '${v._3}'")
+              v._3
+            }
+          }
       }
 
-    kafkaParams += ("auto.offset.reset" -> offsetReset)
+      //      Mandatory param is empty
+      if (actualValue == null && v._4)
+        throw new IllegalArgumentException(s"Problems constructing the kafka params. No value defined for mandatory key '${k}'.")
 
-    kafkaParams.toMap
+      val key = {
+        if (v._1 != null) v._1
+        else k
+      }
+
+      kafkaParams += (key -> actualValue)
+    }
+
+    /**
+      * add the rest of the kafka parameters to the params list. All the parameters
+      * other than the reserved list will be added to the configuration
+      */
+
+    val consumerParams = {
+      try {
+        kafkaConfig.getConfig("consumerParams")
+      } catch {
+        case ex: Exception => {
+          logger.info("No additional consumer parameters found")
+          null
+        }
+      }
+    }
+
+    if (consumerParams != null) {
+      consumerParams.entrySet().iterator().asScala
+        .filter(entry => {
+          val key = entry.getKey
+          !reservedParams.contains(key)
+        })
+        .foreach(entry => {
+          val key = entry.getKey
+          val paramValue = getValue(consumerParams, null, key)
+          if (paramValue != null)
+            kafkaParams += (key -> paramValue)
+        })
+    }
+
+    kafkaParams
   }
+
+  private def getValue(kafkaConfig: Config, defaultValue: String, key: String): String = {
+    val key_deserializer = try {
+      kafkaConfig.getString(key)
+    } catch {
+      case ex: Throwable => {
+        logger.warn(s"${key} does not exist. Using ${defaultValue} as the default value")
+        defaultValue
+      }
+    }
+    key_deserializer
+  }
+
 
   private def getKafkaBrokerList(kafkaBrokerList: String): String = {
 
     // for local as well as jenkins build
     // return kafka brokers with available port for local/jenkins tests
-    if (ApplicationUtils.env == "local" ) {
+    if (ApplicationUtils.env == "local") {
 
       KafkaApplicationUtils.kafkaBrokers
     } else {
-
       kafkaBrokerList
     }
   }

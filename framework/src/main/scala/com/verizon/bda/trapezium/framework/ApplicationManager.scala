@@ -14,29 +14,25 @@
 */
 package com.verizon.bda.trapezium.framework
 
-import _root_.kafka.common.TopicAndPartition
+import java.net.InetAddress
+import java.util.Calendar
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, BatchHandler, StreamingHandler}
+import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
+import com.verizon.bda.trapezium.framework.handler.{BatchHandler, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
-import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
-import com.verizon.bda.license.{LicenseLib, LicenseType, LicenseException}
-import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import org.apache.spark.sql.{Row, SQLContext, DataFrame}
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import org.apache.kafka.common.TopicPartition
+import org.apache.spark.sql.{Row, SQLContext, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
 import scopt.OptionParser
-import java.net.InetAddress
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
-import java.util.Properties
-import java.io.InputStream
-import java.util.Calendar
-import java.sql.Time
 
 /**
  * @author Pankaj on 9/1/15.
@@ -55,6 +51,7 @@ object ApplicationManager {
   private var appConfig: ApplicationConfig = _
   private val threadLocalWorkflowConfig = new ThreadLocal[WorkflowConfig]();
   var stopStreaming: Boolean = false
+  var throwable: Throwable = null
   val ERROR_EXIT_CODE = -1
   private var embeddedServer: EmbeddedHttpServer = _
   private var uid = ""
@@ -136,8 +133,7 @@ object ApplicationManager {
      }
    } catch {
      case ex: Throwable => {
-       logger.error(s"Exiting job because of following exception {}" ,
-         ex.getMessage)
+       logger.error(s"Exiting job because of following exception" , ex)
        System.exit(ERROR_EXIT_CODE)
      }
 
@@ -178,17 +174,21 @@ object ApplicationManager {
             initStreamThread(workFlowToRun)
           }
           case _ => {
-            var sc: SparkContext = null
-            runBatchWorkFlow(workflowConfig, appConfig)(sc)
+            var spark: SparkSession = null //SparkSession.builder().config(getSparkConf(appConfig)).getOrCreate()
+            runBatchWorkFlow(workflowConfig, appConfig)(spark)
             // if spark context is not stopped, stop it
-            if (sc != null && !sc.isStopped) {
-              sc.stop
+            if (spark != null && !spark.sparkContext.isStopped) {
+              spark.sparkContext.stop
             }
           }
         }
       }
       case "API" => {
-        val sc = new SparkContext(getSparkConf (appConfig))
+        val sc =
+          SparkSession.builder()
+            .config(getSparkConf(appConfig))
+            .getOrCreate()
+            .sparkContext
         setHadoopConf(sc, appConfig)
         startHttpServer(sc, workflowConfig)
 
@@ -281,6 +281,7 @@ object ApplicationManager {
       case "KAFKA" => {
         dStreams = initKafkaDstream(workflowConfig, sparkConf, runMode )
       }
+
       case _ => {
         logger.error("Mode not implemented. Exiting... {}", dataSource)
         System.exit(ERROR_EXIT_CODE)
@@ -291,27 +292,13 @@ object ApplicationManager {
     addStreamListeners(ssc, workflowConfig)
   }
 
-
   def initKafkaDstream(workflowConfig : WorkflowConfig, sparkConf : SparkConf,
                        runMode : String) : MMap[String, DStream[Row]] = {
-    val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
-    val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
-    val kafkaBrokerList = appConfig.kafkabrokerList
-
-    logger.info("Kafka broker list " + kafkaBrokerList)
-
-    ssc = KafkaDStream.createStreamingContext(sparkConf)
-    setHadoopConf(ssc.sparkContext, appConfig)
-    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
-
-    streamsInfo.asScala.foreach(streamInfo => {
-      val topicName = streamInfo.getString("topicName")
-      val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
-      topicPartitionOffsets ++= partitionOffset
-    })
+    val (kafkaConfig: Config, kafkaBrokerList: String, topicPartitionOffsets: MMap[TopicPartition, Long]) = getKafkaDetails(workflowConfig, sparkConf, runMode)
 
     val dStreams = KafkaDStream.createDStreams(
       ssc,
+      workflowConfig,
       kafkaBrokerList,
       kafkaConfig,
       topicPartitionOffsets.toMap,
@@ -320,13 +307,31 @@ object ApplicationManager {
   }
 
 
+  private def getKafkaDetails(workflowConfig: WorkflowConfig, sparkConf: SparkConf, runMode: String) = {
+    val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
+    val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
+    val kafkaBrokerList = appConfig.kafkabrokerList
+
+    logger.info("Kafka broker list " + kafkaBrokerList)
+
+    ssc = KafkaDStream.createStreamingContext(sparkConf)
+    setHadoopConf(ssc.sparkContext, appConfig)
+    val topicPartitionOffsets = MMap[TopicPartition, Long]()
+
+    streamsInfo.asScala.foreach(streamInfo => {
+      val topicName = streamInfo.getString("topicName")
+      val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName,  appConfig)
+      topicPartitionOffsets ++= partitionOffset
+    })
+    (kafkaConfig, kafkaBrokerList, topicPartitionOffsets)
+  }
 
   /**
    * method to create a SparkContext
    *
    * @return SparkContext object
    */
-  private[framework] def getSparkConf(appConfig: ApplicationConfig): SparkConf = {
+  private[trapezium] def getSparkConf(appConfig: ApplicationConfig): SparkConf = {
 
     val sparkConfigParam: Config = appConfig.sparkConfParam
     val sparkConf = new SparkConf
@@ -440,8 +445,8 @@ object ApplicationManager {
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long = -1)
-                      (implicit sc: SparkContext): Unit = {
-    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
+                      (implicit spark: SparkSession): Unit = {
+    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, spark)
   }
 
   def getSynchronizationTime: String = {
@@ -560,8 +565,9 @@ class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
       }
       case ex: Throwable => {
 
-        logger.error("Stopping job", ex.getMessage)
+        logger.error("Stopping job", ex)
         ApplicationManager.stopStreaming = true
+        ApplicationManager.throwable = ex
       }
     }
 

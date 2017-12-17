@@ -49,7 +49,8 @@ object TestKafkaSinkTxn1 extends StreamingTransaction {
   override def persistStream(rdd: RDD[Row], batchtime: Time): Unit = {
 
     val kafkaConf = ApplicationManager.getKafkaConf()
-    val kafkaSink = rdd.sparkContext.broadcast(KafkaSink(kafkaConf))
+    val sink = KafkaSink(kafkaConf)
+    val kafkaSink = rdd.sparkContext.broadcast(sink)
     val kafkaTopic = "topic2"
 
     logger.info("Inside TestKafkaSinkTxn1.persistStream")

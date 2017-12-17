@@ -14,14 +14,11 @@
 */
 package com.verizon.bda.trapezium.framework.utils
 
-import java.sql.Time
-
+import com.typesafe.config.Config
+import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import org.apache.spark.streaming.TestSuiteBase
 import org.apache.spark.zookeeper.EmbeddedZookeeper
-
-import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.ApplicationManager
 
 /**
  * @author Pankaj on 11/20/15.

@@ -14,12 +14,8 @@
 */
 package com.verizon.bda.trapezium.framework
 
-import java.util.{Calendar, Date}
-
-import com.typesafe.config.{Config, ConfigObject}
-import com.verizon.bda.trapezium.framework.handler.{FileCopy, FileSourceGenerator}
+import com.verizon.bda.trapezium.framework.handler.FileCopy
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 
 /**
   * @author hutashan test read by offset
@@ -27,6 +23,7 @@ import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 class ReadByFileMultipleSource extends ApplicationManagerTestSuite {
 
   var startTime = System.currentTimeMillis()-500000
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     FileCopy.fileDelete
@@ -40,10 +37,6 @@ class ReadByFileMultipleSource extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(updatedDate, "readByOffset2Source")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig , maxIters = 1)(sc)
-
+      appConfig , maxIters = 1)(spark)
   }
-
-
-
 }

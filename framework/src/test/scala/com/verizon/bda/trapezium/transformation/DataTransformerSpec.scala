@@ -14,23 +14,25 @@
 */
 package com.verizon.bda.trapezium.transformation
 
-import com.typesafe.config.{ConfigObject, Config}
+import com.typesafe.config.ConfigObject
 import com.verizon.bda.trapezium.framework.manager.WorkflowConfig
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
-import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.sql.{DataFrame}
 import org.scalatest.{BeforeAndAfter, Matchers}
 
 /**
   * Created by venkatesh on 10/18/16.
   */
 class DataTransformerSpec extends ApplicationManagerTestSuite with Matchers with  BeforeAndAfter {
-  //  var sqlContext: SQLContext = null
   var df: DataFrame = _
-  before{
-    val sqlContext = new SQLContext(sc)
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    val sqlContext = spark.sqlContext
     import sqlContext.implicits._
     df = sc.parallelize(Seq("one", "two", "three", "four")).toDF("numbers")
   }
+
   test("testing tranform feature ") {
     val workFlowConfig = new WorkflowConfig("transformWorkFlow")
     val batchConfig = workFlowConfig.workflowConfig
@@ -59,11 +61,12 @@ class DataTransformerSpec extends ApplicationManagerTestSuite with Matchers with
     arr.size should be(4)
     arr should be(Array("1", "2", "3", "integer"))
   }
-  test("transformation flow character"){
+
+  test("transformation flow character") {
     val workFlowToRun: WorkflowConfig =
       ApplicationManager.setWorkflowConfig("testWorkFlow3")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1)(spark)
   }
 }
