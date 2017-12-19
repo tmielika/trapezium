@@ -1,7 +1,6 @@
 package com.verizon.bda.trapezium.dal.lucene
 
 import java.util.UUID
-
 import org.apache.lucene.document.{Document, Field}
 import org.apache.spark.SparkConf
 import org.apache.spark.serializer.KryoSerializer
