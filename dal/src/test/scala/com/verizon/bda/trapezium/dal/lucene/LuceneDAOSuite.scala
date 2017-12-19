@@ -2,7 +2,7 @@ package com.verizon.bda.trapezium.dal.lucene
 
 import java.io.File
 import org.apache.commons.io.FileUtils
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path, PathFilter}
 import org.apache.lucene.search.IndexSearcher
 import org.apache.spark.ml.linalg.{SparseVector, Vectors}
 import org.apache.spark.sql.{Row, SQLContext}
@@ -10,6 +10,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import java.sql.Time
 import java.sql.Timestamp
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.sql.types._
 
@@ -30,7 +31,7 @@ class LuceneDAOSuite extends FunSuite with MLlibTestSparkContext with BeforeAndA
   }
 
   override def afterAll(): Unit = {
-    cleanup()
+    //cleanup()
     super.afterAll()
   }
 
@@ -112,6 +113,62 @@ class LuceneDAOSuite extends FunSuite with MLlibTestSparkContext with BeforeAndA
     assert(rdd3.collect()(0) == Row.apply("123", 8))
   }
   */
+
+  test("index merge test") {
+    val dimensions = Set.empty[String]
+    val storedDimensions = Set("zip", "tld")
+    val measures = Set("user", "visits")
+
+    val indexPath = new Path(outputPath, "premerge").toString
+    val dao = new LuceneDAO(indexPath, dimensions, storedDimensions, measures)
+
+    // With coalesce > 2 partition run and 0 leafReader causes
+    // maxHits = 0 on which an assertion is thrown
+    val df = sqlContext.createDataFrame(
+      Seq(("123", "94555", Array("verizon.com", "google.com"), 8),
+        ("456", "94310", Array("apple.com", "google.com"), 12)))
+      .toDF("user", "zip", "tld", "visits").coalesce(2)
+
+    dao.index(df, indexTime)
+
+    dao.load(sc)
+
+    val rdd1 = dao.search("tld:google.com")
+    val rdd2 = dao.search("tld:verizon.com")
+
+    assert(rdd1.count == 2)
+    assert(rdd2.count == 1)
+
+    assert(rdd1.map(_.getAs[String](0).toString).collect.toSet == Set("123", "456"))
+    assert(rdd2.map(_.getAs[String](0).toString).collect.toSet == Set("123"))
+
+    dao.merge(sc, new Path(outputPath, "postmerge").toString, 1)
+
+    val daoMerge = new LuceneDAO(s"${outputPath}/postmerge", dimensions, storedDimensions, measures)
+    daoMerge.load(sc)
+
+    val rdd3 = daoMerge.search("tld:google.com")
+    val rdd4 = daoMerge.search("tld:verizon.com")
+
+    assert(rdd3.count == 2)
+    assert(rdd4.count == 1)
+
+    assert(rdd3.map(_.getAs[String](0).toString).collect.toSet == Set("123", "456"))
+    assert(rdd4.map(_.getAs[String](0).toString).collect.toSet == Set("123"))
+
+    val conf = new Configuration
+    val indexDir = new Path(s"${outputPath}/postmerge/${LuceneDAO.INDICES_PREFIX}")
+    val fs = FileSystem.get(indexDir.toUri, conf)
+
+    val files: Array[FileStatus] = fs.listStatus(indexDir, new PathFilter {
+      override def accept(path: Path): Boolean = {
+        path.getName.startsWith(LuceneDAO.SUFFIX)
+      }
+    })
+
+    assert(files.size == 1)
+
+  }
 
   test("index test with standard analyzer and stored fields") {
     val dimensions = Set("tld", "app")
