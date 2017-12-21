@@ -13,8 +13,10 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map => MMap}
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
-import scala.concurrent.Future
-import scala.reflect.ClassTag
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 
 /**
   * Created by venkatesh on 7/10/17.
@@ -68,6 +70,8 @@ class CollectIndices {
     } catch {
       case e: Exception => {
         log.warn(s"Has problem running the command :$command", e)
+        throw new SolrOpsException(s"could not execute $command has" +
+          s" returned $code ${session.getHost}")
         return code
       }
     }
@@ -164,6 +168,7 @@ object CollectIndices {
 
     val shards = coreMap.keySet.toArray
     var partFileMap = MMap[String, ListBuffer[String]]()
+    var outMap = MMap[String, ListBuffer[(String, String)]]()
     //    coreMap.toList.foreach((shardId: String, host: String) => {
     //      val tmp = shardId.split("_")
     //
@@ -174,9 +179,12 @@ object CollectIndices {
       val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1)
       if (partFileMap.contains(host)) {
         partFileMap(host).append((partFile))
+        outMap(host).append((indexFilePath.stripSuffix("/") + partFile, shardId))
       } else {
         partFileMap(host) = new ListBuffer[String]
+        outMap(host) = new ListBuffer[(String, String)]
         partFileMap(host).append((partFile))
+        outMap(host).append((movingDirectory.stripSuffix("/") + partFile, shardId))
       }
     }
     var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
@@ -187,27 +195,61 @@ object CollectIndices {
         " do " +
         "hdfs dfs -copyToLocal " + indexFilePath + "$partFile  " + movingDirectory + " ;" +
         " done ;chmod  -R 777  " + movingDirectory
-      log.info(s"$machine running $command")
       array.append((machine, command))
+
     }
 
-    val f = Future {
-      sleep(Random.nextInt(500))
-      42
+    def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
+      collectIndices.runCommand(command, true)
     }
-    println("before onComplete")
-    f.onComplete {
-      case Success(value) => println(s"Got the callback, meaning = $value")
-      case Failure(e) => e.printStackTrace
-    }
-    val pc1: ParArray[(CollectIndices, String)] = ParArray
-      .createFromCopy(array.toArray)
-    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
-    .forkjoin.ForkJoinPool(array.length))
-    pc1.map(p => {
-      p._1.runCommand(p._2, true)
-    })
 
+    val start = System.currentTimeMillis()
+    val futureList = array.map(p => {
+      val f: Future[Int] = deploySolrShards(p._1, p._2)
+      f.onComplete {
+        case Success(code)
+        => log.info(s"successfully  ran  command ${p._2}" +
+          s" on ${p._1.session.getHost} with code $code")
+        case Failure(ex)
+        => log.error(s"failed to run ${p._2}", ex)
+      }
+      f
+    }
+    )
+    var areComplete = false
+    do {
+      var bool = true
+      for (f <- futureList) {
+        bool = f.isCompleted & bool
+      }
+      areComplete = bool
+
+    }
+    while (!areComplete)
+    val finalTime = System.currentTimeMillis()
+    log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
+
+    //    log.info(s"$machine running $command")
+    //    array.append((machine, command))
+
+
+    //    val f = Future {
+    //      sleep(Random.nextInt(500))
+    //      42
+    //    }
+    //    println("before onComplete")
+    //    f.onComplete {
+    //      case Success(value) => println(s"Got the callback, meaning = $value")
+    //      case Failure(e) => e.printStackTrace
+    //    }
+    //    val pc1: ParArray[(CollectIndices, String)] = ParArray
+    //      .createFromCopy(array.toArray)
+    //    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
+    //    .forkjoin.ForkJoinPool(array.length))
+    //    pc1.map(p => {
+    //      p._1.runCommand(p._2, true)
+    //    })
+    outMap.toMap
   }
 
   def closeSession(): Unit = {
@@ -216,14 +258,19 @@ object CollectIndices {
   }
 
   def createMovingDirectory(movingDirectory: String): Unit = {
-    val command = s"mkdir ${movingDirectory}"
+    val command = s"mkdir ${
+      movingDirectory
+    }"
     machineMap.values.foreach(_.runCommand(command, false))
   }
 
   def deleteDirectory(oldCollectionDirectory: String): Unit = {
-    val command = s"rm -rf ${oldCollectionDirectory}"
+    val command = s"rm -rf ${
+      oldCollectionDirectory
+    }"
     machineMap.values.foreach(_.runCommand(command, false))
   }
+
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
                       directory: String,
                       coreMap: Map[String, String]): MMap[String, ListBuffer[(String, String)]] = {
@@ -241,10 +288,14 @@ object CollectIndices {
       val host = coreMap(shard)
       val fileName = partFile
       if (map.contains(host)) {
-        map(host).append((s"${directory}$fileName", shard))
+        map(host).append((s"${
+          directory
+        }$fileName", shard))
       } else {
         map(host) = new ListBuffer[(String, String)]
-        map(host).append((s"${directory}$fileName", shard))
+        map(host).append((s"${
+          directory
+        }$fileName", shard))
       }
     }
     map
@@ -287,9 +338,13 @@ object CollectIndices {
     val configuration: Configuration = new Configuration()
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
     // 2. Get the instance of the HDFS
-    val hdfs = FileSystem.get(new URI(s"hdfs://${nameNode}"), configuration)
+    val hdfs = FileSystem.get(new URI(s"hdfs://${
+      nameNode
+    }"), configuration)
     // 3. Get the metadata of the desired directory
-    val fileStatus = hdfs.listStatus(new Path(s"hdfs://${nameNode}" + indexFilePath))
+    val fileStatus = hdfs.listStatus(new Path(s"hdfs://${
+      nameNode
+    }" + indexFilePath))
     // 4. Using FileUtil, getting the Paths for all the FileStatus
     val paths = FileUtil.stat2Paths(fileStatus)
     paths.map(_.toString).filter(p => p.contains(folderPrefix))

@@ -12,8 +12,11 @@ import org.apache.http.util.EntityUtils
 import org.apache.log4j.Logger
 import org.codehaus.jackson.map.ObjectMapper
 
+import scala.collection.parallel.ForkJoinTaskSupport
+import scala.collection.parallel.mutable.ParArray
+import scala.concurrent.Future
 import scalaj.http.Http
-
+import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * Created by venkatesh on 8/3/17.
   */
@@ -182,18 +185,35 @@ object SolrOps {
   }
 
 
+//  def unloadCore(node: String, coreName: String): Future[Unit] = {
+//    val unloadFuture: Future[Unit] = Future {
+//      log.info("unloading core")
+//      val client = HttpClientBuilder.create().build()
+//      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
+//      val response = client.execute(request)
+//      response.close()
+//      client.close()
+//      response.getStatusLine.getStatusCode == 200
+//    }
+//    unloadFuture
+//  }
   def unloadCore(node: String, coreName: String): Unit = {
-    log.info("unloading core")
-    val client = HttpClientBuilder.create().build()
-    val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
-    val response = client.execute(request)
-    response.close()
-    client.close()
-    response.getStatusLine.getStatusCode == 200
-  }
 
+      log.info("unloading core")
+      val client = HttpClientBuilder.create().build()
+      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
+      val response = client.execute(request)
+      response.close()
+      client.close()
+      response.getStatusLine.getStatusCode == 200
+
+  }
   def makeHttpRequests(list: List[String]): Unit = {
-    for (url <- list) {
+    val pc1: ParArray[String] = ParArray
+      .createFromCopy(list.toArray)
+    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
+    .forkjoin.ForkJoinPool(12))
+    pc1.foreach(url => {
       val response = makeHttpRequest(url)
       if (response != null && !response.isEmpty) {
         try {
@@ -212,7 +232,9 @@ object SolrOps {
               s"$url response:$response")
         }
       }
-    }
+    })
+    //    for (url <- list) {
+    //    }
   }
 
 
