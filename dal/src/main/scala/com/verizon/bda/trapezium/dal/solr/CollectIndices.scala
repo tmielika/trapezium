@@ -145,18 +145,6 @@ object CollectIndices {
     }
   }
 
-  //  def moveFilesFromHdfsToLocalAllAtOnce(solrMap: Map[String, String],
-  //                                        indexFilePath: String,
-  //                                        movingDirectory: String, coreMap: Map[String, String]):
-  //  Map[String, ListBuffer[(String, String)]] = {
-  //    "for element in ${array[@]}  " +
-  //      "do  " +
-  //      "echo $element   " +
-  //      "done"
-  //    coreMap.foreach((file: String, node: String) => {
-  //
-  //    })
-  //  }
 
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
                                indexFilePath: String,
