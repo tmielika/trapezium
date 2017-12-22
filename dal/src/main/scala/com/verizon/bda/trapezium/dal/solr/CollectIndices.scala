@@ -283,39 +283,6 @@ object CollectIndices {
     map
   }
 
-  //
-  // def getWellDistributed[A: ClassTag, B:
-  // ClassTag](map: Map[A, Array[B]], size: Int): Array[B] = {
-  //    val numMachines = map.keySet.size
-  //    val map1 = new java.util.HashMap[A, Int]
-  //    val lb = new ListBuffer[B]
-  //    val li = map.keySet.toList
-  //    var recordCount = 0
-  //    var tempcount = 0
-  //    var name: A = map.head._1
-  //    var j = 0
-  //    for (i <- 0 until size) {
-  //      j = i
-  //      do {
-  //        name = li(j % numMachines)
-  //        if (!map1.containsKey(name)) {
-  //          map1.put(name, 0)
-  //        }
-  //        tempcount = map1.get(name)
-  //        recordCount = map(name).size
-  //        j = j + 1
-  //      }
-  //      while (recordCount <= tempcount && (j - i) != numMachines)
-  //      if ((j - i) != numMachines) {
-  //        lb.append(map.get(name).get(tempcount))
-  //      }
-  //
-  //      map1.put(name, tempcount + 1)
-  //    }
-  //    lb.toArray
-  //
-  //  }
-
   def getHdfsList(nameNode: String, folderPrefix: String, indexFilePath: String): Array[String] = {
     val configuration: Configuration = new Configuration()
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
