@@ -185,20 +185,8 @@ object SolrOps {
   }
 
 
-//  def unloadCore(node: String, coreName: String): Future[Unit] = {
-//    val unloadFuture: Future[Unit] = Future {
-//      log.info("unloading core")
-//      val client = HttpClientBuilder.create().build()
-//      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
-//      val response = client.execute(request)
-//      response.close()
-//      client.close()
-//      response.getStatusLine.getStatusCode == 200
-//    }
-//    unloadFuture
-//  }
-  def unloadCore(node: String, coreName: String): Unit = {
-
+  def unloadCore(node: String, coreName: String): Future[Unit] = {
+    val unloadFuture: Future[Unit] = Future {
       log.info("unloading core")
       val client = HttpClientBuilder.create().build()
       val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
@@ -206,8 +194,20 @@ object SolrOps {
       response.close()
       client.close()
       response.getStatusLine.getStatusCode == 200
-
+    }
+    unloadFuture
   }
+//  def unloadCore(node: String, coreName: String): Unit = {
+//
+//      log.info("unloading core")
+//      val client = HttpClientBuilder.create().build()
+//      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
+//      val response = client.execute(request)
+//      response.close()
+//      client.close()
+//      response.getStatusLine.getStatusCode == 200
+//
+//  }
   def makeHttpRequests(list: List[String]): Unit = {
     val pc1: ParArray[String] = ParArray
       .createFromCopy(list.toArray)

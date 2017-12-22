@@ -44,6 +44,7 @@ class CollectIndices {
   def runCommand(command: String, retry: Boolean, retryCount: Int = 5): Int = {
     var code = -1
     var retries = retryCount
+
     try {
       do {
         val channel: ChannelExec = getConnectedChannel(command)
@@ -53,12 +54,13 @@ class CollectIndices {
         log.info(s"running command : ${command} in ${session.getHost}" +
           s" with user ${session.getUserName}")
         val in: InputStream = channel.getInputStream
-        code = printResult(in, channel)
+        val out = printResult(in, channel)
+        code = out._2
         log.info(s" command : ${command} \n completed on ${session.getHost}" +
-          s" with user ${session.getUserName} with exit code:$code")
+          s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._2}")
         if (code == 0 && retries != retryCount) {
           log.info(s" command : ${command} \n completed on ${session.getHost}" +
-            s" with user ${session.getUserName} with exit code:$code on retry")
+            s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._2}")
         }
         retries = retries - 1
       }
@@ -102,7 +104,7 @@ class CollectIndices {
 
   }
 
-  def printResult(in: InputStream, channel: ChannelExec): Int = {
+  def printResult(in: InputStream, channel: ChannelExec): (String, Int) = {
     val tmp = new Array[Byte](1024)
     val strBuilder = new StringBuilder
     var continueLoop = true
@@ -118,8 +120,7 @@ class CollectIndices {
         continueLoop = false
       }
     }
-    log.info(strBuilder.toString)
-    channel.getExitStatus
+    (strBuilder.toString, channel.getExitStatus)
   }
 
 
@@ -159,7 +160,7 @@ object CollectIndices {
 
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
                                indexFilePath: String,
-                               movingDirectory: String, coreMap: Map[String, String])
+                               localDirectory: String, coreMap: Map[String, String])
   : Map[String, ListBuffer[(String, String)]] = {
     log.info("inside move files")
     val solrNodeUser = solrMap("solrUser")
@@ -184,7 +185,7 @@ object CollectIndices {
         partFileMap(host) = new ListBuffer[String]
         outMap(host) = new ListBuffer[(String, String)]
         partFileMap(host).append((partFile))
-        outMap(host).append((movingDirectory.stripSuffix("/") + partFile, shardId))
+        outMap(host).append((localDirectory.stripSuffix("/") + partFile, shardId))
       }
     }
     var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
@@ -193,11 +194,12 @@ object CollectIndices {
       val command = s"partFiles=(" + partFileList.mkString("\t") + ")" +
         ";for partFile in ${partFiles[@]};" +
         " do " +
-        "hdfs dfs -copyToLocal " + indexFilePath + "$partFile  " + movingDirectory + " ;" +
-        " done ;chmod  -R 777  " + movingDirectory
+        "hdfs dfs -copyToLocal " + indexFilePath + "$partFile  " + localDirectory + " ;" +
+        " done ;chmod  -R 777  " + localDirectory
       array.append((machine, command))
 
     }
+    createMovingDirectory(localDirectory)
 
     def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
       collectIndices.runCommand(command, true)
@@ -228,27 +230,7 @@ object CollectIndices {
     while (!areComplete)
     val finalTime = System.currentTimeMillis()
     log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
-
-    //    log.info(s"$machine running $command")
-    //    array.append((machine, command))
-
-
-    //    val f = Future {
-    //      sleep(Random.nextInt(500))
-    //      42
-    //    }
-    //    println("before onComplete")
-    //    f.onComplete {
-    //      case Success(value) => println(s"Got the callback, meaning = $value")
-    //      case Failure(e) => e.printStackTrace
-    //    }
-    //    val pc1: ParArray[(CollectIndices, String)] = ParArray
-    //      .createFromCopy(array.toArray)
-    //    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
-    //    .forkjoin.ForkJoinPool(array.length))
-    //    pc1.map(p => {
-    //      p._1.runCommand(p._2, true)
-    //    })
+    log.info(outMap.toMap)
     outMap.toMap
   }
 
