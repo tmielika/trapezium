@@ -1,6 +1,7 @@
 package com.verizon.bda.trapezium.dal.lucene
 
 import java.io._
+import java.nio.file.Path
 import java.sql.Time
 
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
@@ -25,6 +26,7 @@ import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class LuceneDAO(val location: String,
@@ -34,11 +36,12 @@ class LuceneDAO(val location: String,
                 val luceneAnalyzer: String = "keyword",
                 val stored: Boolean = false,
                 storageLevel: StorageLevel = StorageLevel.DISK_ONLY) extends Serializable {
+
   import LuceneDAO._
 
   @transient lazy val log = Logger.getLogger(classOf[LuceneDAO])
 
-  @transient private lazy val analyzer : Analyzer = luceneAnalyzer match {
+  @transient private lazy val analyzer: Analyzer = luceneAnalyzer match {
     case "keyword" => new KeywordAnalyzer()
     case "standard" => new StandardAnalyzer()
     case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
@@ -164,7 +167,7 @@ class LuceneDAO(val location: String,
       directory.close()
 
       //Remove the lock for Solr HDFS/Local Uploads, Windows will handle / differently
-      val lockFile = new File(shuffleIndexFile , IndexWriter.WRITE_LOCK_NAME)
+      val lockFile = new File(shuffleIndexFile, IndexWriter.WRITE_LOCK_NAME)
 
       if (!lockFile.delete()) {
         log.error(s"Error deleting lock file after index writer is closed ${lockFile.getAbsolutePath()}")
@@ -206,7 +209,7 @@ class LuceneDAO(val location: String,
   /**
     * @param sc
     * @param outputPath desired outpath of merged shards
-    * @param numShards total shards
+    * @param numShards  total shards
     */
   def merge(sc: SparkContext,
             outputPath: String,
@@ -307,14 +310,6 @@ class LuceneDAO(val location: String,
 
     val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
 
-    /**
-      * release/unpersist older shards so that they are garbage collected
-      */
-    if(_shards!=null) {
-      log.info("Removing the previous shards and unpersisting that RDD")
-      _shards.unpersist(true)
-    }
-
     _shards = RDDUtils.mapPartitionsInternal(partitionIds, (indices: Iterator[Int]) => {
       indices.map((index: Int) => {
         val sparkConf = new SparkConf()
@@ -335,9 +330,15 @@ class LuceneDAO(val location: String,
             FileSystem.get(conf).copyToLocalFile(false,
               new HadoopPath(hdfsPath),
               new HadoopPath(shuffleIndexPath.toString))
+            val children = shuffleIndexFile.list()
+            log.info(s"Child files of shuffle are \n [ ${shuffleIndexFile.list().mkString(",")} ] ")
+
+
             val directory = new MMapDirectory(shuffleIndexPath)
             val reader = DirectoryReader.open(directory)
-            Some(LuceneShard(reader, converter, analyzer))
+            val newShard = LuceneShard(directory, reader, converter, analyzer)
+
+            Some(newShard)
           } catch {
             case e: IOException =>
               throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
@@ -356,7 +357,41 @@ class LuceneDAO(val location: String,
 
     _dictionary.load(dictionaryPath)(sc)
     log.info(s"dictionary stats ${_dictionary}")
+
   }
+
+  /**
+    * clear up the DAO object
+    */
+  def cleanup(): Unit = {
+    log.info(s"Clearing up the DAO...${_shards.count()}")
+
+    val folders : ListBuffer[Path] = new ListBuffer[Path]()
+    _shards.foreach(shard => {
+      if (shard.fsdirectory != null) {
+        println(s"Deleting the files for the shard in uri: ${shard.fsdirectory.getDirectory.toUri}")
+        try {
+          remove(shard.fsdirectory.getDirectory)
+        } catch {
+          case e: Throwable => {
+            log.error("Exception while cleaning up te dir",e)
+          }
+        }
+      } else {
+        print("WARN: directory is not assigned to shard")
+      }
+    })
+    _shards.unpersist()
+    _dictionary.clear()
+  }
+
+  def remove(root: Path, deleteRoot: Boolean = true): Unit ={
+
+    FileUtil.fullyDelete(root.toFile)
+    println(s"deleted file ${root.toFile.getAbsolutePath} ....... ${root.toFile.exists()}")
+  }
+
+
 
   def shards(): RDD[LuceneShard] = _shards
 
@@ -379,7 +414,7 @@ class LuceneDAO(val location: String,
   }
 
   //search a query and retrieve for all stored fields
-  def search(queryStr: String, sample: Double = 1.0) : RDD[Row] = {
+  def search(queryStr: String, sample: Double = 1.0): RDD[Row] = {
     search(queryStr, storedFields.toSeq ++ searchAndStoredFields.toSeq, sample)
   }
 
