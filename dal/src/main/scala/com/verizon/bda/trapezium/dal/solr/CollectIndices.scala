@@ -270,11 +270,6 @@ object CollectIndices {
         p.runCommand(command, false)
       }
     })
-
-    //    val command = s"rm -rf ${
-    //      oldCollectionDirectory
-    //    }"
-    //    machineMap.values.foreach(_.runCommand(command, false))
   }
 
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],

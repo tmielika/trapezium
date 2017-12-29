@@ -240,8 +240,6 @@ object SolrOps {
         }
       }
     })
-    //    for (url <- list) {
-    //    }
   }
 
 
