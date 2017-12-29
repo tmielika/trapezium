@@ -15,7 +15,6 @@ import org.codehaus.jackson.map.ObjectMapper
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
 import scala.concurrent.Future
-import scalaj.http.Http
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
@@ -48,33 +47,46 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   def aliasCollection(): Unit = {
     val solrServerUrl = getSolrCollectionUrl()
-    val url = Http(solrServerUrl).timeout(connTimeoutMs = 20000, readTimeoutMs = 50000)
+    val aliaseCollectionUrl = s"$solrServerUrl?action=CREATEALIAS&" +
+      s"name=$aliasCollectionName" + s"&collections=$collectionName"
     log.info(s"aliasing collection  ${collectionName} with ${aliasCollectionName}")
-    val response: scalaj.http.HttpResponse[String] = url.param("collections", collectionName)
-      .param("name", aliasCollectionName)
-      .param("action", "CREATEALIAS").asString
-    log.info(s"aliasing collection response ${response.body}")
+    val response = SolrOps.makeHttpRequest(aliaseCollectionUrl)
+    log.info(s"aliasing collection response ${response}")
   }
 
-  def deleteCollection(collectionName: String): Unit = {
+  def deleteCollection(collectionName: String, useAsync: Boolean = true): Unit = {
     val solrServerUrl = getSolrCollectionUrl()
-    val url = Http(solrServerUrl).timeout(connTimeoutMs = 20000, readTimeoutMs = 50000)
-    log.info(s"deleting collection ${collectionName} if exists using ${url}")
-    val response1: scalaj.http.HttpResponse[String] = url.param("name", collectionName)
-      .param("action", "DELETE").asString
+    val asyncId = UUID.randomUUID().toString
+    val deleteCollectionUrl = s"$solrServerUrl?action=DELETE&" +
+      s"name=$collectionName"
+    log.info(s"deleting collection ${collectionName} if exists using ${deleteCollectionUrl}")
 
-    log.info(s"deleting collection response ${response1.body}")
+
+    if (useAsync) {
+      SolrOps.makeHttpRequest(deleteCollectionUrl + s"&async=$asyncId")
+      requestPolling(asyncId)
+    } else {
+      SolrOps.makeHttpRequest(deleteCollectionUrl)
+    }
+    log.info(s"listing all collections after deletion ${listCollections}")
+  }
+
+  def listCollections(): Unit = {
+    val solrServerUrl = getSolrCollectionUrl()
+    val listColections = solrServerUrl + "?action=LIST&wt=json"
+    SolrOps.makeHttpRequest(listColections)
   }
 
   def createCollection(): Unit = {
     val solrServerUrl = getSolrCollectionUrl
-    deleteCollection(collectionName)
+    deleteCollection(collectionName, false)
     log.info(s"creating collection : ${collectionName} ")
 
     val nodeCount = SolrClusterStatus.solrNodes.size
     val nameNode = solrMap("nameNode")
     val folderPrefix = solrMap("folderPrefix")
-    val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix, this.hdfsIndexFilePath).length
+    val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix,
+      this.hdfsIndexFilePath).length
     if (numShards == 0) {
       throw new SolrOpsException(s"Cannot create collection with numshard count $numShards")
     }
@@ -91,13 +103,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
     SolrOps.makeHttpRequest(createCollectionUrl)
 
-    log.info(s"polling on request for asyncId: ${asyncId}")
-
-    while (!isReqComplete(asyncId)) {
-      log.info(s"continuing to poll on request for asyncId: ${asyncId}")
-      Thread.sleep(2000)
-    }
-    log.info(s"poll completed on request for asyncId: ${asyncId}")
+    requestPolling(asyncId)
 
     val solrReponse = SolrClusterStatus.parseSolrResponse
     coreMap = solrReponse.map(p => (p.coreName, p.machine)).toMap
@@ -108,6 +114,16 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     }
     log.info(coreMap)
 
+  }
+
+  def requestPolling(asyncId: String): Unit = {
+    log.info(s"polling on request for asyncId: ${asyncId}")
+
+    while (!isReqComplete(asyncId)) {
+      log.info(s"continuing to poll on request for asyncId: ${asyncId}")
+      Thread.sleep(2000)
+    }
+    log.info(s"poll completed on request for asyncId: ${asyncId}")
   }
 
   def createCores(): Unit
@@ -214,7 +230,7 @@ object SolrOps {
     val pc1: ParArray[String] = ParArray
       .createFromCopy(list.toArray)
     pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
-    .forkjoin.ForkJoinPool(12))
+    .forkjoin.ForkJoinPool(20))
     pc1.foreach(url => {
       val response = makeHttpRequest(url)
       if (response != null && !response.isEmpty) {
@@ -257,9 +273,10 @@ object SolrOps {
         log.info(s"responseBody: ${responseBody} for url ")
         if (response.getStatusLine.getStatusCode != 200) {
           noError = true
+          retries = retries + 1
         } else {
           log.info(s"attempting to make request to $url  for the retry count $retries of $retry")
-          retries = retries + 1
+
           noError = false
         }
         response.close()
