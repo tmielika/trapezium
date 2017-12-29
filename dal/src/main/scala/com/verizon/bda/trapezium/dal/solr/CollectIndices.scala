@@ -158,10 +158,6 @@ object CollectIndices {
     val shards = coreMap.keySet.toArray
     var partFileMap = MMap[(String, String), ListBuffer[String]]()
     var outMap = MMap[String, ListBuffer[(String, String)]]()
-    //    coreMap.toList.foreach((shardId: String, host: String) => {
-    //      val tmp = shardId.split("_")
-    //
-    //    })
     val rootDirs = solrMap("rootDirs").split(",")
     var rootMap = MMap[String, Int]()
     for ((shardId, host) <- coreMap) {

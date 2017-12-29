@@ -33,7 +33,7 @@ class SolrOpsHdfs(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[Str
         s"&wt=json&indent=true"
       list.append(url)
     }
-    SolrOps.makeHttpRequests(list.toList)
+    SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
   }
 
   override def deleteOldCollections(oldCollection: String): Unit = {

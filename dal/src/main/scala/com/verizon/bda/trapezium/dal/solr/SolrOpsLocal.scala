@@ -42,7 +42,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
       }
     }
     log.info(list.toList)
-    SolrOps.makeHttpRequests(list.toList)
+    SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
   }
 
   override def deleteOldCollections(oldCollection: String): Unit = {
