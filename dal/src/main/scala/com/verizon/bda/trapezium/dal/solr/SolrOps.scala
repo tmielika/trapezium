@@ -17,6 +17,7 @@ import scala.collection.parallel.mutable.ParArray
 import scala.concurrent.Future
 import scalaj.http.Http
 import scala.concurrent.ExecutionContext.Implicits.global
+
 /**
   * Created by venkatesh on 8/3/17.
   */
@@ -27,7 +28,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   var aliasCollectionName: String = null
   var collectionName: String = null
   lazy val configName = s"$appName/${aliasCollectionName}"
-  var indexFilePath: String = null
+  var hdfsIndexFilePath: String = null
   var coreMap: Map[String, String] = null
 
 
@@ -73,7 +74,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val nodeCount = SolrClusterStatus.solrNodes.size
     val nameNode = solrMap("nameNode")
     val folderPrefix = solrMap("folderPrefix")
-    val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix, this.indexFilePath).length
+    val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix, this.hdfsIndexFilePath).length
     if (numShards == 0) {
       throw new SolrOpsException(s"Cannot create collection with numshard count $numShards")
     }
@@ -116,7 +117,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   def makeSolrCollection(aliasName: String, hdfsPath: String, workflowTime: Time): Unit = {
     this.aliasCollectionName = aliasName
-    this.indexFilePath = if (hdfsPath.last.toString == File.separator) {
+    this.hdfsIndexFilePath = if (hdfsPath.last.toString == File.separator) {
       hdfsPath.slice(0, hdfsPath.length - 1)
     } else {
       hdfsPath
@@ -166,7 +167,7 @@ object SolrOps {
       }
       case "LOCAL" => {
         val set = Set("appName", "zkHosts", "nameNode", "solrUser",
-          "folderPrefix", "zroot", "storageDir", "solrConfig", "replicationFactor")
+          "folderPrefix", "zroot", "rootDirs", "storageDir", "solrConfig", "replicationFactor")
         set.foreach(p =>
           if (!params.contains(p)) {
             throw new SolrOpsException(s"Map Doesn't have ${p} map should contain ${set}")
@@ -197,17 +198,18 @@ object SolrOps {
     }
     unloadFuture
   }
-//  def unloadCore(node: String, coreName: String): Unit = {
-//
-//      log.info("unloading core")
-//      val client = HttpClientBuilder.create().build()
-//      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
-//      val response = client.execute(request)
-//      response.close()
-//      client.close()
-//      response.getStatusLine.getStatusCode == 200
-//
-//  }
+
+  //  def unloadCore(node: String, coreName: String): Unit = {
+  //
+  //      log.info("unloading core")
+  //      val client = HttpClientBuilder.create().build()
+  //      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
+  //      val response = client.execute(request)
+  //      response.close()
+  //      client.close()
+  //      response.getStatusLine.getStatusCode == 200
+  //
+  //  }
   def makeHttpRequests(list: List[String]): Unit = {
     val pc1: ParArray[String] = ParArray
       .createFromCopy(list.toArray)

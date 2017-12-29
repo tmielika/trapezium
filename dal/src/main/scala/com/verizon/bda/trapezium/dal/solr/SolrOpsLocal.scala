@@ -10,14 +10,20 @@ import scala.collection.mutable.ListBuffer
 class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[String, String]) {
 
   override lazy val log = Logger.getLogger(classOf[SolrOpsLocal])
-  lazy val movingDirectory = solrMap("storageDir") + collectionName
+  lazy val indexLocationInRoot = solrMap("storageDir") + collectionName
 
   lazy val map: Map[String, ListBuffer[(String, String)]] = CollectIndices.
     moveFilesFromHdfsToLocal(solrMap,
-      indexFilePath, movingDirectory, coreMap)
+      hdfsIndexFilePath, indexLocationInRoot, coreMap)
 
 
   def createCores(): Unit = {
+    log.info(map)
+    createCoresOnSolr(map, collectionName, configName)
+  }
+
+  def createCoresOnSolr(map: Map[String, ListBuffer[(String, String)]],
+                        collectionName: String, configName: String): Unit = {
     log.info("inside create cores")
     val list = new ListBuffer[String]
     for ((host, fileList) <- map) {
@@ -42,7 +48,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   override def deleteOldCollections(oldCollection: String): Unit = {
     deleteCollection(oldCollection)
     val oldCollectionDirectory = solrMap("storageDir") + oldCollection
-    CollectIndices.deleteDirectory(oldCollectionDirectory)
+    CollectIndices.deleteDirectory(oldCollectionDirectory, solrMap("rootDirs").split(","))
     CollectIndices.closeSession()
 
   }

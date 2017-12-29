@@ -147,8 +147,8 @@ object CollectIndices {
 
 
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
-                               indexFilePath: String,
-                               localDirectory: String, coreMap: Map[String, String])
+                               hdfsIndexFilePath: String,
+                               indexLocationInRoot: String, coreMap: Map[String, String])
   : Map[String, ListBuffer[(String, String)]] = {
     log.info("inside move files")
     val solrNodeUser = solrMap("solrUser")
@@ -156,38 +156,64 @@ object CollectIndices {
     val solrNodes = new ListBuffer[CollectIndices]
 
     val shards = coreMap.keySet.toArray
-    var partFileMap = MMap[String, ListBuffer[String]]()
+    var partFileMap = MMap[(String, String), ListBuffer[String]]()
     var outMap = MMap[String, ListBuffer[(String, String)]]()
     //    coreMap.toList.foreach((shardId: String, host: String) => {
     //      val tmp = shardId.split("_")
     //
     //    })
+    val rootDirs = solrMap("rootDirs").split(",")
+    var rootMap = MMap[String, Int]()
     for ((shardId, host) <- coreMap) {
       val tmp = shardId.split("_")
       val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
       val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1)
-      if (partFileMap.contains(host)) {
-        partFileMap(host).append((partFile))
-        outMap(host).append((indexFilePath.stripSuffix("/") + partFile, shardId))
+
+      val fileName = indexLocationInRoot.stripSuffix("/") + partFile
+
+      if (rootMap.contains(host)) {
+        val root = rootDirs(rootMap(host))
+        rootMap(host) = (rootMap(host) + 1) % rootDirs.length
+        val partFilePath = root + fileName
+        if (partFileMap.contains((host, root))) {
+          partFileMap((host, root)).append((partFile))
+        } else {
+          partFileMap((host, root)) = new ListBuffer[String]
+          partFileMap((host, root)).append((partFile))
+        }
+        outMap(host).append((partFilePath, shardId))
       } else {
-        partFileMap(host) = new ListBuffer[String]
+        rootMap(host) = 0
+
+        val root = rootDirs(rootMap(host))
+        if (partFileMap.contains((host, root))) {
+          partFileMap((host, root)).append((partFile))
+        } else {
+          partFileMap((host, root)) = new ListBuffer[String]
+          partFileMap((host, root)).append((partFile))
+        }
+
+        val partFilePath = rootDirs(rootMap(host)) + fileName
+        rootMap(host) = (rootMap(host) + 1) % rootDirs.length
         outMap(host) = new ListBuffer[(String, String)]
-        partFileMap(host).append((partFile))
-        outMap(host).append((localDirectory.stripSuffix("/") + partFile, shardId))
+        outMap(host).append((partFilePath, shardId))
       }
     }
     var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
-    for ((host: String, partFileList: ListBuffer[String]) <- partFileMap) {
+    for (((host: String, root: String), partFileList: ListBuffer[String]) <- partFileMap) {
+
       val machine: CollectIndices = getMachine(host.split(":")(0), solrNodeUser, machinePrivateKey)
       val command = s"partFiles=(" + partFileList.mkString("\t") + ")" +
         ";for partFile in ${partFiles[@]};" +
         " do " +
-        "hdfs dfs -copyToLocal " + indexFilePath + "$partFile  " + localDirectory + " ;" +
-        " done ;chmod  -R 777  " + localDirectory
+        "hdfs dfs -copyToLocal " + hdfsIndexFilePath + "$partFile  " +
+        root + indexLocationInRoot + " ;" +
+        " done ;chmod  -R 777  " + root + indexLocationInRoot +
+        s" ;du -h -s ${root + indexLocationInRoot}"
       array.append((machine, command))
 
     }
-    createMovingDirectory(localDirectory)
+    createMovingDirectory(indexLocationInRoot, rootDirs)
 
     def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
       collectIndices.runCommand(command, true)
@@ -227,18 +253,32 @@ object CollectIndices {
     machineMap.clear()
   }
 
-  def createMovingDirectory(movingDirectory: String): Unit = {
-    val command = s"mkdir ${
-      movingDirectory
-    }"
-    machineMap.values.foreach(_.runCommand(command, false))
+  def createMovingDirectory(movingDirectory: String, rootDirs: Array[String]): Unit = {
+
+    machineMap.values.foreach(p => {
+      for (root <- rootDirs) {
+        val command = s"mkdir ${
+          root + movingDirectory
+        }"
+        p.runCommand(command, false)
+      }
+    })
   }
 
-  def deleteDirectory(oldCollectionDirectory: String): Unit = {
-    val command = s"rm -rf ${
-      oldCollectionDirectory
-    }"
-    machineMap.values.foreach(_.runCommand(command, false))
+  def deleteDirectory(oldCollectionDirectory: String, rootDirs: Array[String]): Unit = {
+    machineMap.values.foreach(p => {
+      for (root <- rootDirs) {
+        val command = s"rm -rf ${
+          root + oldCollectionDirectory
+        }"
+        p.runCommand(command, false)
+      }
+    })
+
+    //    val command = s"rm -rf ${
+    //      oldCollectionDirectory
+    //    }"
+    //    machineMap.values.foreach(_.runCommand(command, false))
   }
 
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
