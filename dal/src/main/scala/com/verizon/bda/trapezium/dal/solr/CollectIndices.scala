@@ -57,10 +57,10 @@ class CollectIndices {
         val out = printResult(in, channel)
         code = out._2
         log.info(s" command : ${command} \n completed on ${session.getHost}" +
-          s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._2}")
+          s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
         if (code == 0 && retries != retryCount) {
           log.info(s" command : ${command} \n completed on ${session.getHost}" +
-            s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._2}")
+            s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
         }
         retries = retries - 1
       }
