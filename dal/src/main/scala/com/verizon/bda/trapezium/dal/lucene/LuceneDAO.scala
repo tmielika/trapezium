@@ -1,12 +1,15 @@
 package com.verizon.bda.trapezium.dal.lucene
 
 import java.io._
+import java.sql.Time
 
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, FileUtil, PathFilter, Path => HadoopPath}
 import org.apache.log4j.Logger
 import org.apache.lucene.analysis.Analyzer
+import org.apache.lucene.analysis.core.KeywordAnalyzer
+import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.Field
 import org.apache.lucene.index.IndexWriterConfig.OpenMode
 import org.apache.lucene.index._
@@ -18,11 +21,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
-import java.sql.Time
 import java.io.File
 
-import org.apache.lucene.analysis.core.KeywordAnalyzer
-import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
 
