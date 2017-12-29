@@ -21,6 +21,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
+import java.io.File
+
 import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -34,11 +36,12 @@ class LuceneDAO(val location: String,
                 val luceneAnalyzer: String = "keyword",
                 val stored: Boolean = false,
                 storageLevel: StorageLevel = StorageLevel.DISK_ONLY) extends Serializable {
+
   import LuceneDAO._
 
   @transient lazy val log = Logger.getLogger(classOf[LuceneDAO])
 
-  @transient private lazy val analyzer : Analyzer = luceneAnalyzer match {
+  @transient private lazy val analyzer: Analyzer = luceneAnalyzer match {
     case "keyword" => new KeywordAnalyzer()
     case "standard" => new StandardAnalyzer()
     case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
@@ -69,6 +72,11 @@ class LuceneDAO(val location: String,
     this
   }
 
+  import org.apache.lucene.store.FSDirectory
+  import java.nio.file.Paths
+
+
+
   /**
     * Udf to compute the indices and values for sparse vector.
     * Here s is storedDimension and m is featureColumns mapped as Array
@@ -78,8 +86,9 @@ class LuceneDAO(val location: String,
   val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
                                m: mutable.WrappedArray[Map[String, Double]]) =>
     val indVal = s.zip(m).flatMap { x =>
-      if (x._2 == null)
+      if (x._2 == null) {
         Map[Int, Double]()
+      }
       else {
         val output: Map[Int, Double] = x._2.map(kv => (_dictionary.indexOf(x._1, kv._1), kv._2))
         output.filter(_._1 >= 0)
@@ -157,6 +166,7 @@ class LuceneDAO(val location: String,
           }
         }
       }
+      log.info(indexWriter.getConfig.getCodec.getName)
       indexWriter.commit()
 
       log.debug("Number of documents indexed in this partition: " + indexWriter.maxDoc())
@@ -206,7 +216,7 @@ class LuceneDAO(val location: String,
   /**
     * @param sc
     * @param outputPath desired outpath of merged shards
-    * @param numShards total shards
+    * @param numShards  total shards
     */
   def merge(sc: SparkContext,
             outputPath: String,
@@ -371,7 +381,7 @@ class LuceneDAO(val location: String,
   }
 
   //search a query and retrieve for all stored fields
-  def search(queryStr: String, sample: Double = 1.0) : RDD[Row] = {
+  def search(queryStr: String, sample: Double = 1.0): RDD[Row] = {
     search(queryStr, storedFields.toSeq ++ searchAndStoredFields.toSeq, sample)
   }
 

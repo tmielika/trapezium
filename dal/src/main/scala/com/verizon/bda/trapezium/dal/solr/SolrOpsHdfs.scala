@@ -21,7 +21,7 @@ class SolrOpsHdfs(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[Str
       val tmp = coreName.split("_")
       val shard_index = tmp(tmp.size - 2).substring(5).toInt
       val partindex = shard_index - 1
-      val directory = s"$hdfsHome$indexFilePath/part-${partindex}"
+      val directory = s"$hdfsHome$hdfsIndexFilePath/part-${partindex}"
       val shard = s"shard${shard_index}"
       val url = s"http://${host}/solr/admin/cores?" +
         "action=CREATE&" +
@@ -33,7 +33,7 @@ class SolrOpsHdfs(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[Str
         s"&wt=json&indent=true"
       list.append(url)
     }
-    SolrOps.makeHttpRequests(list.toList)
+    SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
   }
 
   override def deleteOldCollections(oldCollection: String): Unit = {
