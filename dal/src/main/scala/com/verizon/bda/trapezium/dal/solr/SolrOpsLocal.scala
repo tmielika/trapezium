@@ -46,7 +46,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   }
 
   override def deleteOldCollections(oldCollection: String): Unit = {
-    deleteCollection(oldCollection)
+    deleteCollection(oldCollection, false)
     val oldCollectionDirectory = solrMap("storageDir") + oldCollection
     CollectIndices.deleteDirectory(oldCollectionDirectory, solrMap("rootDirs").split(","))
     CollectIndices.closeSession()
