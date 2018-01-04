@@ -22,6 +22,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
+import java.io.File
+
 import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -72,6 +74,11 @@ class LuceneDAO(val location: String,
     this
   }
 
+  import org.apache.lucene.store.FSDirectory
+  import java.nio.file.Paths
+
+
+
   /**
     * Udf to compute the indices and values for sparse vector.
     * Here s is storedDimension and m is featureColumns mapped as Array
@@ -81,8 +88,9 @@ class LuceneDAO(val location: String,
   val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
                                m: mutable.WrappedArray[Map[String, Double]]) =>
     val indVal = s.zip(m).flatMap { x =>
-      if (x._2 == null)
+      if (x._2 == null) {
         Map[Int, Double]()
+      }
       else {
         val output: Map[Int, Double] = x._2.map(kv => (_dictionary.indexOf(x._1, kv._1), kv._2))
         output.filter(_._1 >= 0)
@@ -160,6 +168,7 @@ class LuceneDAO(val location: String,
           }
         }
       }
+      log.info(indexWriter.getConfig.getCodec.getName)
       indexWriter.commit()
 
       log.debug("Number of documents indexed in this partition: " + indexWriter.maxDoc())
