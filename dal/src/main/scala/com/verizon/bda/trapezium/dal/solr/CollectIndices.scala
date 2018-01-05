@@ -85,6 +85,10 @@ class CollectIndices {
   def getConnectedChannel(command: String, retry: Int = 5): ChannelExec = {
     if (retry > 0) {
       try {
+        if(!session.isConnected) {
+          log.warn("Session was disconnected earlier")
+          session.connect()
+        }
         val channel: ChannelExec = session.openChannel("exec").asInstanceOf[ChannelExec]
         channel.setInputStream(null)
         channel.setCommand(command)
