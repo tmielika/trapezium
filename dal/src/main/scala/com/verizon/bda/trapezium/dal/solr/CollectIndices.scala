@@ -1,6 +1,6 @@
 package com.verizon.bda.trapezium.dal.solr
 
-import java.io.{File, InputStream}
+import java.io.InputStream
 import java.net.URI
 
 import com.jcraft.jsch.{ChannelExec, JSch, Session}
@@ -11,11 +11,8 @@ import org.apache.log4j.Logger
 
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map => MMap}
-import scala.collection.parallel.ForkJoinTaskSupport
-import scala.collection.parallel.mutable.ParArray
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
@@ -51,18 +48,23 @@ class CollectIndices {
         if (channel == null) {
           throw new SolrOpsException(s"could not execute command: $command on ${session.getHost}")
         }
-        log.info(s"running command : ${command} in ${session.getHost}" +
-          s" with user ${session.getUserName}")
-        val in: InputStream = channel.getInputStream
-        val out = printResult(in, channel)
-        code = out._2
-        log.info(s" command : ${command} \n completed on ${session.getHost}" +
-          s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
-        if (code == 0 && retries != retryCount) {
+        try {
+          log.info(s"running command : ${command} in ${session.getHost}" +
+            s" with user ${session.getUserName}")
+          val in: InputStream = channel.getInputStream
+          val out = printResult(in, channel)
+          code = out._2
           log.info(s" command : ${command} \n completed on ${session.getHost}" +
             s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+          if (code == 0 && retries != retryCount) {
+            log.info(s" command : ${command} \n completed on ${session.getHost}" +
+              s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+
+          }
+          retries = retries - 1
+        } finally {
+          channel.disconnect()
         }
-        retries = retries - 1
       }
       while (code != 0 && retries > 0)
       if (code != 0) {
@@ -236,8 +238,7 @@ object CollectIndices {
       }
       areComplete = bool
 
-    }
-    while (!areComplete)
+    } while (!areComplete)
     val finalTime = System.currentTimeMillis()
     log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
     log.info(outMap.toMap)
@@ -272,35 +273,6 @@ object CollectIndices {
     })
   }
 
-  def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
-                      directory: String,
-                      coreMap: Map[String, String]): MMap[String, ListBuffer[(String, String)]] = {
-    var map = MMap[String, ListBuffer[(String, String)]]()
-
-    val pc1: ParArray[(CollectIndices, String, String, String)] =
-      ParArray.createFromCopy(sshSequence)
-
-    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(8))
-    pc1.map(p => {
-      p._1.runCommand(p._2, true)
-    })
-    for ((machine, command, partFile, shard) <- sshSequence) {
-
-      val host = coreMap(shard)
-      val fileName = partFile
-      if (map.contains(host)) {
-        map(host).append((s"${
-          directory
-        }$fileName", shard))
-      } else {
-        map(host) = new ListBuffer[(String, String)]
-        map(host).append((s"${
-          directory
-        }$fileName", shard))
-      }
-    }
-    map
-  }
 
   def getHdfsList(nameNode: String, folderPrefix: String, indexFilePath: String): Array[String] = {
     val configuration: Configuration = new Configuration()
