@@ -1,6 +1,6 @@
 package com.verizon.bda.trapezium.dal.solr
 
-import java.io.{File, InputStream}
+import java.io.InputStream
 import java.net.URI
 
 import com.jcraft.jsch.{ChannelExec, JSch, Session}
@@ -13,9 +13,8 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map => MMap}
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
@@ -51,18 +50,24 @@ class CollectIndices {
         if (channel == null) {
           throw new SolrOpsException(s"could not execute command: $command on ${session.getHost}")
         }
-        log.info(s"running command : ${command} in ${session.getHost}" +
-          s" with user ${session.getUserName}")
-        val in: InputStream = channel.getInputStream
-        val out = printResult(in, channel)
-        code = out._2
-        log.info(s" command : ${command} \n completed on ${session.getHost}" +
-          s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
-        if (code == 0 && retries != retryCount) {
+        try {
+          log.info(s"running command : ${command} in ${session.getHost}" +
+            s" with user ${session.getUserName}")
+          val in: InputStream = channel.getInputStream
+          val out = printResult(in, channel)
+          code = out._2
           log.info(s" command : ${command} \n completed on ${session.getHost}" +
             s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+          if (code == 0 && retries != retryCount) {
+            log.info(s" command : ${command} \n completed on ${session.getHost}" +
+              s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+          }
+          retries = retries - 1
+
+        } finally {
+          log.info(s"Closing the channel on host=${session.getHost}")
+          channel.disconnect()
         }
-        retries = retries - 1
       }
       while (code != 0 && retries > 0)
       if (code != 0) {
@@ -83,6 +88,12 @@ class CollectIndices {
   def getConnectedChannel(command: String, retry: Int = 5): ChannelExec = {
     if (retry > 0) {
       try {
+
+        if( !session.isConnected ) {
+          log.warn("Session was disconnected earlier")
+          session.connect()
+        }
+
         val channel: ChannelExec = session.openChannel("exec").asInstanceOf[ChannelExec]
         channel.setInputStream(null)
         channel.setCommand(command)
