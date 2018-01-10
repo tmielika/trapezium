@@ -1,7 +1,7 @@
 package com.verizon.bda.commons.serviceapis.security.utils
 
 import com.verizon.bda.commons.serviceapis.security.{ApiAuthorizationService, FederatedAuthorizerSvc}
-import AuthorizationServicesConstants._
+import AuthSvcsConstants._
 import org.slf4j.LoggerFactory
 
 object AuthorizationHelper {

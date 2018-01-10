@@ -3,7 +3,7 @@ package com.verizon.bda.commons.serviceapis.security.utils
 /**
   * Created by chundch on 3/27/17.
   */
-object AuthorizationServicesConstants {
+object AuthSvcsConstants {
 
   val FEDERATED_AUTHORIZER_CONFIG = "Federated"
 

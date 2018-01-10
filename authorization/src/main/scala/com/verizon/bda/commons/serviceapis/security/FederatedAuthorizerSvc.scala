@@ -1,7 +1,7 @@
 package com.verizon.bda.commons.serviceapis.security
 
 import org.slf4j.LoggerFactory
-import com.verizon.bda.commons.serviceapis.security.utils.AuthorizationServicesConstants._
+import com.verizon.bda.commons.serviceapis.security.utils.AuthSvcsConstants._
 
 /**
   * Created by chundch on 5/9/17.

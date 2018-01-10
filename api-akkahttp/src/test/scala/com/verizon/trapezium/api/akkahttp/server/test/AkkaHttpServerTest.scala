@@ -13,7 +13,7 @@ import org.apache.commons.httpclient.methods.{PostMethod, StringRequestEntity}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
-import com.verizon.bda.commons.serviceapis.security.utils.AuthorizationServicesConstants._
+import com.verizon.bda.commons.serviceapis.security.utils.AuthSvcsConstants._
 import org.slf4j.LoggerFactory
 import scala.concurrent.ExecutionContext.Implicits.global
 /**
