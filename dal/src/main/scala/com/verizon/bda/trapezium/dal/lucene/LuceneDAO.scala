@@ -364,9 +364,11 @@ class LuceneDAO(val location: String,
 
   def dictionary(): DictionaryManager = _dictionary
 
-  def count(queryStr: String): Double = {
+  def count(queryStr: String): Long = {
     if (shards == null) throw new LuceneDAOException(s"count called with null shards")
-    shards.map(_.searchDocs(queryStr).cardinality()).sum()
+    shards.map((shard: LuceneShard) => {
+      shard.count(shard.qp.parse(queryStr))
+    }).sum().toLong
   }
 
   def search(queryStr: String,
