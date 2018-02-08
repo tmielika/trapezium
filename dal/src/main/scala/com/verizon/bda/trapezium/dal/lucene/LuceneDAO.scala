@@ -2,7 +2,6 @@ package com.verizon.bda.trapezium.dal.lucene
 
 import java.io._
 import java.sql.Time
-
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, FileUtil, PathFilter, Path => HadoopPath}
@@ -22,10 +21,8 @@ import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
 import java.io.File
-
 import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
-
 import scala.collection.mutable
 import scala.util.Random
 
@@ -47,14 +44,14 @@ class LuceneDAO(val location: String,
     case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
   }
 
-  @transient private val store: Field.Store =
+  @transient private lazy val store: Field.Store =
     if (stored) Field.Store.YES
     else Field.Store.NO
 
   log.info(s"Using ${luceneAnalyzer} analyzer")
 
-  val converter = OLAPConverter(searchFields, store, searchAndStoredFields, storedFields)
-  private var _dictionary: DictionaryManager = _
+  @transient lazy val converter = OLAPConverter(searchFields, store, searchAndStoredFields, storedFields)
+  @transient private var _dictionary: DictionaryManager = _
 
   def encodeDictionary(df: DataFrame): LuceneDAO = {
     if (_dictionary != null) return this
@@ -71,11 +68,6 @@ class LuceneDAO(val location: String,
     })
     this
   }
-
-  import org.apache.lucene.store.FSDirectory
-  import java.nio.file.Paths
-
-
 
   /**
     * Udf to compute the indices and values for sparse vector.
@@ -213,6 +205,74 @@ class LuceneDAO(val location: String,
   // TODO: load logic will move to LuceneRDD
   @transient private var _shards: RDD[LuceneShard] = _
 
+  def load(sc: SparkContext): Unit = {
+    val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
+    val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
+    val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
+
+    // load the schema object into RDD
+    val schemaRDD = sc.objectFile(schemaPath).map { x: Any => x.asInstanceOf[StructField] }
+    val schema = StructType(schemaRDD.collect)
+
+    val indexDir = new HadoopPath(indexPath)
+    val fs = FileSystem.get(indexDir.toUri, sc.hadoopConfiguration)
+
+    val status: Array[FileStatus] = fs.listStatus(indexDir, new PathFilter {
+      override def accept(path: HadoopPath): Boolean = {
+        path.getName.startsWith(SUFFIX)
+      }
+    })
+    val numPartitions = status.length
+    log.info(s"Loading ${numPartitions} indices from path ${indexPath}")
+
+    val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
+
+    _shards = RDDUtils.mapPartitionsInternal(partitionIds, (indices: Iterator[Int]) => {
+      converter.setSchema(schema)
+      indices.map((index: Int) => {
+        val sparkConf = new SparkConf()
+        val localDir = new File(DalUtils.getLocalDir(sparkConf))
+        log.info(s"Created ${localDir} to write lucene shuffle")
+
+        val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
+        // Open a directory on Standalone/YARN/Mesos disk cache
+        val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
+        val shuffleIndexPath = shuffleIndexFile.toPath
+        log.info(s"Created ${shuffleIndexPath} to read lucene partition $index shuffle")
+
+        val conf = new Configuration
+        val shard: Option[LuceneShard] = {
+          log.info(s"Copying data from deep storage: ${hdfsPath} to " +
+            s"local shuffle: ${shuffleIndexPath}")
+          try {
+            FileSystem.get(conf).copyToLocalFile(false,
+              new HadoopPath(hdfsPath),
+              new HadoopPath(shuffleIndexPath.toString))
+            val directory = new MMapDirectory(shuffleIndexPath)
+            directory.setPreload(true)
+            val reader = DirectoryReader.open(directory)
+            Some(LuceneShard(reader, converter, analyzer))
+          } catch {
+            case e: IOException =>
+              throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
+                s"shuffle: ${shuffleIndexPath} failed")
+            case x: Throwable => throw new RuntimeException(x)
+          }
+        }
+        shard.get
+      })
+    })
+    _shards.cache()
+
+    log.info("Number of shards: " + shards.count())
+    if (_dictionary == null) _dictionary = new DictionaryManager
+    else _dictionary.clear()
+
+    _dictionary.load(dictionaryPath)(sc)
+    log.info(s"dictionary stats ${_dictionary}")
+
+  }
+
   /**
     * @param sc
     * @param outputPath desired outpath of merged shards
@@ -290,74 +350,6 @@ class LuceneDAO(val location: String,
 
     FileUtil.copy(fs, new HadoopPath(dictionaryPath), fs, outputDictionaryPath, false, true, sc.hadoopConfiguration)
     FileUtil.copy(fs, new HadoopPath(schemaPath), fs, outputSchemaPath, false, true, sc.hadoopConfiguration)
-
-  }
-
-  def load(sc: SparkContext): Unit = {
-    val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
-    val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
-    val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
-
-    // load the schema object into RDD
-    val schemaRDD = sc.objectFile(schemaPath).map { x: Any => x.asInstanceOf[StructField] }
-    val schema = StructType(schemaRDD.collect)
-
-    converter.setSchema(schema)
-
-    val indexDir = new HadoopPath(indexPath)
-    val fs = FileSystem.get(indexDir.toUri, sc.hadoopConfiguration)
-
-    val status: Array[FileStatus] = fs.listStatus(indexDir, new PathFilter {
-      override def accept(path: HadoopPath): Boolean = {
-        path.getName.startsWith(SUFFIX)
-      }
-    })
-    val numPartitions = status.length
-    log.info(s"Loading ${numPartitions} indices from path ${indexPath}")
-
-    val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
-
-    _shards = RDDUtils.mapPartitionsInternal(partitionIds, (indices: Iterator[Int]) => {
-      indices.map((index: Int) => {
-        val sparkConf = new SparkConf()
-        val localDir = new File(DalUtils.getLocalDir(sparkConf))
-        log.info(s"Created ${localDir} to write lucene shuffle")
-
-        val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
-        // Open a directory on Standalone/YARN/Mesos disk cache
-        val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
-        val shuffleIndexPath = shuffleIndexFile.toPath
-        log.info(s"Created ${shuffleIndexPath} to read lucene partition $index shuffle")
-
-        val conf = new Configuration
-        val shard: Option[LuceneShard] = {
-          log.info(s"Copying data from deep storage: ${hdfsPath} to " +
-            s"local shuffle: ${shuffleIndexPath}")
-          try {
-            FileSystem.get(conf).copyToLocalFile(false,
-              new HadoopPath(hdfsPath),
-              new HadoopPath(shuffleIndexPath.toString))
-            val directory = new MMapDirectory(shuffleIndexPath)
-            val reader = DirectoryReader.open(directory)
-            Some(LuceneShard(reader, converter, analyzer))
-          } catch {
-            case e: IOException =>
-              throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
-                s"shuffle: ${shuffleIndexPath} failed")
-            case x: Throwable => throw new RuntimeException(x)
-          }
-        }
-        shard.get
-      })
-    })
-    _shards.cache()
-
-    log.info("Number of shards: " + shards.count())
-    if (_dictionary == null) _dictionary = new DictionaryManager
-    else _dictionary.clear()
-
-    _dictionary.load(dictionaryPath)(sc)
-    log.info(s"dictionary stats ${_dictionary}")
   }
 
   def shards(): RDD[LuceneShard] = _shards
@@ -569,7 +561,6 @@ class LuceneDAO(val location: String,
 }
 
 object LuceneDAO {
-
   val PREFIX = "trapezium-lucenedao"
   val SUFFIX = "part-"
 
@@ -578,5 +569,4 @@ object LuceneDAO {
 
   val DICTIONARY_PREFIX = "dictionary"
   val SCHEMA_PREFIX = "schema"
-
 }
