@@ -13,6 +13,7 @@ import org.apache.commons.httpclient.methods.{PostMethod, StringRequestEntity}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import com.verizon.bda.commons.serviceapis.security.utils.AuthSvcsConstants._
 import org.slf4j.LoggerFactory
 import scala.concurrent.ExecutionContext.Implicits.global
 /**
@@ -24,6 +25,8 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
 
   private val logger = LoggerFactory.getLogger(this.getClass)
   var apiServer: ApiAkkaHttpServer = null
+  val federatedAuthorizer: String = "Facebook"
+  val federatedAuthorizerToken = "J0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs"
   val JWTTOKEN_DATA_FILE_PATH = "src/test/data/"
   val JWTTOKEN_DATA_FILE = "wso2_assertiontoken.txt"
   var JWT_ASSERTION_TOKEN : String = null
@@ -62,10 +65,10 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
       APISVCS_TESTENDPOINT1_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(VZ_DATE_HEADER_KEY,
-      JWT_ASSERTION_TOKEN)
-    postmethod.setRequestHeader(VZ_AUTHORIZATION_HEADER_KEY,
-      JWT_ASSERTION_TOKEN)
+    postmethod.setRequestHeader(FEDERATED_AUTH_TYPE_HEADER_KEY,
+      federatedAuthorizer)
+    postmethod.setRequestHeader(FEDERATED_AUTH_TOKEN,
+      federatedAuthorizerToken)
 
     val postdatastr = "test request test api resource of test end point one"
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")
@@ -91,10 +94,10 @@ class AkkaHttpServerTest extends FunSuite with BeforeAndAfterAll {
       APISVCS_TESTENDPOINT1_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(VZ_DATE_HEADER_KEY,
-      JWT_ASSERTION_TOKEN)
-    postmethod.setRequestHeader(VZ_AUTHORIZATION_HEADER_KEY,
-      JWT_ASSERTION_TOKEN)
+    postmethod.setRequestHeader(FEDERATED_AUTH_TYPE_HEADER_KEY,
+      federatedAuthorizer)
+    postmethod.setRequestHeader(FEDERATED_AUTH_TOKEN,
+      federatedAuthorizerToken)
 
     val postdatastr = "test request test api resource of test end point two"
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")

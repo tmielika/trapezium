@@ -153,7 +153,7 @@ class LuceneDAO(val location: String,
           } catch {
             case e: Throwable => {
               throw new LuceneDAOException(s"Error with adding row ${r} " +
-                s"to document ${e.getStackTraceString}")
+                s"to document ${e.getMessage}")
             }
           }
         }
@@ -570,3 +570,4 @@ object LuceneDAO {
   val DICTIONARY_PREFIX = "dictionary"
   val SCHEMA_PREFIX = "schema"
 }
+

@@ -51,7 +51,7 @@ class TestEndpointProcessor (implicit val executionContext: ExecutionContext)
     val bufferedReader = new BufferedReader(inputStreamReader)
     logger.debug("Created buffered reader for http request input stream")
     try {
-
+      import scala.language.postfixOps
       dataString = Iterator continually bufferedReader.readLine takeWhile (_ != null) mkString
 
     } catch {
