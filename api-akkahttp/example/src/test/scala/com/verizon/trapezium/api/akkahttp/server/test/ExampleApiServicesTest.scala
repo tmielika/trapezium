@@ -2,6 +2,7 @@ package com.verizon.trapezium.api.akkahttp.server.test
 
 import java.util
 
+import com.verizon.bda.commons.serviceapis.security.utils.AuthorizationServicesConstants._
 import com.verizon.trapezium.api.akkahttp.ApiHttpServices
 import com.verizon.trapezium.api.akkahttp.utils.HttpServicesUtils._
 import com.verizon.trapezium.api.SampleRouteHttpServices
@@ -15,6 +16,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import org.slf4j.LoggerFactory
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
@@ -31,6 +33,8 @@ class ExampleApiServicesTest extends FunSuite with BeforeAndAfterAll {
   var apiServer: ApiAkkaHttpServer = null
   val JWTTOKEN_DATA_FILE_PATH = "src/test/data/"
   val JWTTOKEN_DATA_FILE = "wso2_assertiontoken.txt"
+  val federatedAuthorizer: String = "Facebook"
+  val federatedAuthorizerToken = "J0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs"
   val SAMPLE_SVC_HEADER_DATE_DATA = "2017-08-28 15:40"
   val SAMPLE_SVC_AUTHZ_DATA = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImF"
   var JWT_ASSERTION_TOKEN : String = null
@@ -65,10 +69,10 @@ class ExampleApiServicesTest extends FunSuite with BeforeAndAfterAll {
       SAMPLE_HTTP_SERVICE_RESOURCE
     val client = new HttpClient
     val postmethod = new PostMethod(postendpoint)
-    postmethod.setRequestHeader(SAMPLE_SVCS_DATE_HEADER_KEY,
-      SAMPLE_SVC_HEADER_DATE_DATA)
-    postmethod.setRequestHeader(SAMPLE_SVCS_AUTHORIZATION_HEADER_KEY,
-      SAMPLE_SVC_AUTHZ_DATA)
+    postmethod.setRequestHeader(FEDERATED_AUTH_TYPE_HEADER_KEY,
+      federatedAuthorizer)
+    postmethod.setRequestHeader(FEDERATED_AUTH_TOKEN,
+      federatedAuthorizerToken)
     val postdatastr = "test request test example service sample resource "
     val reqentity = new StringRequestEntity(postdatastr, "plain/text" , "utf-8")
     postmethod.setRequestEntity(reqentity)

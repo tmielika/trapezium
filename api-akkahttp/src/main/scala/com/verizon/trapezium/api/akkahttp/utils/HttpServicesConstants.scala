@@ -28,7 +28,7 @@ object HttpServicesConstants {
   lazy val NO_VALID_AUTHORIZER_ERROR_MSG = APP_CONFIGURATION.getString(
     "apisvcs.failed.noauthorizer.message")
 
-  lazy val FEDERATED_AUTHORIZER_CONFIG = "federated"
+  lazy val FEDERATED_AUTHORIZER_CONFIG = "Federated"
   lazy val WSO2_AUTHORIZATION_DATA_KEY = "X-JWT-Assertion"
   lazy val WSO2_AUTHORIZATION_PROVIDER = "wso2"
   lazy val COUCHBASE_AUTHORIZATION_PROVIDER = "couchbase"
