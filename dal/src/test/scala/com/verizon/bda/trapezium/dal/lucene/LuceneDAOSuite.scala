@@ -31,7 +31,7 @@ class LuceneDAOSuite extends FunSuite with MLlibTestSparkContext with BeforeAndA
   }
 
   override def afterAll(): Unit = {
-    //cleanup()
+    cleanup()
     super.afterAll()
   }
 
@@ -201,8 +201,11 @@ class LuceneDAOSuite extends FunSuite with MLlibTestSparkContext with BeforeAndA
     assert(rdd2.count == 1)
     assert(rdd3.count == 1)
 
-    assert(rdd3.collect()(0).getString(1) == "Instagram")
-
+    val row3 = rdd3.collect()(0)
+    assert(row3.length == 3)
+    assert(row3.getString(1) == "Instagram")
+    assert(row3.getString(2) == "456")
+    
     val rdd4 = dao.search("app:\"Google Play Books\"", Seq("user"), 1.0)
     assert(rdd4.collect()(0).getSeq[String](0) == Seq("apple.com", "cnn.com"))
     assert(rdd4.collect()(0).getString(1) == "Google Play Books")

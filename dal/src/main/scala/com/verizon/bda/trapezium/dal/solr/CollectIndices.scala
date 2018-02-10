@@ -13,7 +13,9 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map => MMap}
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
-import scala.reflect.ClassTag
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 /**
   * Created by venkatesh on 7/10/17.
@@ -41,23 +43,31 @@ class CollectIndices {
   def runCommand(command: String, retry: Boolean, retryCount: Int = 5): Int = {
     var code = -1
     var retries = retryCount
+
     try {
       do {
         val channel: ChannelExec = getConnectedChannel(command)
         if (channel == null) {
-          throw new SolrOpsException(s"could not execute command: $command")
+          throw new SolrOpsException(s"could not execute command: $command on ${session.getHost}")
         }
-        log.info(s"running command : ${command} in ${session.getHost}" +
-          s" with user ${session.getUserName}")
-        val in: InputStream = channel.getInputStream
-        code = printResult(in, channel)
-        log.info(s" command : ${command} \n completed on ${session.getHost}" +
-          s" with user ${session.getUserName} with exit code:$code")
-        if (code == 0 && retries != retryCount) {
+        try {
+          log.info(s"running command : ${command} in ${session.getHost}" +
+            s" with user ${session.getUserName}")
+          val in: InputStream = channel.getInputStream
+          val out = printResult(in, channel)
+          code = out._2
           log.info(s" command : ${command} \n completed on ${session.getHost}" +
-            s" with user ${session.getUserName} with exit code:$code on retry")
+            s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+          if (code == 0 && retries != retryCount) {
+            log.info(s" command : ${command} \n completed on ${session.getHost}" +
+              s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+          }
+          retries = retries - 1
+
+        } finally {
+          log.info(s"Closing the channel on host=${session.getHost}")
+          channel.disconnect()
         }
-        retries = retries - 1
       }
       while (code != 0 && retries > 0)
       if (code != 0) {
@@ -67,6 +77,8 @@ class CollectIndices {
     } catch {
       case e: Exception => {
         log.warn(s"Has problem running the command :$command", e)
+        throw new SolrOpsException(s"could not execute $command has" +
+          s" returned $code ${session.getHost}")
         return code
       }
     }
@@ -76,6 +88,12 @@ class CollectIndices {
   def getConnectedChannel(command: String, retry: Int = 5): ChannelExec = {
     if (retry > 0) {
       try {
+
+        if( !session.isConnected ) {
+          log.warn("Session was disconnected earlier")
+          session.connect()
+        }
+
         val channel: ChannelExec = session.openChannel("exec").asInstanceOf[ChannelExec]
         channel.setInputStream(null)
         channel.setCommand(command)
@@ -97,7 +115,7 @@ class CollectIndices {
 
   }
 
-  def printResult(in: InputStream, channel: ChannelExec): Int = {
+  def printResult(in: InputStream, channel: ChannelExec): (String, Int) = {
     val tmp = new Array[Byte](1024)
     val strBuilder = new StringBuilder
     var continueLoop = true
@@ -113,8 +131,7 @@ class CollectIndices {
         continueLoop = false
       }
     }
-    log.info(strBuilder.toString)
-    channel.getExitStatus
+    (strBuilder.toString, channel.getExitStatus)
   }
 
 
@@ -139,9 +156,10 @@ object CollectIndices {
     }
   }
 
+
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
-                               indexFilePath: String,
-                               movingDirectory: String, coreMap: Map[String, String])
+                               hdfsIndexFilePath: String,
+                               indexLocationInRoot: String, coreMap: Map[String, String])
   : Map[String, ListBuffer[(String, String)]] = {
     log.info("inside move files")
     val solrNodeUser = solrMap("solrUser")
@@ -149,32 +167,92 @@ object CollectIndices {
     val solrNodes = new ListBuffer[CollectIndices]
 
     val shards = coreMap.keySet.toArray
-    val sshSequenceMap: Map[CollectIndices,
-      Array[(CollectIndices, String, String, String)]] = shards.map(shard => {
-      log.info(s"shard ${shard}")
-      val tmp = shard.split("_")
-      val folderPrefix = if (solrMap("folderPrefix").charAt(0) == '/') {
-        solrMap("folderPrefix")
-      } else {
-        "/" + solrMap("folderPrefix")
-      }
+    var partFileMap = MMap[(String, String), ListBuffer[String]]()
+    var outMap = MMap[String, ListBuffer[(String, String)]]()
+    val rootDirs = solrMap("rootDirs").split(",")
+    var rootMap = MMap[String, Int]()
+    for ((shardId, host) <- coreMap) {
+      val tmp = shardId.split("_")
+      val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
       val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1)
-      log.info(s"partFile ${partFile}")
-      val file = indexFilePath + partFile
-      val machine: CollectIndices = getMachine(coreMap(shard)
-        .split(":")(0), solrNodeUser, machinePrivateKey)
-      val command = s"hdfs dfs -copyToLocal $file ${movingDirectory};" +
-        s"chmod 777 -R ${movingDirectory};"
-      log.info(s"command: ${command}")
-      (machine, command, partFile, shard)
-    }).groupBy(_._1)
 
-    val sshSequence = getWellDistributed(sshSequenceMap, coreMap.keySet.size)
-    createMovingDirectory(movingDirectory)
-    val fileMap = parallelSshFire(sshSequence, movingDirectory, coreMap)
+      val fileName = indexLocationInRoot.stripSuffix("/") + partFile
 
-    log.info(s"map prepared was " + fileMap.toMap)
-    fileMap.toMap[String, ListBuffer[(String, String)]]
+      if (rootMap.contains(host)) {
+        val root = rootDirs(rootMap(host))
+        rootMap(host) = (rootMap(host) + 1) % rootDirs.length
+        val partFilePath = root + fileName
+        if (partFileMap.contains((host, root))) {
+          partFileMap((host, root)).append((partFile))
+        } else {
+          partFileMap((host, root)) = new ListBuffer[String]
+          partFileMap((host, root)).append((partFile))
+        }
+        outMap(host).append((partFilePath, shardId))
+      } else {
+        rootMap(host) = 0
+
+        val root = rootDirs(rootMap(host))
+        if (partFileMap.contains((host, root))) {
+          partFileMap((host, root)).append((partFile))
+        } else {
+          partFileMap((host, root)) = new ListBuffer[String]
+          partFileMap((host, root)).append((partFile))
+        }
+
+        val partFilePath = rootDirs(rootMap(host)) + fileName
+        rootMap(host) = (rootMap(host) + 1) % rootDirs.length
+        outMap(host) = new ListBuffer[(String, String)]
+        outMap(host).append((partFilePath, shardId))
+      }
+    }
+    var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
+    for (((host: String, root: String), partFileList: ListBuffer[String]) <- partFileMap) {
+
+      val machine: CollectIndices = getMachine(host.split(":")(0), solrNodeUser, machinePrivateKey)
+      val command = s"partFiles=(" + partFileList.mkString("\t") + ")" +
+        ";for partFile in ${partFiles[@]};" +
+        " do " +
+        "hdfs dfs -copyToLocal " + hdfsIndexFilePath + "$partFile  " +
+        root + indexLocationInRoot + " ;" +
+        " done ;chmod  -R 777  " + root + indexLocationInRoot +
+        s" ;du -h -s ${root + indexLocationInRoot}"
+      array.append((machine, command))
+
+    }
+    createMovingDirectory(indexLocationInRoot, rootDirs)
+
+    def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
+      collectIndices.runCommand(command, true)
+    }
+
+    val start = System.currentTimeMillis()
+    val futureList = array.map(p => {
+      val f: Future[Int] = deploySolrShards(p._1, p._2)
+      f.onComplete {
+        case Success(code)
+        => log.info(s"successfully  ran  command ${p._2}" +
+          s" on ${p._1.session.getHost} with code $code")
+        case Failure(ex)
+        => log.error(s"failed to run ${p._2}", ex)
+      }
+      f
+    }
+    )
+    var areComplete = false
+    do {
+      var bool = true
+      for (f <- futureList) {
+        bool = f.isCompleted & bool
+      }
+      areComplete = bool
+
+    }
+    while (!areComplete)
+    val finalTime = System.currentTimeMillis()
+    log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
+    log.info(outMap.toMap)
+    outMap.toMap
   }
 
   def closeSession(): Unit = {
@@ -182,15 +260,29 @@ object CollectIndices {
     machineMap.clear()
   }
 
-  def createMovingDirectory(movingDirectory: String): Unit = {
-    val command = s"mkdir ${movingDirectory}"
-    machineMap.values.foreach(_.runCommand(command, false))
+  def createMovingDirectory(movingDirectory: String, rootDirs: Array[String]): Unit = {
+
+    machineMap.values.foreach(p => {
+      for (root <- rootDirs) {
+        val command = s"mkdir ${
+          root + movingDirectory
+        }"
+        p.runCommand(command, false)
+      }
+    })
   }
 
-  def deleteDirectory(oldCollectionDirectory: String): Unit = {
-    val command = s"rm -rf ${oldCollectionDirectory}"
-    machineMap.values.foreach(_.runCommand(command, false))
+  def deleteDirectory(oldCollectionDirectory: String, rootDirs: Array[String]): Unit = {
+    machineMap.values.foreach(p => {
+      for (root <- rootDirs) {
+        val command = s"rm -rf ${
+          root + oldCollectionDirectory
+        }"
+        p.runCommand(command, false)
+      }
+    })
   }
+
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
                       directory: String,
                       coreMap: Map[String, String]): MMap[String, ListBuffer[(String, String)]] = {
@@ -208,59 +300,32 @@ object CollectIndices {
       val host = coreMap(shard)
       val fileName = partFile
       if (map.contains(host)) {
-        map(host).append((s"${directory}$fileName", shard))
+        map(host).append((s"${
+          directory
+        }$fileName", shard))
       } else {
         map(host) = new ListBuffer[(String, String)]
-        map(host).append((s"${directory}$fileName", shard))
+        map(host).append((s"${
+          directory
+        }$fileName", shard))
       }
     }
     map
   }
 
-  def getWellDistributed[A: ClassTag, B: ClassTag](map: Map[A, Array[B]], size: Int): Array[B] = {
-    val numMachines = map.keySet.size
-    val map1 = new java.util.HashMap[A, Int]
-    val lb = new ListBuffer[B]
-    val li = map.keySet.toList
-    var recordCount = 0
-    var tempcount = 0
-    var name: A = map.head._1
-    var j = 0
-    for (i <- 0 until size) {
-      j = i
-      do {
-        name = li(j % numMachines)
-        if (!map1.containsKey(name)) {
-          map1.put(name, 0)
-        }
-        tempcount = map1.get(name)
-        recordCount = map(name).size
-        j = j + 1
-      }
-      while (recordCount <= tempcount && (j - i) != numMachines)
-      if ((j - i) != numMachines) {
-        lb.append(map.get(name).get(tempcount))
-      }
-
-      map1.put(name, tempcount + 1)
-    }
-    lb.toArray
-
-  }
-
-  def getHdfsList(solrMap: Map[String, String], indexFilePath: String): Array[String] = {
+  def getHdfsList(nameNode: String, folderPrefix: String, indexFilePath: String): Array[String] = {
     val configuration: Configuration = new Configuration()
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
     // 2. Get the instance of the HDFS
-    val nameNaode = solrMap("nameNode")
-    // + config.getString("indexFilesPath")
-    // config.getString("hdfs")
-    val hdfs = FileSystem.get(new URI(s"hdfs://${nameNaode}"), configuration)
+    val hdfs = FileSystem.get(new URI(s"hdfs://${
+      nameNode
+    }"), configuration)
     // 3. Get the metadata of the desired directory
-    val fileStatus = hdfs.listStatus(new Path(s"hdfs://${nameNaode}" + indexFilePath))
+    val fileStatus = hdfs.listStatus(new Path(s"hdfs://${
+      nameNode
+    }" + indexFilePath))
     // 4. Using FileUtil, getting the Paths for all the FileStatus
     val paths = FileUtil.stat2Paths(fileStatus)
-    val folderPrefix = solrMap("folderPrefix")
     paths.map(_.toString).filter(p => p.contains(folderPrefix))
   }
 

@@ -20,6 +20,7 @@
     <module>couchbase-store</module>
     <module>license-stub</module>
     <module>simulation</module>
+    <module>authorization</module>    
     <module>api</module>
     <module>api-akkahttp</module>
   </modules>
