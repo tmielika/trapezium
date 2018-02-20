@@ -89,7 +89,7 @@ class CollectIndices {
     if (retry > 0) {
       try {
 
-        if( !session.isConnected ) {
+        if (!session.isConnected) {
           log.warn("Session was disconnected earlier")
           session.connect()
         }
@@ -216,7 +216,7 @@ object CollectIndices {
         "hdfs dfs -copyToLocal " + hdfsIndexFilePath + "$partFile  " +
         root + indexLocationInRoot + " ;" +
         " done ;chmod  -R 777  " + root + indexLocationInRoot +
-        s" ;du -h -s ${root + indexLocationInRoot}"
+        s" ;du -h -s ${root + indexLocationInRoot}" + "$partFile  "
       array.append((machine, command))
 
     }

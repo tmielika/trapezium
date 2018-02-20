@@ -235,8 +235,9 @@ object SolrOps {
           }
         } catch {
           case e: Exception =>
-            throw new SolrOpsException(s"core could not be created for request: " +
-              s"$url response:$response")
+           {
+             throw new SolrOpsException(s"core could not be created for request: " +
+              s"$url response:$response")}
         }
       }
     })
