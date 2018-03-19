@@ -5,6 +5,7 @@ import java.nio.file.{Path, Paths}
 import java.sql.Time
 import java.util.UUID
 
+import com.verizon.bda.analytics.api.dao.zk.ZooKeeperClient
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
@@ -12,6 +13,7 @@ import org.apache.http.util.EntityUtils
 import org.apache.log4j.Logger
 import org.codehaus.jackson.map.ObjectMapper
 
+import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
 import scala.concurrent.Future
@@ -29,6 +31,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   lazy val configName = s"$appName/${aliasCollectionName}"
   var hdfsIndexFilePath: String = null
   var coreMap: Map[String, String] = null
+  val lb: ListBuffer[Future[Boolean]] = new ListBuffer[Future[Boolean]]
 
 
   def upload(): Unit = {
@@ -40,7 +43,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   }
 
   def getSolrCollectionUrl(): String = {
-    val host = SolrClusterStatus.solrNodes.head
+    val host = SolrClusterStatus.solrLiveNodes.head
     val solrServerUrl = s"http://$host/solr/admin/collections"
     solrServerUrl
   }
@@ -51,6 +54,13 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       s"name=$aliasCollectionName" + s"&collections=$collectionName"
     log.info(s"aliasing collection  ${collectionName} with ${aliasCollectionName}")
     val response = SolrOps.makeHttpRequest(aliaseCollectionUrl)
+    //    storeFiledsinZk()
+    ZooKeeperClient(solrMap("zkHosts"))
+    ZooKeeperClient.setData(s"/solrDeployer/$aliasCollectionName/indicesPath",
+      (solrMap("storageDir") + "/" + collectionName).getBytes())
+    ZooKeeperClient.setData(s"/solrDeployer/$aliasCollectionName/hdfsPath",
+      hdfsIndexFilePath.getBytes())
+    ZooKeeperClient.close()
     log.info(s"aliasing collection response ${response}")
   }
 
@@ -82,7 +92,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     deleteCollection(collectionName, false)
     log.info(s"creating collection : ${collectionName} ")
 
-    val nodeCount = SolrClusterStatus.solrNodes.size
+    val nodeCount = SolrClusterStatus.solrLiveNodes.size
     val nameNode = solrMap("nameNode")
     val folderPrefix = solrMap("folderPrefix")
     val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix,
@@ -110,9 +120,25 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     for ((corename, ip) <- coreMap) {
       log.info(s"coreName:  ${corename} ip ${ip}"
       )
-      SolrOps.unloadCore(ip, corename)
+      lb.append(SolrOps.unloadCore(ip, corename))
     }
+
     log.info(coreMap)
+
+  }
+
+  def waitUnloadForUnloadCores(lb: List[Future[Boolean]]): Unit = {
+    var areComplete = false
+    do {
+      var bool = true
+      log.info(s"waiting for necessary futures to complete ")
+      for (f <- lb) {
+        bool = f.isCompleted & bool
+      }
+      areComplete = bool
+    }
+    while (!areComplete)
+    log.info(s"necessary futures completed ")
 
   }
 
@@ -141,6 +167,9 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     collectionName = s"${aliasCollectionName}_${workflowTime.getTime.toString}"
     SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName)
     val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName)
+    ZooKeeperClient(solrMap("zkHosts"))
+    ZooKeeperClient.setData("/solrdeployer/isRunning", 1.toString.getBytes)
+    ZooKeeperClient.close()
     upload()
     createCollection()
     createCores()
@@ -149,6 +178,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       deleteOldCollections(oldCollection)
     }
     SolrClusterStatus.cloudClient.close()
+    ZooKeeperClient(solrMap("zkHosts"))
+    ZooKeeperClient.setData("/solrdeployer/isRunning", 0.toString.getBytes)
+    ZooKeeperClient.close()
+
   }
 
   def isReqComplete(asyncId: String): Boolean = {
@@ -202,8 +235,8 @@ object SolrOps {
   }
 
 
-  def unloadCore(node: String, coreName: String): Future[Unit] = {
-    val unloadFuture: Future[Unit] = Future {
+  def unloadCore(node: String, coreName: String): Future[Boolean] = {
+    val unloadFuture: Future[Boolean] = Future {
       log.info("unloading core")
       val client = HttpClientBuilder.create().build()
       val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
@@ -234,10 +267,10 @@ object SolrOps {
             throw e
           }
         } catch {
-          case e: Exception =>
-           {
-             throw new SolrOpsException(s"core could not be created for request: " +
-              s"$url response:$response")}
+          case e: Exception => {
+            throw new SolrOpsException(s"core could not be created for request: " +
+              s"$url response:$response")
+          }
         }
       }
     })

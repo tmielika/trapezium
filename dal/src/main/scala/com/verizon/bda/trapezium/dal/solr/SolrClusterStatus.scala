@@ -21,7 +21,7 @@ object SolrClusterStatus {
   // "listOfzookeepers"
   var chroot: String = _
   var collectionName: String = _
-  var solrNodes: List[String] = Nil
+  var solrLiveNodes: List[String] = Nil
   var cloudClient: ZkClientClusterStateProvider = _
 
   // "zroot"
@@ -33,8 +33,8 @@ object SolrClusterStatus {
     cloudClient = new ZkClientClusterStateProvider(zkHosts, chroot)
     log.info(s"$zkHosts")
     log.info(s"$chroot")
-    solrNodes = getSolrNodes(cloudClient)
-    log.info(s"${solrNodes.toList}")
+    solrLiveNodes = getSolrNodes(cloudClient)
+    log.info(s"${solrLiveNodes.toList}")
   }
 
 
@@ -63,27 +63,40 @@ object SolrClusterStatus {
   }
 
 
-//  def getSolrclient(): ZkClientClusterStateProvider = {
-//    new ZkClientClusterStateProvider(zkHosts, chroot)
-//  }
+  /**
+    * This returns key,value pair of alias and the collection name
+    *
+    * @return
+    */
+  def getCollectionAliasMap(): Map[String, String] = {
+    val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
+    val aliases: Map[String, String] = try {
+      clusterJsonResponse.getJSONObject("cluster").getJSONObject("aliases")
+        .toMap.asScala.toList.map((v) => (v._1, v._2.asInstanceOf[String])).toMap
+    }
+    catch {
+      case e: JSONException =>
+        log.warn(s"Json was not proper", e)
+        null
+    }
+    aliases
+  }
 
   def getOldCollectionMapped(aliasName: String): String = {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
-    val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
     val oldCollectionName = try {
-      clusterJsonResponse.get("cluster").asInstanceOf[JSONObject]
-        .get("aliases").asInstanceOf[JSONObject].getString(aliasName)
+      getCollectionAliasMap().get(aliasName)
     }
     catch {
       case e: JSONException =>
         log.warn(s"alias colection:$aliasName might not be present", e)
         null
     }
-    oldCollectionName
+    oldCollectionName.get
   }
 
   def getClusterStatus(collection: String, collectionNeeded: Boolean = true): String = {
-    val node: String = solrNodes(0)
+    val node: String = solrLiveNodes(0)
     val collectionUrl: String = if (collectionNeeded) {
       s"&collection=$collection"
     } else {

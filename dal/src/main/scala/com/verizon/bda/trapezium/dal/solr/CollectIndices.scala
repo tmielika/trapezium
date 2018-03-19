@@ -60,7 +60,8 @@ class CollectIndices {
             s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
           if (code == 0 && retries != retryCount) {
             log.info(s" command : ${command} \n completed on ${session.getHost}" +
-              s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
+              s" with user ${session.getUserName} with exit " +
+              s"code:$code on retry with log:\n${out._1}")
           }
           retries = retries - 1
 
@@ -159,7 +160,8 @@ object CollectIndices {
 
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
                                hdfsIndexFilePath: String,
-                               indexLocationInRoot: String, coreMap: Map[String, String])
+                               indexLocationInRoot: String,
+                               coreMap: Map[String, String], rootDirsExists: Boolean = false)
   : Map[String, ListBuffer[(String, String)]] = {
     log.info("inside move files")
     val solrNodeUser = solrMap("solrUser")
@@ -220,7 +222,10 @@ object CollectIndices {
       array.append((machine, command))
 
     }
-    createMovingDirectory(indexLocationInRoot, rootDirs)
+    if(!rootDirsExists)
+      {
+        createMovingDirectory(indexLocationInRoot, rootDirs)
+      }
 
     def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
       collectIndices.runCommand(command, true)

@@ -2,11 +2,9 @@ package com.verizon.bda.trapezium.dal.solr
 
 import java.net.URI
 
-import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, FileUtil, Path}
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.log4j.Logger
-import org.codehaus.jackson.map.ObjectMapper
 import org.json.JSONObject
 
 import scala.collection.mutable.ListBuffer
@@ -29,11 +27,17 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
     createCoresOnSolr(map, collectionName, configName)
   }
 
-
+  /**
+    *
+    * @param map kesy is the host value is the tuple of directory and corename
+    * @param collectionName
+    * @param configName
+    */
   def createCoresOnSolr(map: Map[String, ListBuffer[(String, String)]],
                         collectionName: String, configName: String): Unit = {
     log.info("inside create cores")
     val list = new ListBuffer[String]
+    waitUnloadForUnloadCores(lb.toList)
     for ((host, fileList) <- map) {
       for ((directory, coreName) <- fileList.toList) {
         val id = directory.split("-").last.toInt + 1
@@ -45,13 +49,12 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
           s"dataDir=${directory}&" +
           s"shard=shard${id}&" +
           s"wt=json&indent=true"
-
         list.append(url)
       }
     }
     log.info(list.toList)
     SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
-    if(!makeSanityCheck(collectionName, map)){
+    if (!makeSanityCheck(collectionName, map)) {
       deleteOldCollections(collectionName)
       log.error(s"sanity check failed and rolling back " +
         s"the creation of collection ${collectionName}")
@@ -61,7 +64,6 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
 
   def makeSanityCheck(collectionName: String,
                       map: Map[String, ListBuffer[(String, String)]]): Boolean = {
-
     for ((host, fileList) <- map) {
       for ((directory, coreName) <- fileList.toList) {
         val id: Int = directory.split("-").last.toInt
@@ -82,7 +84,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
         val sizeOnHdfs = getShardSizeOnHdfs(nameNode, hdfsDataLocation)
         log.info(s"shard${id} on local $sizeOnLocal and size on hdfs $sizeOnHdfs")
 
-        if(Math.abs(sizeOnLocal-sizeOnHdfs)!=0){
+        if (Math.abs(sizeOnLocal - sizeOnHdfs) != 0) {
           log.warn(s"size of shard${id} on hdfs and local didn't match hence " +
             s"intaiating a roll back")
           return false
