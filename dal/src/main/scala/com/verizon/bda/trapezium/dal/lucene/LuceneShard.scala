@@ -6,7 +6,6 @@ import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index._
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.{BooleanQuery, IndexSearcher, ScoreDoc}
-import org.apache.lucene.store.FSDirectory
 import org.apache.spark.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
@@ -21,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 
 case class LuceneReader(leafReader: LeafReader, range: FeatureAttr)
 
-class LuceneShard(directory:FSDirectory =null, reader: IndexReader,
+class LuceneShard( reader: IndexReader,
                   converter: OLAPConverter,
                   analyzer: Analyzer) extends IndexSearcher(reader) with Logging {
   logInfo(s"lucene shard leaf readers ${leafContexts.size}")
@@ -58,8 +57,6 @@ class LuceneShard(directory:FSDirectory =null, reader: IndexReader,
     log.info(s"leafContext ord ${ctx.ord} docBase ${ctx.docBase} numDocs ${reader.numDocs()}")
     LuceneReader(reader, FeatureAttr(ctx.docBase, reader.numDocs()))
   })
-
-  val fsdirectory:FSDirectory =  directory
 
   val dvExtractor = DocValueExtractor(leafReaders, converter)
 
@@ -287,10 +284,9 @@ class LuceneShard(directory:FSDirectory =null, reader: IndexReader,
 }
 
 object LuceneShard {
-  def apply(directory: FSDirectory=null,
-            reader: IndexReader,
+  def apply(reader: IndexReader,
             converter: OLAPConverter,
             analyzer: Analyzer): LuceneShard = {
-    new LuceneShard(directory, reader, converter, analyzer)
+    new LuceneShard(reader, converter, analyzer)
   }
 }

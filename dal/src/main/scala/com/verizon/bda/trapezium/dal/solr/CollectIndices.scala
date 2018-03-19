@@ -11,6 +11,8 @@ import org.apache.log4j.Logger
 
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map => MMap}
+import scala.collection.parallel.ForkJoinTaskSupport
+import scala.collection.parallel.mutable.ParArray
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -59,10 +61,11 @@ class CollectIndices {
           if (code == 0 && retries != retryCount) {
             log.info(s" command : ${command} \n completed on ${session.getHost}" +
               s" with user ${session.getUserName} with exit code:$code on retry with log:\n${out._1}")
-
           }
           retries = retries - 1
+
         } finally {
+          log.info(s"Closing the channel on host=${session.getHost}")
           channel.disconnect()
         }
       }
@@ -85,10 +88,12 @@ class CollectIndices {
   def getConnectedChannel(command: String, retry: Int = 5): ChannelExec = {
     if (retry > 0) {
       try {
-        if( !session.isConnected ) {
+
+        if (!session.isConnected) {
           log.warn("Session was disconnected earlier")
           session.connect()
         }
+
         val channel: ChannelExec = session.openChannel("exec").asInstanceOf[ChannelExec]
         channel.setInputStream(null)
         channel.setCommand(command)
@@ -211,7 +216,7 @@ object CollectIndices {
         "hdfs dfs -copyToLocal " + hdfsIndexFilePath + "$partFile  " +
         root + indexLocationInRoot + " ;" +
         " done ;chmod  -R 777  " + root + indexLocationInRoot +
-        s" ;du -h -s ${root + indexLocationInRoot}"
+        s" ;du -h -s ${root + indexLocationInRoot}" + "$partFile  "
       array.append((machine, command))
 
     }
@@ -242,7 +247,8 @@ object CollectIndices {
       }
       areComplete = bool
 
-    } while (!areComplete)
+    }
+    while (!areComplete)
     val finalTime = System.currentTimeMillis()
     log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
     log.info(outMap.toMap)
@@ -277,6 +283,35 @@ object CollectIndices {
     })
   }
 
+  def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
+                      directory: String,
+                      coreMap: Map[String, String]): MMap[String, ListBuffer[(String, String)]] = {
+    var map = MMap[String, ListBuffer[(String, String)]]()
+
+    val pc1: ParArray[(CollectIndices, String, String, String)] =
+      ParArray.createFromCopy(sshSequence)
+
+    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(8))
+    pc1.map(p => {
+      p._1.runCommand(p._2, true)
+    })
+    for ((machine, command, partFile, shard) <- sshSequence) {
+
+      val host = coreMap(shard)
+      val fileName = partFile
+      if (map.contains(host)) {
+        map(host).append((s"${
+          directory
+        }$fileName", shard))
+      } else {
+        map(host) = new ListBuffer[(String, String)]
+        map(host).append((s"${
+          directory
+        }$fileName", shard))
+      }
+    }
+    map
+  }
 
   def getHdfsList(nameNode: String, folderPrefix: String, indexFilePath: String): Array[String] = {
     val configuration: Configuration = new Configuration()
