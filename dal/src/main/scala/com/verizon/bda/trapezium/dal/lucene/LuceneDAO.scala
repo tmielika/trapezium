@@ -136,6 +136,7 @@ class LuceneDAO(val location: String,
       val broadcast= ObjectManager.get(key).get.asInstanceOf[FeatureUDF].broadcastDictionary
       broadcast.destroy()
     }
+    ObjectManager.removeAll()
   }
 
   // TODO: If index already exist we have to merge dictionary and update indices

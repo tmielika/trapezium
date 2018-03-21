@@ -20,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 
 case class LuceneReader(leafReader: LeafReader, range: FeatureAttr)
 
-class LuceneShard( reader: IndexReader,
+class LuceneShard(reader: IndexReader,
                   converter: OLAPConverter,
                   analyzer: Analyzer) extends IndexSearcher(reader) with Logging {
   logInfo(s"lucene shard leaf readers ${leafContexts.size}")
