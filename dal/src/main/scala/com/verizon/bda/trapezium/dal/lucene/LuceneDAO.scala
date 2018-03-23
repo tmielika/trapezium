@@ -73,35 +73,6 @@ class LuceneDAO(val location: String,
 
 
   /**
-    * A plain simple wrapper on the UDF that helps to hold the broadcasted dictionary for the
-    * current request session
-    * @param broadcastDictionary
-    */
-
-  class FeatureUDF( val broadcastDictionary : Broadcast[DictionaryManager]) extends Serializable {
-    /**
-      * Udf to compute the indices and values for sparse vector.
-      * Here s is storedDimension and m is featureColumns mapped as Array
-      * corresponding to the dimensions. Support measures that are MapType
-      * with keys as the hierarchical dimension
-      */
-    val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
-                                 m: mutable.WrappedArray[Map[String, Double]]) =>
-      val indVal = s.zip(m).flatMap { x =>
-        if (x._2 == null) {
-          Map[Int, Double]()
-        }
-        else {
-          val output: Map[Int, Double] = x._2.map(kv => (broadcastDictionary.value.indexOf(x._1, kv._1), kv._2))
-          output.filter(_._1 >= 0)
-        }
-      }.sortBy(_._1)
-      Vectors.sparse(broadcastDictionary.value.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
-    }
-
-  }
-
-  /**
     * 2 step process to generate feature vectors:
     * Step 1: Collect all the featureColumns in arrFeatures that
     * should go into feature vector.
@@ -594,6 +565,34 @@ class LuceneDAO(val location: String,
   }
 }
 
+/**
+  * A plain simple wrapper on the UDF that helps to hold the broadcasted dictionary for the
+  * current request session
+  * @param broadcastDictionary
+  */
+
+class FeatureUDF( val broadcastDictionary : Broadcast[DictionaryManager]) extends Serializable {
+  /**
+    * Udf to compute the indices and values for sparse vector.
+    * Here s is storedDimension and m is featureColumns mapped as Array
+    * corresponding to the dimensions. Support measures that are MapType
+    * with keys as the hierarchical dimension
+    */
+  val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
+                               m: mutable.WrappedArray[Map[String, Double]]) =>
+    val indVal = s.zip(m).flatMap { x =>
+      if (x._2 == null) {
+        Map[Int, Double]()
+      }
+      else {
+        val output: Map[Int, Double] = x._2.map(kv => (broadcastDictionary.value.indexOf(x._1, kv._1), kv._2))
+        output.filter(_._1 >= 0)
+      }
+    }.sortBy(_._1)
+    Vectors.sparse(broadcastDictionary.value.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
+  }
+
+}
 
 /**
   * A simple holder of objects for LuceneDAO instance. Just so that
