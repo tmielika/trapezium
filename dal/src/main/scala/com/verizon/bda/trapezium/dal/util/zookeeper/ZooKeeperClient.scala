@@ -1,4 +1,4 @@
-package com.verizon.bda.analytics.api.dao.zk
+package com.verizon.bda.trapezium.dal.util.zookeeper
 
 import org.apache.commons.io.Charsets
 import org.apache.curator.RetryPolicy
@@ -10,7 +10,7 @@ object ZooKeeperClient {
   var curatorFramework: CuratorFramework = _
 
   def apply(quorum: String, retryCount: Int = 3, connectionTimeoutInMillis: Int = 2 * 1000,
-            sessionTimeoutInMillis: Int = 60 * 1000): Unit = {
+            sessionTimeoutInMillis: Int = 6000): Unit = {
     val retryPolicy = new ExponentialBackoffRetry(1000, 10)
     curatorFramework = init(quorum, connectionTimeoutInMillis, sessionTimeoutInMillis, retryPolicy)
   }
@@ -46,6 +46,7 @@ object ZooKeeperClient {
 
   def close(): Unit = {
     CloseableUtils.closeQuietly(curatorFramework)
+    curatorFramework.getZookeeperClient.close()
   }
 
   import org.apache.curator.framework.CuratorFramework

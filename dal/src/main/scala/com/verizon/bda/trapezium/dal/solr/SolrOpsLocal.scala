@@ -29,7 +29,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
 
   /**
     *
-    * @param map kesy is the host value is the tuple of directory and corename
+    * @param map's key is the host and value is the tuple of directory and corename
     * @param collectionName
     * @param configName
     */

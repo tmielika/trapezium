@@ -173,8 +173,8 @@ object CollectIndices {
     var outMap = MMap[String, ListBuffer[(String, String)]]()
     val rootDirs = solrMap("rootDirs").split(",")
     var rootMap = MMap[String, Int]()
-    for ((shardId, host) <- coreMap) {
-      val tmp = shardId.split("_")
+    for ((replicaName, host) <- coreMap) {
+      val tmp = replicaName.split("_")
       val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
       val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1)
 
@@ -190,7 +190,7 @@ object CollectIndices {
           partFileMap((host, root)) = new ListBuffer[String]
           partFileMap((host, root)).append((partFile))
         }
-        outMap(host).append((partFilePath, shardId))
+        outMap(host).append((partFilePath, replicaName))
       } else {
         rootMap(host) = 0
 
@@ -205,7 +205,7 @@ object CollectIndices {
         val partFilePath = rootDirs(rootMap(host)) + fileName
         rootMap(host) = (rootMap(host) + 1) % rootDirs.length
         outMap(host) = new ListBuffer[(String, String)]
-        outMap(host).append((partFilePath, shardId))
+        outMap(host).append((partFilePath, replicaName))
       }
     }
     var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
@@ -222,10 +222,9 @@ object CollectIndices {
       array.append((machine, command))
 
     }
-    if(!rootDirsExists)
-      {
-        createMovingDirectory(indexLocationInRoot, rootDirs)
-      }
+    if (!rootDirsExists) {
+      createMovingDirectory(indexLocationInRoot, rootDirs)
+    }
 
     def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
       collectIndices.runCommand(command, true)
@@ -257,6 +256,7 @@ object CollectIndices {
     val finalTime = System.currentTimeMillis()
     log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
     log.info(outMap.toMap)
+    closeSession()
     outMap.toMap
   }
 

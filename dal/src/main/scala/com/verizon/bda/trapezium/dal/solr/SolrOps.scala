@@ -5,8 +5,8 @@ import java.nio.file.{Path, Paths}
 import java.sql.Time
 import java.util.UUID
 
-import com.verizon.bda.analytics.api.dao.zk.ZooKeeperClient
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
+import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * Created by venkatesh on 8/3/17.
   */
 abstract class SolrOps(solrMap: Map[String, String]) {
-
+  val solrDeployerZnode = "/solrDeployer"
   lazy val log = Logger.getLogger(classOf[SolrOps])
   val appName = solrMap("appName")
   var aliasCollectionName: String = null
@@ -56,10 +56,22 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val response = SolrOps.makeHttpRequest(aliaseCollectionUrl)
     //    storeFiledsinZk()
     ZooKeeperClient(solrMap("zkHosts"))
-    ZooKeeperClient.setData(s"/solrDeployer/$aliasCollectionName/indicesPath",
-      (solrMap("storageDir") + "/" + collectionName).getBytes())
-    ZooKeeperClient.setData(s"/solrDeployer/$aliasCollectionName/hdfsPath",
+
+    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/indicesPath",
+      (solrMap("storageDir").stripSuffix("/") + "/" + collectionName).getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/hdfsPath",
       hdfsIndexFilePath.getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/failureCoreCount",
+      "0".getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/collectionFailurecount",
+      "0".getBytes())
+    require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/failureCoreCount")
+      == "0")
+    require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/hdfsPath")
+      == hdfsIndexFilePath)
     ZooKeeperClient.close()
     log.info(s"aliasing collection response ${response}")
   }
@@ -168,7 +180,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName)
     val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName)
     ZooKeeperClient(solrMap("zkHosts"))
-    ZooKeeperClient.setData("/solrdeployer/isRunning", 1.toString.getBytes)
+    ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 1.toString.getBytes)
     ZooKeeperClient.close()
     upload()
     createCollection()
@@ -179,7 +191,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     }
     SolrClusterStatus.cloudClient.close()
     ZooKeeperClient(solrMap("zkHosts"))
-    ZooKeeperClient.setData("/solrdeployer/isRunning", 0.toString.getBytes)
+    ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 0.toString.getBytes)
     ZooKeeperClient.close()
 
   }
@@ -249,10 +261,15 @@ object SolrOps {
   }
 
   def makeHttpRequests(list: List[String], assignedTasks: Int = 20): Unit = {
+    var httpthreads = if (assignedTasks > list.length) {
+      list.length/2
+    } else {
+      assignedTasks
+    }
     val pc1: ParArray[String] = ParArray
       .createFromCopy(list.toArray)
     pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
-    .forkjoin.ForkJoinPool(assignedTasks))
+    .forkjoin.ForkJoinPool(httpthreads))
     pc1.foreach(url => {
       val response = makeHttpRequest(url)
       if (response != null && !response.isEmpty) {
