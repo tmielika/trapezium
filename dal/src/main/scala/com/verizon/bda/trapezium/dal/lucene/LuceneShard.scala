@@ -5,7 +5,7 @@ import java.util.BitSet
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index._
 import org.apache.lucene.queryparser.classic.QueryParser
-import org.apache.lucene.search.{BooleanQuery, IndexSearcher, ScoreDoc}
+import org.apache.lucene.search.{BooleanQuery, IndexSearcher, Query, ScoreDoc}
 import org.apache.spark.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
@@ -83,16 +83,25 @@ class LuceneShard(reader: IndexReader,
     // TODO: Provide sampling tricks that give provable count stats without affecting accuracy
     // val maxRowsPerPartition = Math.floor(sample * getIndexReader.numDocs()).toInt
     BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE)
-    val query = rewrite(qp.parse(queryStr))
+    val query = rewrite(parseQuery(queryStr))
     val collectionManager = new OLAPCollectionManager(reader.maxDoc())
     // TODO: this.executorService to run searches in multiple cores while partitions are done
     // at executor level
     search(query, collectionManager)
   }
 
+  /**
+    * Because Lucene query parsing is not Thread safe.
+    * @param queryStr
+    * @return
+    */
+  private def parseQuery(queryStr: String): Query = synchronized {
+    qp.parse(queryStr)
+  }
+
   def searchDocsWithRelevance(queryStr: String, sample: Double = 1.0): Array[ScoreDoc] = {
     val maxRowsPerPartition = Math.floor(sample * getIndexReader.numDocs()).toInt
-    val topDocs = search(qp.parse(queryStr), maxRowsPerPartition)
+    val topDocs = search(parseQuery(queryStr), maxRowsPerPartition)
     log.info("Hits within partition: " + topDocs.totalHits)
     topDocs.scoreDocs
   }
