@@ -1,14 +1,16 @@
 package com.verizon.bda.trapezium.dal.lucene
 
+import java.util.BitSet
+
+import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index._
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.{BooleanQuery, IndexSearcher, ScoreDoc}
 import org.apache.spark.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
-import java.util.BitSet
+
 import scala.collection.mutable.ArrayBuffer
-import org.apache.lucene.analysis.Analyzer
 
 /**
  * @author debasish83 on 12/15/16.

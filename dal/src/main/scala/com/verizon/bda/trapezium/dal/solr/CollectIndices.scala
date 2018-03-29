@@ -328,5 +328,4 @@ object CollectIndices {
     val paths = FileUtil.stat2Paths(fileStatus)
     paths.map(_.toString).filter(p => p.contains(folderPrefix))
   }
-
 }
