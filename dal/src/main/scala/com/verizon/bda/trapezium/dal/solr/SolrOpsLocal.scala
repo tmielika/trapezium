@@ -33,29 +33,36 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   def createCoresOnSolr(map: Map[String, ListBuffer[(String, String)]],
                         collectionName: String, configName: String): Unit = {
     log.info("inside create cores")
-    val list = new ListBuffer[String]
-    for ((host, fileList) <- map) {
-      for ((directory, coreName) <- fileList.toList) {
-        val id = directory.split("-").last.toInt + 1
-        val url = s"http://$host/solr/admin/cores?" +
-          "action=CREATE&" +
-          s"collection=${collectionName}&" +
-          s"collection.configName=${configName}&" +
-          s"name=${coreName}&" +
-          s"dataDir=${directory}&" +
-          s"shard=shard${id}&" +
-          s"wt=json&indent=true"
+    try {
+      val list = new ListBuffer[String]
+      for ((host, fileList) <- map) {
+        for ((directory, coreName) <- fileList.toList) {
+          val id = directory.split("-").last.toInt + 1
+          val url = s"http://$host/solr/admin/cores?" +
+            "action=CREATE&" +
+            s"collection=${collectionName}&" +
+            s"collection.configName=${configName}&" +
+            s"name=${coreName}&" +
+            s"dataDir=${directory}&" +
+            s"shard=shard${id}&" +
+            s"wt=json&indent=true"
 
-        list.append(url)
+          list.append(url)
+        }
       }
-    }
-    log.info(list.toList)
-    SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
-    if(!makeSanityCheck(collectionName, map)){
-      deleteOldCollections(collectionName)
-      log.error(s"sanity check failed and rolling back " +
-        s"the creation of collection ${collectionName}")
-      System.exit(1)
+      log.info(list.toList)
+      SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
+      if (!makeSanityCheck(collectionName, map)) {
+        deleteOldCollections(collectionName)
+        log.error(s"sanity check failed and rolling back " +
+          s"the creation of collection ${collectionName}")
+        System.exit(1)
+      }
+    } catch {
+      case e: Exception => {
+        log.error(s"error occurred while creating collection $collectionName ", e)
+        deleteOldCollections(collectionName)
+      }
     }
   }
 
@@ -82,9 +89,9 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
         val sizeOnHdfs = getShardSizeOnHdfs(nameNode, hdfsDataLocation)
         log.info(s"shard${id} on local $sizeOnLocal and size on hdfs $sizeOnHdfs")
 
-        if(Math.abs(sizeOnLocal-sizeOnHdfs)!=0){
+        if (Math.abs(sizeOnLocal - sizeOnHdfs) != 0) {
           log.warn(s"size of shard${id} on hdfs and local didn't match hence " +
-            s"intaiating a roll back")
+            s"initiating a roll back")
           return false
         }
       }
