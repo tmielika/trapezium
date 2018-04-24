@@ -58,6 +58,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
           s"the creation of collection ${collectionName}")
         System.exit(1)
       }
+      log.info("successfully created all cores")
     } catch {
       case e: Exception => {
         log.error(s"error occurred while creating collection " +
@@ -67,7 +68,6 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
           s" on $hdfsIndexFilePath", e)
       }
     }
-    log.info("successfully created all cores")
   }
 
   def makeSanityCheck(collectionName: String,
