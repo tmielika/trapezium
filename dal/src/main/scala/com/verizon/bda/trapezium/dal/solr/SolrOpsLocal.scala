@@ -60,10 +60,12 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
       }
     } catch {
       case e: Exception => {
-        log.error(s"error occurred while creating collection $collectionName ", e)
+        log.error(s"error occurred while creating collection " +
+          s"$collectionName and hence rolling back", e)
         deleteOldCollections(collectionName)
       }
     }
+    log.info("successfully created all cores")
   }
 
   def makeSanityCheck(collectionName: String,
