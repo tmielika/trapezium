@@ -63,8 +63,8 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
         log.error(s"error occurred while creating collection " +
           s"$collectionName and hence rolling back", e)
         deleteOldCollections(collectionName)
-        throw new SolrOpsException(s"could not new collection for $aliasCollectionName" +
-          s" on $hdfsIndexFilePath")
+        throw new SolrOpsException(s"could not create new collection for $aliasCollectionName" +
+          s" on $hdfsIndexFilePath", e)
       }
     }
     log.info("successfully created all cores")
