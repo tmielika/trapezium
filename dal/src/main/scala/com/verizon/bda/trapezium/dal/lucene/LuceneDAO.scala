@@ -210,7 +210,7 @@ class LuceneDAO(val location: String,
   // TODO: load logic will move to LuceneRDD
   @transient private var _shards: RDD[LuceneShard] = _
 
-  def load(sc: SparkContext): Unit = {
+  def load(sc: SparkContext, preload:Boolean=true): Unit = {
     val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
     val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
     val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
@@ -254,7 +254,7 @@ class LuceneDAO(val location: String,
               new HadoopPath(hdfsPath),
               new HadoopPath(shuffleIndexPath.toString))
             val directory = new MMapDirectory(shuffleIndexPath)
-            directory.setPreload(true)
+            directory.setPreload(preload)
             val reader = DirectoryReader.open(directory)
             Some(LuceneShard(reader, converter, analyzer))
           } catch {
