@@ -20,6 +20,6 @@ package com.verizon.bda.trapezium.dal.exceptions
   */
 case class HiveDAOException(ex: String) extends Exception(ex)
 
-case class LuceneDAOException(ex: String) extends Exception(ex)
+case class LuceneDAOException(ex: String, t: Throwable=null) extends Exception(ex,t)
 
 case class SolrOpsException(ex: String, e: Exception = null) extends Exception(ex, e)
