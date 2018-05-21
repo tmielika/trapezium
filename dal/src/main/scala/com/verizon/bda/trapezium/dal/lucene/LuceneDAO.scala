@@ -156,9 +156,9 @@ class LuceneDAO(val location: String,
             val d = converter.rowToDoc(r)
             indexWriter.addDocument(d)
           } catch {
-            case e: Throwable => {
+            case e: Exception => {
               throw new LuceneDAOException(s"Error with adding row ${r} " +
-                s"to document ${e.getStackTraceString}")
+                s"to document ${e.getStackTraceString}", e)
             }
           }
         }
@@ -260,7 +260,7 @@ class LuceneDAO(val location: String,
           } catch {
             case e: IOException =>
               throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
-                s"shuffle: ${shuffleIndexPath} failed")
+                s"shuffle: ${shuffleIndexPath} failed",e)
             case x: Throwable => throw new RuntimeException(x)
           }
         }
