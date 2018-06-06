@@ -66,12 +66,18 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     ZooKeeperClient.setData(s"$solrDeployerZnode/" +
       s"$aliasCollectionName/collectionFailurecount",
       "0".getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/assignedLiveNodes",
+      s"${SolrClusterStatus.solrLiveNodes.size}".getBytes())
     require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
       s"$aliasCollectionName/failureCoreCount")
       == "0")
     require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
       s"$aliasCollectionName/hdfsPath")
       == hdfsIndexFilePath)
+    require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/assignedLiveNodes")
+      == s"${SolrClusterStatus.solrLiveNodes.size}")
     ZooKeeperClient.close()
     log.info(s"aliasing collection response ${response}")
   }
@@ -260,67 +266,82 @@ object SolrOps {
     unloadFuture
   }
 
+  @throws(classOf[Exception])
   def makeHttpRequests(list: List[String], assignedTasks: Int = 20): Unit = {
     var httpthreads = if (assignedTasks > list.length) {
-      list.length/2
+      list.length / 2
     } else {
       assignedTasks
     }
-    val pc1: ParArray[String] = ParArray
-      .createFromCopy(list.toArray)
-    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
-    .forkjoin.ForkJoinPool(httpthreads))
-    pc1.foreach(url => {
-      val response = makeHttpRequest(url)
-      if (response != null && !response.isEmpty) {
-        try {
-          val objectMapper = new ObjectMapper()
-          val jsonNode = objectMapper.readTree(response)
-          val status = jsonNode.get("responseHeader").get("status").asInt()
-          if (status != 0) {
-            val e = new SolrOpsException(s"core could not be created for request: " +
-              s"$url response:$response")
-            log.error(e)
-            throw e
+    if (list.size != 0 && httpthreads != 0) {
+      val pc1: ParArray[String] = ParArray
+        .createFromCopy(list.toArray)
+      pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
+      .forkjoin.ForkJoinPool(httpthreads))
+      try {
+        pc1.foreach(url => {
+          val response = makeHttpRequest(url)
+          if (response != null && !response.isEmpty) {
+            try {
+              val objectMapper = new ObjectMapper()
+              val jsonNode = objectMapper.readTree(response)
+              val status = jsonNode.get("responseHeader").get("status").asInt()
+              if (status != 0) {
+                val e = new SolrOpsException(s"core could not be created for request: " +
+                  s"$url response:$response")
+                log.error(e)
+                throw e
+              }
+            } catch {
+              case e: Exception => {
+                throw new SolrOpsException(s"core could not be created for request: " +
+                  s"$url response:$response")
+              }
+            }
           }
-        } catch {
-          case e: Exception => {
-            throw new SolrOpsException(s"core could not be created for request: " +
-              s"$url response:$response")
-          }
-        }
+        })
       }
-    })
+      catch {
+        case e: Exception =>
+          throw e
+      }
+    }
   }
 
-
+  @throws(classOf[Exception])
   def makeHttpRequest(url: String, retry: Int = 5): String = {
     var responseBody: String = null
     var noError = false
     var retries = 0
-    do {
-      val client = HttpClientBuilder.create().build()
-      val request = new HttpGet(url)
-      // check for response status (should be 0)
-      log.info(s"making request to url ${url}")
-      if (client != null && request != null) {
-        val response = client.execute(request)
-        log.info(s"response status: ${response.getStatusLine} and status" +
-          s" code ${response.getStatusLine.getStatusCode} ")
-        responseBody = EntityUtils.toString(response.getEntity())
-        log.info(s"responseBody: ${responseBody} for url ")
-        if (response.getStatusLine.getStatusCode != 200) {
-          noError = true
-          retries = retries + 1
-        } else {
-          log.info(s"attempting to make request to $url  for the retry count $retries of $retry")
+    try {
+      do {
+        val client = HttpClientBuilder.create().build()
+        val request = new HttpGet(url)
+        // check for response status (should be 0)
+        log.info(s"making request to url ${url}")
+        if (client != null && request != null) {
+          val response = client.execute(request)
+          log.info(s"response status: ${response.getStatusLine} and status" +
+            s" code ${response.getStatusLine.getStatusCode} ")
+          responseBody = EntityUtils.toString(response.getEntity())
+          log.info(s"responseBody: ${responseBody} for url ")
+          if (response.getStatusLine.getStatusCode != 200) {
+            noError = true
+            retries = retries + 1
+          } else {
+            log.info(s"attempting to make request to $url  for the retry count $retries of $retry")
 
-          noError = false
+            noError = false
+          }
+          response.close()
+          client.close()
         }
-        response.close()
-        client.close()
-      }
-    } while (retry > retries && noError)
-    responseBody
+      } while (retry > retries && noError)
+      responseBody
+    }
+    catch {
+      case e: Exception =>
+        throw e
+    }
   }
 }

@@ -78,6 +78,11 @@ object ShardBalancer {
 
       val replicas = shard.get("replicas")
       val set = scala.collection.mutable.Set[String]()
+      if (replicas.isEmpty || replicas.size() == 0) {
+        val solrNo = solrLiveNodes(count)
+        val replicaName = s"${collection}_${shardId}_replica$failureRepeat"
+        coreMap(replicaName) = solrNo
+      }
       replicas.asScala.toMap.
         foreach(p => {
           var prev = 0
@@ -112,6 +117,7 @@ object ShardBalancer {
           prev = count
         })
     }
+
     FailureShardInfomation(lb.toList, coreMap.toMap, collectionConfig,
       nodeSet.toList.sorted.mkString(","))
   }
@@ -122,8 +128,8 @@ object ShardBalancer {
     map.find({ case (a, b) => b == value }).get._1
   }
 
-  def main(args: Array[String]): Unit = {
-    val parser = new OptionParser[ShardBalancer]("ShardBalancer") {
+  def inputParser(): OptionParser[ShardBalancer] = {
+    new OptionParser[ShardBalancer]("ShardBalancer") {
       head("ShardBalancer service for reducing solr downtime ")
       opt[String]("config")
         .text(s"local config directory path")
@@ -138,6 +144,10 @@ object ShardBalancer {
         .required
         .action((x, c) => c.copy(waitInmis = x))
     }
+  }
+
+  def main(args: Array[String]): Unit = {
+    val parser = inputParser
     while (true) {
       val shardBalancer = parser.parse(args, ShardBalancer()).get
       val configDir: String = shardBalancer.configDir
@@ -145,41 +155,65 @@ object ShardBalancer {
       val config: Config = readConfigs(configDir, configFile)
       val zkList = config.getString("solr.zkhosts")
       val zroot = config.getString("solr.zroot")
-      val nameNode = config.getString("solr.nameNode")
+
       ZooKeeperClient(zkList)
-      val zk = ZooKeeperClient
-      val deployerUsage = zk.getData(s"$solrDeployerZnode/isRunning")
-      zk.close()
-      if (deployerUsage.toInt != 1) {
-        SolrClusterStatus(zkList, zroot, "")
-        val aliasMap = SolrClusterStatus.getCollectionAliasMap()
-        if (aliasMap.keySet.isEmpty) {
-          throw new Exception("no aliases found")
+
+      haStart(zkList, zroot, config)
+      Thread.sleep(1000L * 60 * shardBalancer.waitInmis)
+    }
+  }
+
+  def haStart(zkList: String, zroot: String, config: Config): Unit = {
+    ZooKeeperClient(zkList)
+    val deployerUsage = ZooKeeperClient.getData(s"$solrDeployerZnode/isRunning")
+    ZooKeeperClient.close()
+    if (deployerUsage.toInt != 1) {
+      SolrClusterStatus(zkList, zroot, "")
+      val aliasMap = SolrClusterStatus.getCollectionAliasMap()
+      if (aliasMap.keySet.isEmpty) {
+        throw new Exception("no aliases found")
+      }
+      val collections: List[String] = aliasMap.values.toList
+      collections.foreach(collection => {
+        val aliasCollection = findKeyOfMap(collection, aliasMap)
+        ZooKeeperClient(zkList)
+        var collectionFailurecount = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+          s"$aliasCollection/collectionFailurecount").toInt
+        collectionFailurecount = collectionFailurecount + 1
+        val failureShards = collectAllFailureNodes(collection, collectionFailurecount)
+        val actualLiveNodes = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+          s"$aliasCollection/assignedLiveNodes").toDouble
+        val allowedFailure = config.getInt("solr.clusterCapacity") * 0.01
+        require(allowedFailure < 1, "solr.clusterCapacity" +
+          " value should be less than 100")
+        if (SolrClusterStatus.solrLiveNodes.length < actualLiveNodes * (1 - allowedFailure)) {
+          log.error(s"HA cannot work as the number of available nodes" +
+            s" ${SolrClusterStatus.solrLiveNodes.length} is less than " +
+            s"percent of node failure allowed  ${allowedFailure}  " +
+            s"on actual number of nodes $actualLiveNodes")
+          return
         }
-        val collections: List[String] = aliasMap.values.toList
-        collections.foreach(collection => {
-          val aliasCollection = findKeyOfMap(collection, aliasMap)
+
+        ZooKeeperClient.close()
+        if (failureShards.deleteUrls.length > 0) {
           ZooKeeperClient(zkList)
-          var collectionFailurecount = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-            s"$aliasCollection/collectionFailurecount").toInt
-          collectionFailurecount = collectionFailurecount + 1
-          val failureShards = collectAllFailureNodes(collection, collectionFailurecount)
           ZooKeeperClient.setData(s"$solrDeployerZnode/" +
             s"$aliasCollection/collectionFailurecount",
             (collectionFailurecount + "").getBytes())
-          ZooKeeperClient.close()
-          if (failureShards.deleteUrls.length > 0) {
-            ZooKeeperClient(zkList)
-            val indexLocation = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-              s"$aliasCollection/indicesPath")
-            val hdfsIndexFilePath = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-              s"$aliasCollection/hdfsPath")
-            ZooKeeperClient.close()
-            // DeleteReplicas
-            val deleteReplicaUrls = failureShards.deleteUrls
-            SolrOps.makeHttpRequests(deleteReplicaUrls)
-            // MoveData to assigned Nodes
+          log.info(s"Number of times Solr Collection failed is $collectionFailurecount")
 
+          val indexLocation = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+            s"$aliasCollection/indicesPath")
+          val hdfsIndexFilePath = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+            s"$aliasCollection/hdfsPath")
+          ZooKeeperClient.close()
+          // DeleteReplicas
+          val deleteReplicaUrls = failureShards.deleteUrls
+          try {
+            SolrOps.makeHttpRequests(deleteReplicaUrls)
+
+            // MoveData to assigned Nodes
+            val nameNode = config.getString("solr.nameNode")
             val solrNodeUser = config.getString("solr.node_ssh_user")
             //      val machinePrivateKey = config.getString("machinePrivateKey")
             val rootDirs = config.getString("solr.disks")
@@ -200,15 +234,23 @@ object ShardBalancer {
             )
             val sol = new SolrOpsLocal(solrMap)
             sol.hdfsIndexFilePath = hdfsIndexFilePath
+
             sol.createCoresOnSolr(ipShardMap, collection,
               failureShards.configName)
 
           }
-
-        })
-
+          catch {
+            case e: Throwable => {
+              log.warn("trying to restart the ha as there was exception", e)
+              log.info("Retrying HA")
+              haStart(zkList, zroot, config)
+            }
+          }
+        }
       }
-      Thread.sleep(1000L * 60 * shardBalancer.waitInmis)
+
+      )
+
     }
   }
 

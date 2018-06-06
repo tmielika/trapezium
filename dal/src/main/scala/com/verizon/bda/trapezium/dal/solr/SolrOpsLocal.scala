@@ -33,6 +33,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
     * @param collectionName
     * @param configName
     */
+  @throws(classOf[Exception])
   def createCoresOnSolr(map: Map[String, ListBuffer[(String, String)]],
                         collectionName: String, configName: String): Unit = {
     log.info("inside create cores")
@@ -61,7 +62,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
       System.exit(1)
     }
   }
-
+  @throws(classOf[Exception])
   def makeSanityCheck(collectionName: String,
                       map: Map[String, ListBuffer[(String, String)]]): Boolean = {
     for ((host, fileList) <- map) {
