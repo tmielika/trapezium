@@ -6,12 +6,14 @@ import java.sql.Time
 import java.util.UUID
 
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
+import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.log4j.Logger
 import org.codehaus.jackson.map.ObjectMapper
 
+import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.mutable.ParArray
 import scala.concurrent.Future
@@ -21,7 +23,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * Created by venkatesh on 8/3/17.
   */
 abstract class SolrOps(solrMap: Map[String, String]) {
-
+  val solrDeployerZnode = "/solrDeployer"
   lazy val log = Logger.getLogger(classOf[SolrOps])
   val appName = solrMap("appName")
   var aliasCollectionName: String = null
@@ -29,6 +31,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   lazy val configName = s"$appName/${aliasCollectionName}"
   var hdfsIndexFilePath: String = null
   var coreMap: Map[String, String] = null
+  val lb: ListBuffer[Future[Boolean]] = new ListBuffer[Future[Boolean]]
 
 
   def upload(): Unit = {
@@ -40,7 +43,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   }
 
   def getSolrCollectionUrl(): String = {
-    val host = SolrClusterStatus.solrNodes.head
+    val host = SolrClusterStatus.solrLiveNodes.head
     val solrServerUrl = s"http://$host/solr/admin/collections"
     solrServerUrl
   }
@@ -51,6 +54,31 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       s"name=$aliasCollectionName" + s"&collections=$collectionName"
     log.info(s"aliasing collection  ${collectionName} with ${aliasCollectionName}")
     val response = SolrOps.makeHttpRequest(aliaseCollectionUrl)
+    //    storeFiledsinZk()
+    ZooKeeperClient(solrMap("zkHosts"))
+
+    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/indicesPath",
+      (solrMap("storageDir").stripSuffix("/") + "/" + collectionName).getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/hdfsPath",
+      hdfsIndexFilePath.getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/failureCoreCount",
+      "0".getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/collectionFailurecount",
+      "0".getBytes())
+    ZooKeeperClient.setData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/assignedLiveNodes",
+      s"${SolrClusterStatus.solrLiveNodes.size}".getBytes())
+    require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/failureCoreCount")
+      == "0")
+    require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/hdfsPath")
+      == hdfsIndexFilePath)
+    require(ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+      s"$aliasCollectionName/assignedLiveNodes")
+      == s"${SolrClusterStatus.solrLiveNodes.size}")
+    ZooKeeperClient.close()
     log.info(s"aliasing collection response ${response}")
   }
 
@@ -82,7 +110,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     deleteCollection(collectionName, false)
     log.info(s"creating collection : ${collectionName} ")
 
-    val nodeCount = SolrClusterStatus.solrNodes.size
+    val nodeCount = SolrClusterStatus.solrLiveNodes.size
     val nameNode = solrMap("nameNode")
     val folderPrefix = solrMap("folderPrefix")
     val numShards = CollectIndices.getHdfsList(nameNode, folderPrefix,
@@ -110,9 +138,25 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     for ((corename, ip) <- coreMap) {
       log.info(s"coreName:  ${corename} ip ${ip}"
       )
-      SolrOps.unloadCore(ip, corename)
+      lb.append(SolrOps.unloadCore(ip, corename))
     }
+
     log.info(coreMap)
+
+  }
+
+  def waitUnloadForUnloadCores(lb: List[Future[Boolean]]): Unit = {
+    var areComplete = false
+    do {
+      var bool = true
+      log.info(s"waiting for necessary futures to complete ")
+      for (f <- lb) {
+        bool = f.isCompleted & bool
+      }
+      areComplete = bool
+    }
+    while (!areComplete)
+    log.info(s"necessary futures completed ")
 
   }
 
@@ -141,6 +185,9 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     collectionName = s"${aliasCollectionName}_${workflowTime.getTime.toString}"
     SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName)
     val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName)
+    ZooKeeperClient(solrMap("zkHosts"))
+    ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 1.toString.getBytes)
+    ZooKeeperClient.close()
     upload()
     createCollection()
     createCores()
@@ -149,6 +196,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       deleteOldCollections(oldCollection)
     }
     SolrClusterStatus.cloudClient.close()
+    ZooKeeperClient(solrMap("zkHosts"))
+    ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 0.toString.getBytes)
+    ZooKeeperClient.close()
+
   }
 
   def isReqComplete(asyncId: String): Boolean = {
@@ -202,8 +253,8 @@ object SolrOps {
   }
 
 
-  def unloadCore(node: String, coreName: String): Future[Unit] = {
-    val unloadFuture: Future[Unit] = Future {
+  def unloadCore(node: String, coreName: String): Future[Boolean] = {
+    val unloadFuture: Future[Boolean] = Future {
       log.info("unloading core")
       val client = HttpClientBuilder.create().build()
       val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
@@ -215,62 +266,82 @@ object SolrOps {
     unloadFuture
   }
 
+  @throws(classOf[Exception])
   def makeHttpRequests(list: List[String], assignedTasks: Int = 20): Unit = {
-    val pc1: ParArray[String] = ParArray
-      .createFromCopy(list.toArray)
-    pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
-    .forkjoin.ForkJoinPool(assignedTasks))
-    pc1.foreach(url => {
-      val response = makeHttpRequest(url)
-      if (response != null && !response.isEmpty) {
-        try {
-          val objectMapper = new ObjectMapper()
-          val jsonNode = objectMapper.readTree(response)
-          val status = jsonNode.get("responseHeader").get("status").asInt()
-          if (status != 0) {
-            val e = new SolrOpsException(s"core could not be created for request: " +
-              s"$url response:$response")
-            log.error(e)
-            throw e
+    var httpthreads = if (assignedTasks > list.length) {
+      list.length / 2
+    } else {
+      assignedTasks
+    }
+    if (list.size != 0 && httpthreads != 0) {
+      val pc1: ParArray[String] = ParArray
+        .createFromCopy(list.toArray)
+      pc1.tasksupport = new ForkJoinTaskSupport(new scala.concurrent
+      .forkjoin.ForkJoinPool(httpthreads))
+      try {
+        pc1.foreach(url => {
+          val response = makeHttpRequest(url)
+          if (response != null && !response.isEmpty) {
+            try {
+              val objectMapper = new ObjectMapper()
+              val jsonNode = objectMapper.readTree(response)
+              val status = jsonNode.get("responseHeader").get("status").asInt()
+              if (status != 0) {
+                val e = new SolrOpsException(s"core could not be created for request: " +
+                  s"$url response:$response")
+                log.error(e)
+                throw e
+              }
+            } catch {
+              case e: Exception => {
+                throw new SolrOpsException(s"core could not be created for request: " +
+                  s"$url response:$response")
+              }
+            }
           }
-        } catch {
-          case e: Exception =>
-           {
-             throw new SolrOpsException(s"core could not be created for request: " +
-              s"$url response:$response")}
-        }
+        })
       }
-    })
+      catch {
+        case e: Exception =>
+          throw e
+      }
+    }
   }
 
-
+  @throws(classOf[Exception])
   def makeHttpRequest(url: String, retry: Int = 5): String = {
     var responseBody: String = null
     var noError = false
     var retries = 0
-    do {
-      val client = HttpClientBuilder.create().build()
-      val request = new HttpGet(url)
-      // check for response status (should be 0)
-      log.info(s"making request to url ${url}")
-      if (client != null && request != null) {
-        val response = client.execute(request)
-        log.info(s"response status: ${response.getStatusLine} and status" +
-          s" code ${response.getStatusLine.getStatusCode} ")
-        responseBody = EntityUtils.toString(response.getEntity())
-        log.info(s"responseBody: ${responseBody} for url ")
-        if (response.getStatusLine.getStatusCode != 200) {
-          noError = true
-          retries = retries + 1
-        } else {
-          log.info(s"attempting to make request to $url  for the retry count $retries of $retry")
+    try {
+      do {
+        val client = HttpClientBuilder.create().build()
+        val request = new HttpGet(url)
+        // check for response status (should be 0)
+        log.info(s"making request to url ${url}")
+        if (client != null && request != null) {
+          val response = client.execute(request)
+          log.info(s"response status: ${response.getStatusLine} and status" +
+            s" code ${response.getStatusLine.getStatusCode} ")
+          responseBody = EntityUtils.toString(response.getEntity())
+          log.info(s"responseBody: ${responseBody} for url ")
+          if (response.getStatusLine.getStatusCode != 200) {
+            noError = true
+            retries = retries + 1
+          } else {
+            log.info(s"attempting to make request to $url  for the retry count $retries of $retry")
 
-          noError = false
+            noError = false
+          }
+          response.close()
+          client.close()
         }
-        response.close()
-        client.close()
-      }
-    } while (retry > retries && noError)
-    responseBody
+      } while (retry > retries && noError)
+      responseBody
+    }
+    catch {
+      case e: Exception =>
+        throw e
+    }
   }
 }
