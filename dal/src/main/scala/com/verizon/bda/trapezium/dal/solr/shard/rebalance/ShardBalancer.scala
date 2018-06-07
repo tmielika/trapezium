@@ -122,7 +122,7 @@ object ShardBalancer {
       nodeSet.toList.sorted.mkString(","))
   }
 
-  case class ShardBalancer(configDir: String = null, configFile: String = null, waitInmis: Int = 0)
+  case class ShardBalancer(configDir: String = null, configFile: String = null, waitInMins: Int = 0)
 
   def findKeyOfMap(value: String, map: Map[String, String]): String = {
     map.find({ case (a, b) => b == value }).get._1
@@ -142,7 +142,7 @@ object ShardBalancer {
       opt[Int]("waitInmins")
         .text(s"wait time in mins needed for thread restart ")
         .required
-        .action((x, c) => c.copy(waitInmis = x))
+        .action((x, c) => c.copy(waitInMins = x))
     }
   }
 
@@ -159,7 +159,7 @@ object ShardBalancer {
       ZooKeeperClient(zkList)
 
       haStart(zkList, zroot, config)
-      Thread.sleep(1000L * 60 * shardBalancer.waitInmis)
+      Thread.sleep(1000L * 60 * shardBalancer.waitInMins)
     }
   }
 
