@@ -69,16 +69,20 @@ object SolrClusterStatus {
     * @return
     */
   def getCollectionAliasMap(): Map[String, String] = {
+    log.info("in collection alias map")
     val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
     val aliases: Map[String, String] = try {
       clusterJsonResponse.getJSONObject("cluster").getJSONObject("aliases")
         .toMap.asScala.toList.map((v) => (v._1, v._2.asInstanceOf[String])).toMap
+
     }
     catch {
       case e: JSONException =>
         log.warn(s"Json was not proper", e)
         null
     }
+     log.info(s"retrieved collection alais map $aliases")
+
     aliases
   }
 

@@ -192,9 +192,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     createCollection()
     createCores()
     aliasCollection()
-    if (oldCollection != null) {
-      deleteOldCollections(oldCollection)
-    }
+    deleteOldCollections(oldCollection)
     SolrClusterStatus.cloudClient.close()
     ZooKeeperClient(solrMap("zkHosts"))
     ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 0.toString.getBytes)

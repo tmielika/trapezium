@@ -33,11 +33,15 @@ class CollectIndices {
     session.setTimeout(1000000)
     log.info(s"making ssh session with ${user}@${host}")
 
-    session.connect()
+    connectSession()
   }
 
   def disconnectSession() {
     session.disconnect
+  }
+
+  def connectSession() {
+    session.connect()
   }
 
   def runCommand(command: String, retry: Boolean, retryCount: Int = 5): Int = {
@@ -158,6 +162,38 @@ object CollectIndices {
   }
 
 
+  //  def getGoodDisk(rootDirs: Array[String], diskNumber: Int,indexFolder:String): String = {
+  //
+  //  }
+  //  def checkDiskSanity(command:String): Boolean ={
+  //
+  //  }
+
+
+  def getGoodDisk(machine: CollectIndices, rootDirs: Array[String],
+                  diskNum: Int, FileLocation: String): String = {
+    var tempDiskNum: Int = diskNum
+    var disksTried: Int = 0
+
+    while (disksTried < rootDirs.length) {
+      val root = rootDirs(tempDiskNum)
+      val command = s"touch ${root}${FileLocation}test"
+      log.info(s"verifying the disk ${root}${FileLocation}test")
+      val code = machine.runCommand(command, true, 5)
+      if (code == 0) {
+        return root
+      }
+      else {
+        tempDiskNum = (tempDiskNum + 1) % rootDirs.length
+        disksTried = disksTried + 1
+      }
+
+    }
+    log.error(s"Remove the Node ${machine.session.getHost} from " +
+      s"solr live nodes as there is no writable disk")
+    return null
+  }
+
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
                                hdfsIndexFilePath: String,
                                indexLocationInRoot: String,
@@ -177,11 +213,11 @@ object CollectIndices {
       val tmp = replicaName.split("_")
       val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
       val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1)
-
       val fileName = indexLocationInRoot.stripSuffix("/") + partFile
-
+      val machine: CollectIndices = getMachine(host.split(":")(0), solrNodeUser, machinePrivateKey)
       if (rootMap.contains(host)) {
-        val root = rootDirs(rootMap(host))
+        val root = getGoodDisk(machine, rootDirs,
+          rootMap(host), solrMap("storageDir")) // indexLocationInRoot=/tmp/solrIndexOutput
         rootMap(host) = (rootMap(host) + 1) % rootDirs.length
         val partFilePath = root + fileName
         if (partFileMap.contains((host, root))) {
@@ -193,37 +229,23 @@ object CollectIndices {
         outMap(host).append((partFilePath, replicaName))
       } else {
         rootMap(host) = 0
-
-        val root = rootDirs(rootMap(host))
+        val root = getGoodDisk(machine, rootDirs, rootMap(host), solrMap("storageDir"))
         if (partFileMap.contains((host, root))) {
           partFileMap((host, root)).append((partFile))
         } else {
           partFileMap((host, root)) = new ListBuffer[String]
           partFileMap((host, root)).append((partFile))
         }
-
-        val partFilePath = rootDirs(rootMap(host)) + fileName
+        val partFilePath = root + fileName
         rootMap(host) = (rootMap(host) + 1) % rootDirs.length
         outMap(host) = new ListBuffer[(String, String)]
         outMap(host).append((partFilePath, replicaName))
       }
     }
-    var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
-    for (((host: String, root: String), partFileList: ListBuffer[String]) <- partFileMap) {
 
-      val machine: CollectIndices = getMachine(host.split(":")(0), solrNodeUser, machinePrivateKey)
-      val command = s"partFiles=(" + partFileList.mkString("\t") + ")" +
-        ";for partFile in ${partFiles[@]};" +
-        " do " +
-        "hdfs dfs -copyToLocal " + hdfsIndexFilePath + "$partFile  " +
-        root + indexLocationInRoot + " ;" +
-        " done ;chmod  -R 777  " + root + indexLocationInRoot +
-        s" ;du -h -s ${root + indexLocationInRoot}" + "$partFile  "
-      array.append((machine, command))
-
-    }
+    val array = prepareHdfsGetCommands(partFileMap, hdfsIndexFilePath, indexLocationInRoot)
     if (!rootDirsExists) {
-      createMovingDirectory(indexLocationInRoot, rootDirs)
+      createMovingDirectory(indexLocationInRoot, rootDirs, solrMap("storageDir"))
     }
 
     def deploySolrShards(collectIndices: CollectIndices, command: String): Future[Int] = Future {
@@ -249,6 +271,9 @@ object CollectIndices {
       for (f <- futureList) {
         bool = f.isCompleted & bool
       }
+      if (!bool) {
+        Thread.sleep(1000)
+      }
       areComplete = bool
 
     }
@@ -256,19 +281,46 @@ object CollectIndices {
     val finalTime = System.currentTimeMillis()
     log.info(s"time taken to move data to solr local is ${finalTime - start} in milliseconds  ")
     log.info(outMap.toMap)
-    closeSession()
     outMap.toMap
   }
 
-  def closeSession(): Unit = {
+  def prepareHdfsGetCommands(partFileMap: MMap[(String, String), ListBuffer[String]],
+                             hdfsIndexFilePath: String,
+                             indexLocationInRoot: String): ListBuffer[(CollectIndices, String)] = {
+    var array: ListBuffer[(CollectIndices, String)] = new ListBuffer[(CollectIndices, String)]
+    for (((host: String, root: String), partFileList: ListBuffer[String]) <- partFileMap) {
+
+      val machine: CollectIndices = machineMap(host.split(":")(0))
+      val command = s"partFiles=(" + partFileList.mkString("\t") + ")" +
+        ";for partFile in ${partFiles[@]};" +
+        " do " +
+        "hdfs dfs -copyToLocal " + hdfsIndexFilePath + "$partFile  " +
+        root + indexLocationInRoot + " ;" +
+        " done ;chmod  -R 777  " + root + indexLocationInRoot +
+        s" ;du -h -s ${root + indexLocationInRoot}" + "$partFile  "
+      array.append((machine, command))
+
+    }
+    array
+  }
+
+  def closeSessions(): Unit = {
     machineMap.values.foreach(_.disconnectSession())
     machineMap.clear()
   }
 
-  def createMovingDirectory(movingDirectory: String, rootDirs: Array[String]): Unit = {
+//  def openSessions(): Unit = {
+//    machineMap.values.foreach(_.connectSession())
+//  }
+
+
+  def createMovingDirectory(movingDirectory: String,
+                            rootDirs: Array[String],
+                            parentDir: String): Unit = {
 
     machineMap.values.foreach(p => {
-      for (root <- rootDirs) {
+      for (diskNum <- 0 until rootDirs.length) {
+        val root = getGoodDisk(p, rootDirs, diskNum, parentDir)
         val command = s"mkdir ${
           root + movingDirectory
         }"
@@ -278,14 +330,17 @@ object CollectIndices {
   }
 
   def deleteDirectory(oldCollectionDirectory: String, rootDirs: Array[String]): Unit = {
+    log.info("in delete directory")
+    log.info(s"old directoy $oldCollectionDirectory and root Dirs ${rootDirs.toList}")
     machineMap.values.foreach(p => {
       for (root <- rootDirs) {
         val command = s"rm -rf ${
           root + oldCollectionDirectory
         }"
-        p.runCommand(command, false)
+        p.runCommand(command, true, 5)
       }
     })
+    closeSessions()
   }
 
   def parallelSshFire(sshSequence: Array[(CollectIndices, String, String, String)],
