@@ -17,10 +17,22 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   override lazy val log = Logger.getLogger(classOf[SolrOpsLocal])
   lazy val indexLocationInRoot = solrMap("storageDir") + collectionName
 
-  lazy val map: Map[String, ListBuffer[(String, String)]] = CollectIndices.
-    moveFilesFromHdfsToLocal(solrMap,
-      hdfsIndexFilePath, indexLocationInRoot, coreMap)
+  lazy val map: Map[String, ListBuffer[(String, String)]] = getHostToFileMap()
 
+  def getHostToFileMap(): Map[String, ListBuffer[(String, String)]] = {
+    try {
+      return CollectIndices.
+        moveFilesFromHdfsToLocal(solrMap,
+          hdfsIndexFilePath, indexLocationInRoot, coreMap)
+    }
+    catch {
+      case e: Exception => {
+        deleteOldCollections(collectionName)
+        log.error(s"could not create collection ${collectionName}", e)
+        return null
+      }
+    }
+  }
 
   def createCores(): Unit = {
     log.info(map)
@@ -29,33 +41,40 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
 
   /**
     *
-    * @param map's key is the host and value is the tuple of directory and corename
+    * @param map 's key is the host and value is the tuple of directory and corename
     * @param collectionName
     * @param configName
     */
   @throws(classOf[Exception])
   def createCoresOnSolr(map: Map[String, ListBuffer[(String, String)]],
                         collectionName: String, configName: String): Unit = {
-    log.info("inside create cores")
-
-    val list = new ListBuffer[String]
-    waitUnloadForUnloadCores(lb.toList)
-    for ((host, fileList) <- map) {
-      for ((directory, coreName) <- fileList.toList) {
-        val id = directory.split("-").last.toInt + 1
-        val url = s"http://$host/solr/admin/cores?" +
-          "action=CREATE&" +
-          s"collection=${collectionName}&" +
-          s"collection.configName=${configName}&" +
-          s"name=${coreName}&" +
-          s"dataDir=${directory}&" +
-          s"shard=shard${id}&" +
-          s"wt=json&indent=true"
-        list.append(url)
+    try {
+      log.info("inside create cores")
+      val list = new ListBuffer[String]
+      waitForUnloadCores(lb.toList)
+      for ((host, fileList) <- map) {
+        for ((directory, coreName) <- fileList.toList) {
+          val id = directory.split("-").last.toInt + 1
+          val url = s"http://$host/solr/admin/cores?" +
+            "action=CREATE&" +
+            s"collection=${collectionName}&" +
+            s"collection.configName=${configName}&" +
+            s"name=${coreName}&" +
+            s"dataDir=${directory}&" +
+            s"shard=shard${id}&" +
+            s"wt=json&indent=true"
+          list.append(url)
+        }
+      }
+      log.info(list.toList)
+      SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
+    }
+    catch {
+      case e: Exception => {
+        log.error((s"could create  ${collectionName}"))
+        deleteOldCollections(collectionName)
       }
     }
-    log.info(list.toList)
-    SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
     if (!makeSanityCheck(collectionName, map)) {
       deleteOldCollections(collectionName)
       log.error(s"sanity check failed and rolling back " +
@@ -63,6 +82,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
       System.exit(1)
     }
   }
+
   @throws(classOf[Exception])
   def makeSanityCheck(collectionName: String,
                       map: Map[String, ListBuffer[(String, String)]]): Boolean = {
@@ -113,10 +133,11 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   }
 
   override def deleteOldCollections(oldCollection: String): Unit = {
-    deleteCollection(oldCollection, false)
-    val oldCollectionDirectory = solrMap("storageDir") + oldCollection
-    CollectIndices.deleteDirectory(oldCollectionDirectory, solrMap("rootDirs").split(","))
-    CollectIndices.closeSession()
-
+    if (oldCollection != null) {
+      deleteCollection(oldCollection, false)
+      val oldCollectionDirectory = solrMap("storageDir") + oldCollection
+      CollectIndices.deleteDirectory(oldCollectionDirectory, solrMap("rootDirs").split(","))
+    }
+    CollectIndices.closeSessions()
   }
 }
