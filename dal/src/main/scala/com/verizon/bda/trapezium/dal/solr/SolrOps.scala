@@ -132,7 +132,6 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     SolrOps.makeHttpRequest(createCollectionUrl)
 
     requestPolling(asyncId)
-
     val solrReponse = SolrClusterStatus.parseSolrResponse
     coreMap = solrReponse.map(p => (p.coreName, p.machine)).toMap
     for ((corename, ip) <- coreMap) {
@@ -145,7 +144,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   }
 
-  def waitUnloadForUnloadCores(lb: List[Future[Boolean]]): Unit = {
+  def waitForUnloadCores(lb: List[Future[Boolean]]): Unit = {
     var areComplete = false
     do {
       var bool = true

@@ -21,7 +21,7 @@ object ShardBalancer {
   val solrDeployerZnode = "/solrDeployer"
 
 
-  lazy val log = Logger.getLogger(classOf[SolrOps])
+  lazy val log = Logger.getLogger(classOf[ShardBalancer])
 
   def getDeleterReplicaUrl(solrNode: String, collection: String,
                            coreNode: String, shardId: String): String = {
@@ -155,9 +155,6 @@ object ShardBalancer {
       val config: Config = readConfigs(configDir, configFile)
       val zkList = config.getString("solr.zkhosts")
       val zroot = config.getString("solr.zroot")
-
-      ZooKeeperClient(zkList)
-
       haStart(zkList, zroot, config)
       Thread.sleep(1000L * 60 * shardBalancer.waitInMins)
     }

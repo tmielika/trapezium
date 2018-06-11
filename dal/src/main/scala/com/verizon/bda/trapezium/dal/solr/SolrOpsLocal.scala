@@ -48,26 +48,25 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   @throws(classOf[Exception])
   def createCoresOnSolr(map: Map[String, ListBuffer[(String, String)]],
                         collectionName: String, configName: String): Unit = {
-    log.info("inside create cores")
-
-    val list = new ListBuffer[String]
-    waitUnloadForUnloadCores(lb.toList)
-    for ((host, fileList) <- map) {
-      for ((directory, coreName) <- fileList.toList) {
-        val id = directory.split("-").last.toInt + 1
-        val url = s"http://$host/solr/admin/cores?" +
-          "action=CREATE&" +
-          s"collection=${collectionName}&" +
-          s"collection.configName=${configName}&" +
-          s"name=${coreName}&" +
-          s"dataDir=${directory}&" +
-          s"shard=shard${id}&" +
-          s"wt=json&indent=true"
-        list.append(url)
-      }
-    }
-    log.info(list.toList)
     try {
+      log.info("inside create cores")
+      val list = new ListBuffer[String]
+      waitForUnloadCores(lb.toList)
+      for ((host, fileList) <- map) {
+        for ((directory, coreName) <- fileList.toList) {
+          val id = directory.split("-").last.toInt + 1
+          val url = s"http://$host/solr/admin/cores?" +
+            "action=CREATE&" +
+            s"collection=${collectionName}&" +
+            s"collection.configName=${configName}&" +
+            s"name=${coreName}&" +
+            s"dataDir=${directory}&" +
+            s"shard=shard${id}&" +
+            s"wt=json&indent=true"
+          list.append(url)
+        }
+      }
+      log.info(list.toList)
       SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
     }
     catch {

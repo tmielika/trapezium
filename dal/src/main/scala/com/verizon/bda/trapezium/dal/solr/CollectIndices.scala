@@ -161,6 +161,11 @@ object CollectIndices {
     }
   }
 
+  def getMachineMap(hosts: List[String], solrNodeUser: String,
+                    machinePrivateKey: String): Map[String, CollectIndices] = {
+      hosts.foreach(host=>getMachine(host,solrNodeUser,machinePrivateKey))
+    machineMap.toMap
+  }
 
   //  def getGoodDisk(rootDirs: Array[String], diskNumber: Int,indexFolder:String): String = {
   //
@@ -309,9 +314,9 @@ object CollectIndices {
     machineMap.clear()
   }
 
-//  def openSessions(): Unit = {
-//    machineMap.values.foreach(_.connectSession())
-//  }
+  //  def openSessions(): Unit = {
+  //    machineMap.values.foreach(_.connectSession())
+  //  }
 
 
   def createMovingDirectory(movingDirectory: String,
