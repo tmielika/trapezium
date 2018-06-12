@@ -183,7 +183,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     }
     collectionName = s"${aliasCollectionName}_${workflowTime.getTime.toString}"
     SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName)
-    val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName).get
+    val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName)
     ZooKeeperClient(solrMap("zkHosts"))
     ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 1.toString.getBytes)
     ZooKeeperClient.close()

@@ -86,10 +86,10 @@ object SolrClusterStatus {
     aliases
   }
 
-  def getOldCollectionMapped(aliasName: String): Option[String] = {
+  def getOldCollectionMapped(aliasName: String): String = {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
     val oldCollectionName = try {
-      getCollectionAliasMap().get(aliasName)
+      getCollectionAliasMap().get(aliasName).get
     }
     catch {
       case e: JSONException =>
