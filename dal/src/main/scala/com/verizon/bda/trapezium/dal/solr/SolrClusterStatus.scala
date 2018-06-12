@@ -89,14 +89,20 @@ object SolrClusterStatus {
   def getOldCollectionMapped(aliasName: String): String = {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
     val oldCollectionName = try {
-      getCollectionAliasMap().get(aliasName).get
+      val oldAliases = getCollectionAliasMap()
+      if(oldAliases!=null)  oldAliases.get(aliasName).get else null
     }
     catch {
-      case e: JSONException =>
+      case e: JSONException => {
         log.warn(s"alias colection:$aliasName might not be present", e)
         null
+      }
+      case e1: Exception => {
+        log.warn(s"alias colection:$aliasName might not be present", e1)
+        null
+      }
     }
-   oldCollectionName
+    oldCollectionName
   }
 
   def getClusterStatus(collection: String, collectionNeeded: Boolean = true): String = {
