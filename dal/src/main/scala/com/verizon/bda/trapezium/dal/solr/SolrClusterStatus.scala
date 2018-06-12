@@ -86,7 +86,7 @@ object SolrClusterStatus {
     aliases
   }
 
-  def getOldCollectionMapped(aliasName: String): String = {
+  def getOldCollectionMapped(aliasName: String): Option[String] = {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
     val oldCollectionName = try {
       getCollectionAliasMap().get(aliasName)
@@ -96,7 +96,7 @@ object SolrClusterStatus {
         log.warn(s"alias colection:$aliasName might not be present", e)
         null
     }
-    oldCollectionName.get
+   oldCollectionName
   }
 
   def getClusterStatus(collection: String, collectionNeeded: Boolean = true): String = {
