@@ -54,10 +54,11 @@ object SolrClusterStatus {
         e.printStackTrace()
       }
     }
-
     val liveNodes = cloudClient.liveNodes()
       .asScala.toList
       .map(p => p.split("_")(0))
+    require(liveNodes.length>0,"there should more than 1 live node the job to run")
+
     log.info(s"retrieved the solrnodes ${liveNodes.mkString(",")} from zookeeper")
     liveNodes
   }
