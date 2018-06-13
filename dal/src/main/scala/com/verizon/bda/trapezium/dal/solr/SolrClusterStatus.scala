@@ -57,7 +57,7 @@ object SolrClusterStatus {
     val liveNodes = cloudClient.liveNodes()
       .asScala.toList
       .map(p => p.split("_")(0))
-    require(liveNodes.length>0,"there should more than 1 live node the job to run")
+    require(liveNodes.length > 0, "there should be more than 1 live node the job to run")
 
     log.info(s"retrieved the solrnodes ${liveNodes.mkString(",")} from zookeeper")
     liveNodes
@@ -73,8 +73,14 @@ object SolrClusterStatus {
     log.info("in collection alias map")
     val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
     val aliases: Map[String, String] = try {
-      clusterJsonResponse.getJSONObject("cluster").getJSONObject("aliases")
-        .toMap.asScala.toList.map((v) => (v._1, v._2.asInstanceOf[String])).toMap
+      val json = clusterJsonResponse.get("cluster").asInstanceOf[JSONObject]
+        .get("aliases").asInstanceOf[JSONObject]
+      val set = json.keys()
+      val map = scala.collection.mutable.Map[String, String]()
+      for (key <- set.asScala) {
+        map(key) = json.getString(key)
+      }
+       map.toMap
 
     }
     catch {
@@ -82,7 +88,7 @@ object SolrClusterStatus {
         log.warn(s"Json was not proper", e)
         null
     }
-     log.info(s"retrieved collection alais map $aliases")
+    log.info(s"retrieved collection alais map $aliases")
 
     aliases
   }
@@ -91,7 +97,7 @@ object SolrClusterStatus {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
     val oldCollectionName = try {
       val oldAliases = getCollectionAliasMap()
-      if(oldAliases!=null)  oldAliases.get(aliasName).get else null
+      if (oldAliases != null) oldAliases.get(aliasName).get else null
     }
     catch {
       case e: JSONException => {
