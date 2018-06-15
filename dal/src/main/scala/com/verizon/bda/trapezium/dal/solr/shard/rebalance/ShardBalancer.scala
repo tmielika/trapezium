@@ -24,9 +24,15 @@ object ShardBalancer {
   lazy val log = Logger.getLogger(classOf[ShardBalancer])
 
   def getDeleterReplicaUrl(solrNode: String, collection: String,
-                           coreNode: String, shardId: String): String = {
-    s"http://$solrNode/solr/admin/collections?action=DELETEREPLICA" +
-      s"&collection=$collection&replica=$coreNode&shard=$shardId&wt=json"
+                           coreNode: String, shardId: String,
+                           skipCoreNode: Boolean = false): String = {
+    if (skipCoreNode) {
+      s"http://$solrNode/solr/admin/collections?action=DELETEREPLICA" +
+        s"&collection=$collection&shard=$shardId&wt=json"
+    } else {
+      s"http://$solrNode/solr/admin/collections?action=DELETEREPLICA" +
+        s"&collection=$collection&replica=$coreNode&shard=$shardId&wt=json"
+    }
   }
 
   //  def getCoreCreateURL(host: String, collectionName: String, configName: String,
@@ -75,8 +81,10 @@ object ShardBalancer {
       val shard = v.asInstanceOf[util.HashMap[String, util.HashMap[String,
         util.HashMap[String, String]]]]
       val solrNode = SolrClusterStatus.solrLiveNodes.head
+      log.info(s"shardId $shardId replica map " + shard.asScala.toMap)
+      val replicas: util.HashMap[String, util.HashMap[String, String]] = shard.get("replicas")
+      log.info(s"replica set  $replicas")
 
-      val replicas = shard.get("replicas")
       val set = scala.collection.mutable.Set[String]()
       if (replicas.isEmpty || replicas.size() == 0) {
         val solrNo = solrLiveNodes(count)
@@ -122,7 +130,8 @@ object ShardBalancer {
       nodeSet.toList.sorted.mkString(","))
   }
 
-  case class ShardBalancer(configDir: String = null, configFile: String = null, waitInMins: Int = 0)
+  case class ShardBalancer(configDir: String = null, configFile: String = null,
+                           waitInMins: Int = 0, collections: String = null)
 
   def findKeyOfMap(value: String, map: Map[String, String]): String = {
     map.find({ case (a, b) => b == value }).get._1
@@ -143,6 +152,10 @@ object ShardBalancer {
         .text(s"wait time in mins needed for thread restart ")
         .required
         .action((x, c) => c.copy(waitInMins = x))
+      opt[String]("collections")
+        .text(s"collections to watch at provide aliases")
+        .required
+        .action((x, c) => c.copy(collections = x))
     }
   }
 
@@ -152,15 +165,16 @@ object ShardBalancer {
       val shardBalancer = parser.parse(args, ShardBalancer()).get
       val configDir: String = shardBalancer.configDir
       val configFile: String = shardBalancer.configFile
+      val collections: List[String] = shardBalancer.collections.split(",").toList
       val config: Config = readConfigs(configDir, configFile)
       val zkList = config.getString("solr.zkhosts")
       val zroot = config.getString("solr.zroot")
-      haStart(zkList, zroot, config)
+      haStart(zkList, zroot, config, collections)
       Thread.sleep(1000L * 60 * shardBalancer.waitInMins)
     }
   }
 
-  def haStart(zkList: String, zroot: String, config: Config): Unit = {
+  def haStart(zkList: String, zroot: String, config: Config, collections: List[String]): Unit = {
     ZooKeeperClient(zkList)
     val deployerUsage = ZooKeeperClient.getData(s"$solrDeployerZnode/isRunning")
     ZooKeeperClient.close()
@@ -170,8 +184,11 @@ object ShardBalancer {
       if (aliasMap.keySet.isEmpty) {
         throw new Exception("no aliases found")
       }
-      val collections: List[String] = aliasMap.values.toList
-      collections.foreach(collection => {
+
+      val liveCollections: List[String] = aliasMap.keySet.intersect(collections.toSet).toList
+        .map(p => aliasMap(p))
+      log.info(s"collections being watched are $liveCollections")
+      liveCollections.foreach(collection => {
         val aliasCollection = findKeyOfMap(collection, aliasMap)
         ZooKeeperClient(zkList)
         var collectionFailurecount = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
@@ -192,7 +209,7 @@ object ShardBalancer {
         }
 
         ZooKeeperClient.close()
-        if (failureShards.deleteUrls.length > 0) {
+        if (failureShards.coreMap.keySet.size > 0) {
           ZooKeeperClient(zkList)
           ZooKeeperClient.setData(s"$solrDeployerZnode/" +
             s"$aliasCollection/collectionFailurecount",
@@ -219,6 +236,7 @@ object ShardBalancer {
               "solrUser" -> solrNodeUser,
               "rootDirs" -> rootDirs,
               "folderPrefix" -> folderPrefix,
+              "storageDir" -> indexLocation.concat("/"),
               "appName" -> "",
               "numHTTPTasks" -> "20",
               "nameNode" -> nameNode
@@ -240,7 +258,7 @@ object ShardBalancer {
             case e: Throwable => {
               log.warn("trying to restart the ha as there was exception", e)
               log.info("Retrying HA")
-              haStart(zkList, zroot, config)
+              haStart(zkList, zroot, config, collections)
             }
           }
         }
