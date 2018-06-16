@@ -266,7 +266,7 @@ object SolrOps {
   @throws(classOf[Exception])
   def makeHttpRequests(list: List[String], assignedTasks: Int = 20): Unit = {
     var httpthreads = if (assignedTasks > list.length) {
-      list.length / 2
+      list.length
     } else {
       assignedTasks
     }
