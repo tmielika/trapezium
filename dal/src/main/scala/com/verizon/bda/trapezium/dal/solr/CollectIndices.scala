@@ -163,7 +163,7 @@ object CollectIndices {
 
   def getMachineMap(hosts: List[String], solrNodeUser: String,
                     machinePrivateKey: String): Map[String, CollectIndices] = {
-      hosts.foreach(host=>getMachine(host,solrNodeUser,machinePrivateKey))
+    hosts.foreach(host => getMachine(host, solrNodeUser, machinePrivateKey))
     machineMap.toMap
   }
 
