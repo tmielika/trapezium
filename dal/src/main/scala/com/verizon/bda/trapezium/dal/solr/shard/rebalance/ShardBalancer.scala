@@ -174,56 +174,55 @@ object ShardBalancer {
     }
   }
 
-  def haStart(zkList: String, zroot: String, config: Config, collections: List[String]): Unit = {
-    ZooKeeperClient(zkList)
-    val deployerUsage = ZooKeeperClient.getData(s"$solrDeployerZnode/isRunning")
-    ZooKeeperClient.close()
-    if (deployerUsage.toInt != 1) {
-      SolrClusterStatus(zkList, zroot, "")
-      val aliasMap = SolrClusterStatus.getCollectionAliasMap()
-      if (aliasMap.keySet.isEmpty) {
-        throw new Exception("no aliases found")
-      }
-
-      val liveCollections: List[String] = aliasMap.keySet.intersect(collections.toSet).toList
-        .map(p => aliasMap(p))
-      log.info(s"collections being watched are $liveCollections")
-      liveCollections.foreach(collection => {
-        val aliasCollection = findKeyOfMap(collection, aliasMap)
-        ZooKeeperClient(zkList)
-        var collectionFailurecount = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-          s"$aliasCollection/collectionFailurecount").toInt
-        collectionFailurecount = collectionFailurecount + 1
-        val failureShards = collectAllFailureNodes(collection, collectionFailurecount)
-        val actualLiveNodes = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-          s"$aliasCollection/assignedLiveNodes").toDouble
-        val allowedFailure = config.getInt("solr.clusterCapacity") * 0.01
-        require(allowedFailure < 1, "solr.clusterCapacity" +
-          " value should be less than 100")
-        if (SolrClusterStatus.solrLiveNodes.length < actualLiveNodes * (1 - allowedFailure)) {
-          log.error(s"HA cannot work as the number of available nodes" +
-            s" ${SolrClusterStatus.solrLiveNodes.length} is less than " +
-            s"percent of node failure allowed  ${allowedFailure}  " +
-            s"on actual number of nodes $actualLiveNodes")
-          return
+  def haStart(zkList: String, zroot: String, config: Config, collections: List[String],
+              retryCount: Int = 5): Unit = {
+    try {
+      ZooKeeperClient(zkList)
+      val deployerUsage = ZooKeeperClient.getData(s"$solrDeployerZnode/isRunning")
+      ZooKeeperClient.close()
+      if (deployerUsage.toInt != 1) {
+        SolrClusterStatus(zkList, zroot, "")
+        val aliasMap = SolrClusterStatus.getCollectionAliasMap()
+        if (aliasMap.keySet.isEmpty) {
+          throw new Exception("no aliases found")
         }
-
-        ZooKeeperClient.close()
-        if (failureShards.coreMap.keySet.size > 0) {
+        val liveCollections: List[String] = aliasMap.keySet.intersect(collections.toSet).toList
+          .map(p => aliasMap(p))
+        log.info(s"collections being watched are $liveCollections")
+        liveCollections.foreach(collection => {
+          val aliasCollection = findKeyOfMap(collection, aliasMap)
           ZooKeeperClient(zkList)
-          ZooKeeperClient.setData(s"$solrDeployerZnode/" +
-            s"$aliasCollection/collectionFailurecount",
-            (collectionFailurecount + "").getBytes())
-          log.info(s"Number of times Solr Collection failed is $collectionFailurecount")
-
-          val indexLocation = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-            s"$aliasCollection/indicesPath")
-          val hdfsIndexFilePath = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-            s"$aliasCollection/hdfsPath")
+          var collectionFailurecount = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+            s"$aliasCollection/collectionFailurecount").toInt
+          collectionFailurecount = collectionFailurecount + 1
+          val failureShards = collectAllFailureNodes(collection, collectionFailurecount)
+          val actualLiveNodes = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+            s"$aliasCollection/assignedLiveNodes").toDouble
+          val allowedFailure = config.getInt("solr.clusterCapacity") * 0.01
+          require(allowedFailure < 1, "solr.clusterCapacity" +
+            " value should be less than 100")
+          if (SolrClusterStatus.solrLiveNodes.length < actualLiveNodes * (1 - allowedFailure)) {
+            log.error(s"HA cannot work as the number of available nodes" +
+              s" ${SolrClusterStatus.solrLiveNodes.length} is less than " +
+              s"percent of node failure allowed  ${allowedFailure}  " +
+              s"on actual number of nodes $actualLiveNodes")
+            return
+          }
           ZooKeeperClient.close()
-          // DeleteReplicas
-          val deleteReplicaUrls = failureShards.deleteUrls
-          try {
+          if (failureShards.coreMap.keySet.size > 0) {
+            ZooKeeperClient(zkList)
+            ZooKeeperClient.setData(s"$solrDeployerZnode/" +
+              s"$aliasCollection/collectionFailurecount",
+              (collectionFailurecount + "").getBytes())
+            log.info(s"Number of times Solr Collection failed is $collectionFailurecount")
+
+            val indexLocation = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+              s"$aliasCollection/indicesPath")
+            val hdfsIndexFilePath = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+              s"$aliasCollection/hdfsPath")
+            ZooKeeperClient.close()
+            // DeleteReplicas
+            val deleteReplicaUrls = failureShards.deleteUrls
             SolrOps.makeHttpRequests(deleteReplicaUrls)
 
             // MoveData to assigned Nodes
@@ -241,7 +240,6 @@ object ShardBalancer {
               "numHTTPTasks" -> "20",
               "nameNode" -> nameNode
             )
-
             val ipShardMap = CollectIndices.moveFilesFromHdfsToLocal(
               solrMap,
               hdfsIndexFilePath,
@@ -249,23 +247,22 @@ object ShardBalancer {
             )
             val sol = new SolrOpsLocal(solrMap)
             sol.hdfsIndexFilePath = hdfsIndexFilePath
-
             sol.createCoresOnSolr(ipShardMap, collection,
               failureShards.configName)
-
           }
-          catch {
-            case e: Throwable => {
-              log.warn("trying to restart the ha as there was exception", e)
-              log.info("Retrying HA")
-              haStart(zkList, zroot, config, collections)
-            }
-          }
-        }
+        })
       }
-
-      )
-
+    }
+    catch {
+      case e: Throwable => {
+        log.warn("trying to restart the ha as there was exception", e)
+        log.info("Retrying HA")
+        if (retryCount == 0) {
+          log.error(s"quitting ${classOf[ShardBalancer]} after 5 retries with ", e)
+          System.exit(-1)
+        }
+        haStart(zkList, zroot, config, collections, retryCount - 1)
+      }
     }
   }
 

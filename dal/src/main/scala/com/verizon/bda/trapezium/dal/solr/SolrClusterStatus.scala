@@ -71,8 +71,8 @@ object SolrClusterStatus {
     */
   def getCollectionAliasMap(): Map[String, String] = {
     log.info("in collection alias map")
-    val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
     val aliases: Map[String, String] = try {
+      val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
       val json = clusterJsonResponse.get("cluster").asInstanceOf[JSONObject]
         .get("aliases").asInstanceOf[JSONObject]
       val set = json.keys()
@@ -80,11 +80,11 @@ object SolrClusterStatus {
       for (key <- set.asScala) {
         map(key) = json.getString(key)
       }
-       map.toMap
+      map.toMap
 
     }
     catch {
-      case e: JSONException =>
+      case e: Exception =>
         log.warn(s"Json was not proper", e)
         null
     }
@@ -113,14 +113,23 @@ object SolrClusterStatus {
   }
 
   def getClusterStatus(collection: String, collectionNeeded: Boolean = true): String = {
-    val node: String = solrLiveNodes(0)
-    val collectionUrl: String = if (collectionNeeded) {
-      s"&collection=$collection"
-    } else {
-      ""
+    try {
+      val node: String = solrLiveNodes(0)
+      val collectionUrl: String = if (collectionNeeded) {
+        s"&collection=$collection"
+      } else {
+        ""
+      }
+      val url = s"http://$node/solr/admin/collections?action=CLUSTERSTATUS&wt=json" + collectionUrl
+      SolrOps.makeHttpRequest(url)
     }
-    val url = s"http://$node/solr/admin/collections?action=CLUSTERSTATUS&wt=json" + collectionUrl
-    SolrOps.makeHttpRequest(url)
+    catch {
+      case e: Exception => {
+        log.error("could not retrieve cluster status and hence exiting", e)
+        System.exit(-1)
+        return null
+      }
+    }
   }
 
   def parseSolrResponse(): List[SolrCollectionStatus] = {
