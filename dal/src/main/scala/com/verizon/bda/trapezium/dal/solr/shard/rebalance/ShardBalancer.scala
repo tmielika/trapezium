@@ -90,6 +90,10 @@ object ShardBalancer {
         val solrNo = solrLiveNodes(count)
         val replicaName = s"${collection}_${shardId}_replica$failureRepeat"
         coreMap(replicaName) = solrNo
+        count = (count + 1) % solrLiveNodes.size
+        if (count >= solrLiveNodes.size) {
+          count = 0
+        }
       }
       replicas.asScala.toMap.
         foreach(p => {
