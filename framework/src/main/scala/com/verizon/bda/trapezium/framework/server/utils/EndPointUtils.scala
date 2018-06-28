@@ -37,8 +37,11 @@ object EndPointUtils {
     * Create instance of endpoint using the constructor either the one with having
     * SparkContext param or the one with ActorSystem
     */
-    val instance = instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
-      instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
+    val instance = if (sc != null) {
+      instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
+      instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)  }
+      else { instanceOf1[ActorSystem](clazz) }
+
 
     instance.getOrElse {
       logger.error(
@@ -55,6 +58,11 @@ object EndPointUtils {
     cons.map(c => c.newInstance(param).asInstanceOf[ServiceEndPoint])
   }
 
+  private def instanceOf1[T](clazz: Class[_]):
+  Option[ServiceEndPoint] = {
+    val cons = getConstructorOfType1(clazz)
+    cons.map(c => c.newInstance().asInstanceOf[ServiceEndPoint])
+  }
 
   // scalastyle:off classforname
   def loadClass(name: String): Class[_] = Class.forName(name)
@@ -64,5 +72,7 @@ object EndPointUtils {
   def getConstructorOfType[T](clazz: Class[_], paramType: Class[T]): Option[Constructor[_]] =
     Try(clazz.getDeclaredConstructor(paramType)).toOption
 
+  def getConstructorOfType1[T](clazz: Class[_]): Option[Constructor[_]] =
+    Try(clazz.getDeclaredConstructor()).toOption
 
 }

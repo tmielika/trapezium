@@ -135,7 +135,7 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
   def compose(routes: List[Route]): Route = routes.reduce((r1, r2) => r1 ~ r2)
 }
 
-class JettyServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHttpServer {
+class JettyHttpServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHttpServer {
 
   var server: Server = _
 

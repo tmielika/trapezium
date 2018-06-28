@@ -16,21 +16,22 @@ package com.verizon.bda.trapezium.framework
 
 import _root_.kafka.common.TopicAndPartition
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, BatchHandler, StreamingHandler}
+import com.verizon.bda.trapezium.framework.handler.{BatchHandler, FileSourceGenerator, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
-import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
-import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
-import com.verizon.bda.license.{LicenseLib, LicenseType, LicenseException}
+import com.verizon.bda.trapezium.framework.server._
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import org.apache.spark.sql.{Row, SQLContext, DataFrame}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
 import scopt.OptionParser
 import java.net.InetAddress
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
 import java.util.Properties
@@ -56,7 +57,8 @@ object ApplicationManager {
   private val threadLocalWorkflowConfig = new ThreadLocal[WorkflowConfig]();
   var stopStreaming: Boolean = false
   val ERROR_EXIT_CODE = -1
-  private var embeddedServer: EmbeddedHttpServer = _
+  private var embeddedHttpServer: EmbeddedHttpServer = _
+  private var embeddedServer: EmbeddedServer = _
   private var uid = ""
 
   private var validLicense: Boolean = true
@@ -64,7 +66,11 @@ object ApplicationManager {
   private var licenseCheckPeriod: Integer = 60
   private var licenseCheckTimeout: Calendar = Calendar.getInstance()
 
-  def getEmbeddedServer: EmbeddedHttpServer = {
+  def getEmbeddedHttpServer: EmbeddedHttpServer = {
+    embeddedHttpServer
+  }
+
+  def getEmbeddedServer: EmbeddedServer = {
     embeddedServer
   }
 
@@ -153,14 +159,15 @@ object ApplicationManager {
     initialize(appConfig)
 
     // Initialize license library and licenseValidationTimeout
-    if (ApplicationManager.getConfig().env != "local" ) {
+    val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
+    val runMode = workflowConfig.runMode
+    val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
+    if (!runMode.equals("APIV2")) registerDriverHost(currentWorkflowName)
+
+    if (ApplicationManager.getConfig().env != "local" && !runMode.equals("APIV2")) {
       LicenseLib.init(appConfig.zookeeperList)
     }
 
-    val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
-    val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
-    registerDriverHost(currentWorkflowName)
-    val runMode = workflowConfig.runMode
     runMode match {
       case "STREAM" => {
 
@@ -191,6 +198,10 @@ object ApplicationManager {
         val sc = new SparkContext(getSparkConf (appConfig))
         setHadoopConf(sc, appConfig)
         startHttpServer(sc, workflowConfig)
+
+      }
+      case "APIV2" => {
+        startHttpServer(workflowConfig)
 
       }
       case _ => logger.error("Not implemented run mode. Exiting.. {}", runMode)
@@ -376,9 +387,29 @@ object ApplicationManager {
     val serverConfig = workflowConfig.httpServer
     if (serverConfig != null) {
       val provider = serverConfig.getString("provider")
-      embeddedServer = provider match {
+      embeddedHttpServer = provider match {
         case "akka" => new AkkaHttpServer(sc)
-        case "jetty" => new JettyServer(sc, serverConfig)
+        case "jetty" => new JettyHttpServer(sc, serverConfig)
+      }
+      logger.info(s"Starting $provider based Embedded HTTP Server")
+      embeddedHttpServer.init(serverConfig)
+      embeddedHttpServer.start(serverConfig)
+    }
+  }
+
+  /**
+    * Start HTTP (Jetty) server
+    *
+    * @param workflowConfig
+    */
+  private[framework] def startHttpServer(workflowConfig: WorkflowConfig): Unit = {
+
+    val serverConfig = workflowConfig.httpServer
+    if (serverConfig != null) {
+      val provider = serverConfig.getString("provider")
+      embeddedServer = provider match {
+        case "akka" => new AkkaServer()
+        case "jetty" => new JettyServer(serverConfig)
       }
       logger.info(s"Starting $provider based Embedded HTTP Server")
       embeddedServer.init(serverConfig)
