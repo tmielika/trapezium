@@ -29,4 +29,3 @@ abstract class SparkServiceEndPoint(sc: SparkContext) extends ServiceEndPoint
 
 abstract class ActorServiceEndPoint(as: ActorSystem) extends ServiceEndPoint
 
-abstract class EndPoint extends ServiceEndPoint

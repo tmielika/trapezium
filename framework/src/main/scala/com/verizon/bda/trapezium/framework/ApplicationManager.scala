@@ -66,11 +66,11 @@ object ApplicationManager {
   private var licenseCheckPeriod: Integer = 60
   private var licenseCheckTimeout: Calendar = Calendar.getInstance()
 
-  def getEmbeddedHttpServer: EmbeddedHttpServer = {
+  def getEmbeddedServer: EmbeddedHttpServer = {
     embeddedHttpServer
   }
 
-  def getEmbeddedServer: EmbeddedServer = {
+  def getEmbeddedServerV2: EmbeddedServer = {
     embeddedServer
   }
 

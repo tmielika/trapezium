@@ -20,7 +20,6 @@ import akka.actor.ActorSystem
 import com.verizon.bda.trapezium.framework.server.ServiceEndPoint
 import org.apache.spark.SparkContext
 import org.slf4j.LoggerFactory
-
 import scala.util.Try
 
 /**
@@ -40,7 +39,9 @@ object EndPointUtils {
     val instance = if (sc != null) {
       instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
       instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)  }
-      else { instanceOf1[ActorSystem](clazz) }
+      else {
+      instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
+    }
 
 
     instance.getOrElse {
