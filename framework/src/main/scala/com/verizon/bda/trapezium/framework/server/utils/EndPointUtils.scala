@@ -59,12 +59,6 @@ object EndPointUtils {
     cons.map(c => c.newInstance(param).asInstanceOf[ServiceEndPoint])
   }
 
-  private def instanceOf1[T](clazz: Class[_]):
-  Option[ServiceEndPoint] = {
-    val cons = getConstructorOfType1(clazz)
-    cons.map(c => c.newInstance().asInstanceOf[ServiceEndPoint])
-  }
-
   // scalastyle:off classforname
   def loadClass(name: String): Class[_] = Class.forName(name)
 
@@ -72,8 +66,5 @@ object EndPointUtils {
 
   def getConstructorOfType[T](clazz: Class[_], paramType: Class[T]): Option[Constructor[_]] =
     Try(clazz.getDeclaredConstructor(paramType)).toOption
-
-  def getConstructorOfType1[T](clazz: Class[_]): Option[Constructor[_]] =
-    Try(clazz.getDeclaredConstructor()).toOption
 
 }
