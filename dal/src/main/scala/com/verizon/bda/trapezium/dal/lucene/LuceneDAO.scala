@@ -40,11 +40,9 @@ class LuceneDAO(val location: String,
 
   @transient lazy val log = Logger.getLogger(classOf[LuceneDAO])
 
-  @transient private lazy val analyzer: Analyzer = luceneAnalyzer match {
-    case "keyword" => new KeywordAnalyzer()
-    case "standard" => new StandardAnalyzer()
-    case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
-  }
+
+  @transient private lazy val analyzer: Analyzer = LuceneDAO.getAnalyzer(luceneAnalyzer)
+
 
   @transient private lazy val store: Field.Store =
     if (stored) Field.Store.YES
@@ -228,7 +226,7 @@ class LuceneDAO(val location: String,
       }
     })
     val numPartitions = status.length
-    log.info(s"Loading ${numPartitions} indices from path ${indexPath}")
+    log.info(s"LuceneDAO_Load: Loading ${numPartitions} indices from path ${indexPath}")
 
     val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
 
@@ -237,26 +235,20 @@ class LuceneDAO(val location: String,
       indices.map((index: Int) => {
         val sparkConf = new SparkConf()
         val localDir = new File(DalUtils.getLocalDir(sparkConf))
-        log.info(s"Created ${localDir} to write lucene shuffle")
+        log.info(s"LuceneDAO_Load: Created ${localDir} to write lucene shuffle")
 
         val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
         // Open a directory on Standalone/YARN/Mesos disk cache
         val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
         val shuffleIndexPath = shuffleIndexFile.toPath
-        log.info(s"Created ${shuffleIndexPath} to read lucene partition $index shuffle")
+        log.info(s"LuceneDAO_Load: Created ${shuffleIndexPath} to read lucene partition $index shuffle")
 
-        val conf = new Configuration
         val shard: Option[LuceneShard] = {
           log.info(s"Copying data from deep storage: ${hdfsPath} to " +
             s"local shuffle: ${shuffleIndexPath}")
           try {
-            FileSystem.get(conf).copyToLocalFile(false,
-              new HadoopPath(hdfsPath),
-              new HadoopPath(shuffleIndexPath.toString))
-            val directory = new MMapDirectory(shuffleIndexPath)
-            directory.setPreload(preload)
-            val reader = DirectoryReader.open(directory)
-            Some(LuceneShard(reader, converter, analyzer))
+            LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
+            Some(LuceneShard(hdfsPath,shuffleIndexFile.getAbsolutePath, preload, converter, luceneAnalyzer))
           } catch {
             case e: IOException =>
               throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
@@ -364,7 +356,7 @@ class LuceneDAO(val location: String,
   def count(queryStr: String): Long = {
     if (shards == null) throw new LuceneDAOException(s"count called with null shards")
     shards.map((shard: LuceneShard) => {
-      shard.count(shard.qp.parse(queryStr))
+      shard.count(queryStr)
     }).sum().toLong
   }
 
@@ -631,4 +623,13 @@ object LuceneDAO {
 
   val DICTIONARY_PREFIX = "dictionary"
   val SCHEMA_PREFIX = "schema"
+
+  def getAnalyzer(analyzerStr: String) : Analyzer = {
+    val analyzer: Analyzer = analyzerStr match {
+      case "keyword" => new KeywordAnalyzer()
+      case "standard" => new StandardAnalyzer()
+      case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
+    }
+    analyzer
+  }
 }
