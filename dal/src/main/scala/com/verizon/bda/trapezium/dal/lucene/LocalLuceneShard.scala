@@ -12,9 +12,13 @@ import org.apache.spark.sql.types.TimestampType
 
 import scala.collection.mutable.ArrayBuffer
 
+
 /**
- * Created by sankma8 on 6/20/18.
- */
+  * @author debasish83 on 12/15/16.
+  *         Supports primitives for searching and aggregation on one(topk)/multiple(groupby) dimension given set
+  *         of measures
+  */
+
 class LocalLuceneShard(reader: IndexReader,
                        converter: OLAPConverter,
                        analyzer: Analyzer) extends IndexSearcher(reader) with Logging with ILuceneIndex {

@@ -11,12 +11,10 @@ import org.apache.lucene.search.{Query, ScoreDoc, TopDocs}
 import org.apache.lucene.store.MMapDirectory
 import org.apache.spark.sql.Row
 
-/**
- * @author debasish83 on 12/15/16.
- *         Supports primitives for searching and aggregation on one(topk)/multiple(groupby) dimension given set
- *         of measures
- */
 
+/**
+  * Created by sankma8 on 6/20/18.
+  */
 case class LuceneReader(leafReader: LeafReader, range: FeatureAttr)
 
 
