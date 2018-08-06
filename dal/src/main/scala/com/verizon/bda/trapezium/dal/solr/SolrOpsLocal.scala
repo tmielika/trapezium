@@ -2,6 +2,7 @@ package com.verizon.bda.trapezium.dal.solr
 
 import java.net.URI
 
+import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.log4j.Logger
@@ -27,7 +28,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
     }
     catch {
       case e: Exception => {
-        deleteOldCollections(collectionName)
+        rollBackCollections(collectionName)
         log.error(s"could not create collection ${collectionName}", e)
         return null
       }
@@ -68,18 +69,18 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
       }
       log.info(list.toList)
       SolrOps.makeHttpRequests(list.toList, solrMap("numHTTPTasks").toInt)
+      if (!makeSanityCheck(collectionName, map)) {
+        rollBackCollections(collectionName)
+        log.error(s"sanity check failed and rolling back " +
+          s"the creation of collection ${collectionName}")
+        System.exit(1)
+      }
     }
     catch {
       case e: Exception => {
         log.error((s"could create  ${collectionName}"))
-        deleteOldCollections(collectionName)
+        rollBackCollections(collectionName)
       }
-    }
-    if (!makeSanityCheck(collectionName, map)) {
-      deleteOldCollections(collectionName)
-      log.error(s"sanity check failed and rolling back " +
-        s"the creation of collection ${collectionName}")
-      System.exit(1)
     }
   }
 
@@ -139,5 +140,14 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
       CollectIndices.deleteDirectory(oldCollectionDirectory, solrMap("rootDirs").split(","))
     }
     CollectIndices.closeSessions()
+  }
+
+  def rollBackCollections(collection: String): Unit = {
+    log.warn(s"rollling back collection $collection")
+    deleteOldCollections(collection)
+    ZooKeeperClient(solrMap("zkHosts"))
+    ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 0.toString.getBytes)
+    ZooKeeperClient.close()
+
   }
 }
