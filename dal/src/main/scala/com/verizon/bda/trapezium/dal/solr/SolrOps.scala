@@ -306,7 +306,7 @@ object SolrOps {
   }
 
   @throws(classOf[Exception])
-  def makeHttpRequest(url: String, retry: Int = 5): String = {
+  def makeHttpRequest(url: String, retry: Int = 5, printResponse: Boolean = true): String = {
     var responseBody: String = null
     var noError = false
     var retries = 0
@@ -321,7 +321,8 @@ object SolrOps {
           log.info(s"response status: ${response.getStatusLine} and status" +
             s" code ${response.getStatusLine.getStatusCode} ")
           responseBody = EntityUtils.toString(response.getEntity())
-          log.info(s"responseBody: ${responseBody} for url ")
+          if(printResponse)
+          {log.info(s"responseBody: ${responseBody} for url ")}
           if (response.getStatusLine.getStatusCode != 200) {
             noError = true
             retries = retries + 1
