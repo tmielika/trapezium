@@ -3,9 +3,10 @@ package com.verizon.bda.trapezium.dal.lucene
 import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.BooleanQuery
-import org.apache.spark.sql.Row
-import org.apache.spark.{TaskContext, SparkContext, Partition}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Row
+import org.apache.spark.{Partition, SparkContext, TaskContext}
+
 /**
  * @author debasish83 on 12/15/16.
  */
@@ -28,17 +29,17 @@ class LuceneRDD(sc: SparkContext,
     val rows = this.flatMap((shard: LuceneShard) => {
       BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE)
       val maxRowsPerPartition = Math.floor(sample * shard.getIndexReader.numDocs()).toInt
-      val topDocs = shard.search(qp.parse(queryStr), maxRowsPerPartition)
+      val topDocs = shard.search(queryStr, maxRowsPerPartition)
 
       log.debug("Hits within partition: " + topDocs.totalHits)
-      topDocs.scoreDocs.map { d => converter.docToRow(shard.doc(d.doc)) }
+      topDocs.scoreDocs.map { d => converter.docToRow(shard.luceneShard.doc(d.doc)) }
     })
     rows
   }
 
   def count(queryStr: String): Int = {
     this.map((shard: LuceneShard) => {
-      shard.count(qp.parse(queryStr))
+      shard.count(queryStr)
     }).sum().toInt
   }
 }
