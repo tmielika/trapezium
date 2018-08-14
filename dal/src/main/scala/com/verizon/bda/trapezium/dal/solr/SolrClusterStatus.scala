@@ -121,7 +121,7 @@ object SolrClusterStatus {
         ""
       }
       val url = s"http://$node/solr/admin/collections?action=CLUSTERSTATUS&wt=json" + collectionUrl
-      SolrOps.makeHttpRequest(url)
+      SolrOps.makeHttpRequest(url, 5, false)
     }
     catch {
       case e: Exception => {
