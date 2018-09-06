@@ -1,8 +1,7 @@
 package com.verizon.bda.trapezium.dal.lucene
 
-import java.io.{File, _}
+import java.io._
 import java.sql.Time
-
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, FileUtil, PathFilter, Path => HadoopPath}
@@ -15,16 +14,15 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode
 import org.apache.lucene.index._
 import org.apache.lucene.store.{Directory, LockFactory, MMapDirectory, NoLockFactory}
 import org.apache.solr.store.hdfs.HdfsDirectory
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
+import java.io.File
 import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
-
 import scala.collection.mutable
 import scala.util.Random
 
@@ -71,6 +69,25 @@ class LuceneDAO(val location: String,
     this
   }
 
+  /**
+    * Udf to compute the indices and values for sparse vector.
+    * Here s is storedDimension and m is featureColumns mapped as Array
+    * corresponding to the dimensions. Support measures that are MapType
+    * with keys as the hierarchical dimension
+    */
+  val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
+                               m: mutable.WrappedArray[Map[String, Double]]) =>
+    val indVal = s.zip(m).flatMap { x =>
+      if (x._2 == null) {
+        Map[Int, Double]()
+      }
+      else {
+        val output: Map[Int, Double] = x._2.map(kv => (_dictionary.indexOf(x._1, kv._1), kv._2))
+        output.filter(_._1 >= 0)
+      }
+    }.sortBy(_._1)
+    Vectors.sparse(_dictionary.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
+  }
 
   /**
     * 2 step process to generate feature vectors:
@@ -83,31 +100,9 @@ class LuceneDAO(val location: String,
                 dimension: Seq[String],
                 features: Seq[String]): DataFrame = {
     val dfWithFeatures = df.withColumn("arrFeatures", array(features.map(df(_)): _*))
-    val key = this
-    var udfObject = ObjectManager.get(key)
-    if(udfObject.isEmpty) {
-      val broadcastDictionary : Broadcast[DictionaryManager] = df.sqlContext.sparkContext.broadcast(_dictionary)
-      println("Creating a broadcast dictionary")
-      var newUdfObject = new FeatureUDF(broadcastDictionary)
-      ObjectManager.put(key, newUdfObject)
-      udfObject = ObjectManager.get(key)
-    }
-    val udf = udfObject.get.asInstanceOf[FeatureUDF].featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures"))
-    val vectorized = dfWithFeatures.withColumn(vectorizedColumn, udf)
-    val finalDF = vectorized.drop("arrFeatures")
-    finalDF
-  }
-
-  /**
-    * Dispose all objects as part of this call.
-    */
-  def close(): Unit = {
-    val key = this
-    if(!ObjectManager.get(key).isEmpty) {
-      val broadcast= ObjectManager.get(key).get.asInstanceOf[FeatureUDF].broadcastDictionary
-      broadcast.destroy()
-    }
-    ObjectManager.removeAll()
+    val vectorized = dfWithFeatures.withColumn(vectorizedColumn,
+      featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures")))
+    vectorized.drop("arrFeatures")
   }
 
   // TODO: If index already exist we have to merge dictionary and update indices
@@ -156,9 +151,9 @@ class LuceneDAO(val location: String,
             val d = converter.rowToDoc(r)
             indexWriter.addDocument(d)
           } catch {
-            case e: Exception => {
+            case e: Throwable => {
               throw new LuceneDAOException(s"Error with adding row ${r} " +
-                s"to document ${e.getStackTraceString}", e)
+                s"to document ${e.getMessage}")
             }
           }
         }
@@ -210,7 +205,7 @@ class LuceneDAO(val location: String,
   // TODO: load logic will move to LuceneRDD
   @transient private var _shards: RDD[LuceneShard] = _
 
-  def load(sc: SparkContext, preload:Boolean=true): Unit = {
+  def load(sc: SparkContext): Unit = {
     val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
     val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
     val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
@@ -254,13 +249,13 @@ class LuceneDAO(val location: String,
               new HadoopPath(hdfsPath),
               new HadoopPath(shuffleIndexPath.toString))
             val directory = new MMapDirectory(shuffleIndexPath)
-            directory.setPreload(preload)
+            directory.setPreload(true)
             val reader = DirectoryReader.open(directory)
             Some(LuceneShard(reader, converter, analyzer))
           } catch {
             case e: IOException =>
               throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
-                s"shuffle: ${shuffleIndexPath} failed",e)
+                s"shuffle: ${shuffleIndexPath} failed")
             case x: Throwable => throw new RuntimeException(x)
           }
         }
@@ -565,63 +560,6 @@ class LuceneDAO(val location: String,
   }
 }
 
-/**
-  * A plain simple wrapper on the UDF that helps to hold the broadcasted dictionary for the
-  * current request session
-  * @param broadcastDictionary
-  */
-
-class FeatureUDF( val broadcastDictionary : Broadcast[DictionaryManager]) extends Serializable {
-  /**
-    * Udf to compute the indices and values for sparse vector.
-    * Here s is storedDimension and m is featureColumns mapped as Array
-    * corresponding to the dimensions. Support measures that are MapType
-    * with keys as the hierarchical dimension
-    */
-  val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
-                               m: mutable.WrappedArray[Map[String, Double]]) =>
-    val indVal = s.zip(m).flatMap { x =>
-      if (x._2 == null) {
-        Map[Int, Double]()
-      }
-      else {
-        val output: Map[Int, Double] = x._2.map(kv => (broadcastDictionary.value.indexOf(x._1, kv._1), kv._2))
-        output.filter(_._1 >= 0)
-      }
-    }.sortBy(_._1)
-    Vectors.sparse(broadcastDictionary.value.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
-  }
-
-}
-
-/**
-  * A simple holder of objects for LuceneDAO instance. Just so that
-  * the instance leevl fields are not exposed for serialization
-  * unnecessarily.
-  * Created by sankma8 on 3/19/18.
-  */
-object ObjectManager {
-
-  val repository = scala.collection.mutable.Map[Object, Object]()
-
-  def put(key:Object, value: Object) : Option[Object] = {
-    repository.put(key, value)
-  }
-
-  def remove(key:Object): Option[Object] = {
-    repository.remove(key)
-  }
-
-  def removeAll(): Unit = {
-    repository.clear()
-  }
-
-  def get(key:Object): Option[Object] = {
-    repository.get(key)
-  }
-
-}
-
 object LuceneDAO {
   val PREFIX = "trapezium-lucenedao"
   val SUFFIX = "part-"
@@ -632,3 +570,4 @@ object LuceneDAO {
   val DICTIONARY_PREFIX = "dictionary"
   val SCHEMA_PREFIX = "schema"
 }
+

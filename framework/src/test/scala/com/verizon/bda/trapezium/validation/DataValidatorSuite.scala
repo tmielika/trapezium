@@ -23,7 +23,7 @@ class DataValidatorSuite extends TestSuiteBase {
   val badRecordCount = 6L
   val path = "src/test/data/hdfs/source3"
   val validatorConfig = ValidationPreparer.getValidationConfig()
-  val logger = LoggerFactory.getLogger(this.getClass)
+  val log = LoggerFactory.getLogger(this.getClass)
   var parser : CSVParser = null
 
   def setParser(delimter : Char) : Unit = {
@@ -52,7 +52,7 @@ class DataValidatorSuite extends TestSuiteBase {
   }
 
   test("special character"){
-    logger.info("Testing for special character in file")
+    log.info("Testing for special character in file")
     val validatorConfig = ValidationPreparer.getValidationConfig()
     val path = "src/test/data/hdfs/speicalCharacter"
     val rddRow = sc.textFile(path).map(x => Row(x))
@@ -63,7 +63,7 @@ class DataValidatorSuite extends TestSuiteBase {
     assert(!containsSpecialChar(0))
     assert(rddWithoutSpecialChar.count == 44)
 
-    logger.info("Testing for special character but not present in file")
+    log.info("Testing for special character but not present in file")
     val path1 = "src/test/data/hdfs/source1/"
     val rddRowWOTSC = sc.textFile(path1).map(x => Row(x))
     val rddWithoutSpecialChar1 =
@@ -73,7 +73,7 @@ class DataValidatorSuite extends TestSuiteBase {
     assert(!containsSpecialChar1(0))
     assert(rddWithoutSpecialChar1.count == 101)
 
-    logger.info("Testing for special character if regex is not present")
+    log.info("Testing for special character if regex is not present")
     val path2 = "src/test/data/hdfs/source2/"
     val validatorConfig2 = ValidationPreparer.getValidationConfigSources2
     val rddRowRegexNotPresent = sc.textFile(path2).map(x => Row(x))

@@ -19,9 +19,7 @@ package com.verizon.bda.trapezium.dal.sql
 
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.GenericRow
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.sql.hive.test.TestHiveContext
@@ -36,14 +34,25 @@ import org.scalatest.FunSuite
  * @author pramod.lakshminarasimha
  */
 class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
-  @transient implicit var hiveContext: HiveContext = _
+  @transient implicit var hiveContext: TestHiveContext = _
   @transient var testdf: DataFrame = _
 
   override def beforeAll() {
     super.beforeAll()
-    hiveContext = new TestHiveContext(sc)
-    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
+    /* spark = SparkSession.builder.
+      master("local")
+      .appName("HiveTest")
+      .enableHiveSupport()
+      .getOrCreate()
 
+    sc = spark.sparkContext */
+
+    hiveContext = new TestHiveContext(sc, false)
+    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
+    // scalastyle : off
+    println(hiveContext.tableNames())
+    hiveContext.tableNames().foreach(each => print(each))
+    // scalastyle : on
     val rdd: RDD[Row] = sc.parallelize(
       (1 to 10).map(x => new GenericRow(Array("a" + x, "b", x))).toList
         ++ (1 to 10).map(x => new GenericRow(Array("c" + x, "d", x))).toList)
@@ -52,7 +61,11 @@ class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
       StructField("c2", StringType, true),
       StructField("c3", IntegerType, true)))
     testdf = hiveContext.createDataFrame(rdd, schema)
-    testdf.registerTempTable("test_read")
+    // scalastyle : off
+    println("DONE")
+    // scalastyle : on
+
+    // testdf.registerTempTable("test_read")
   }
 
   override def afterAll() {
@@ -61,8 +74,12 @@ class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
   }
 
   test("HiveDAO read test") {
+    println("Starting HIVEDAO Test")
     val testDao = new HiveDAO("default", "test_read")
 
+    // scalastyle :off
+    println("getSchema :")
+    // scalastyle :on
     assert(testDao.getAll().count == 20)
     assert(testDao.getColumns(List("c1")).count == 20)
   }

@@ -39,8 +39,10 @@ private[framework] object ApplicationUtils {
   val lastSynchronizationTime: String = "lastSynchronizationTime"
   val zkPrefix: String = "/bda/apps/"
   val registerHostName = "driverHostName"
+  var trapeziumEnv : String = null
 
   val env = try {
+    trapeziumEnv = System.getProperties.getProperty("trapezium.clustername")
     val environemnt = scala.io.Source.fromFile("/opt/bda/environment").mkString.trim
 
     // Hack for Jenkins integration
@@ -50,7 +52,7 @@ private[framework] object ApplicationUtils {
       environemnt
     }
   } catch {
-    case e: FileNotFoundException => "local"
+    case e: FileNotFoundException => if (trapeziumEnv != null) trapeziumEnv else "local"
   }
 
   def getWorkflowClassList(workflowClassNames: Array[String],

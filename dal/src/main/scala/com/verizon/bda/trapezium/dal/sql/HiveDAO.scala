@@ -16,9 +16,7 @@
 package com.verizon.bda.trapezium.dal.sql
 
 import com.verizon.bda.trapezium.dal.exceptions.HiveDAOException
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.hive.HiveContext
+import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -29,7 +27,7 @@ import org.apache.spark.sql.types.StructType
  *
  * @param tableName name of the hive table to connect.
  */
-class HiveDAO(database: String, tableName: String)(implicit sqlContext: HiveContext)
+class HiveDAO(database: String, tableName: String)(implicit sqlContext: SQLContext)
     extends BaseSqlDAO(database, tableName) {
 
   require(database != null && tableName != null)

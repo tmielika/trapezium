@@ -14,7 +14,7 @@
 */
 package com.verizon.bda.trapezium.framework
 
-import _root_.kafka.common.TopicAndPartition
+import org.apache.kafka.common.TopicPartition
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, BatchHandler, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
@@ -302,7 +302,7 @@ object ApplicationManager {
 
     ssc = KafkaDStream.createStreamingContext(sparkConf)
     setHadoopConf(ssc.sparkContext, appConfig)
-    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
+    val topicPartitionOffsets = MMap[TopicPartition, Long]()
 
     streamsInfo.asScala.foreach(streamInfo => {
       val topicName = streamInfo.getString("topicName")

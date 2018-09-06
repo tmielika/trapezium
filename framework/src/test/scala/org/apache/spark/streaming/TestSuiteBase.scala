@@ -38,15 +38,18 @@
 package org.apache.spark.streaming
 
 import java.io.{IOException, ObjectInputStream}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.{DStream, ForEachDStream, InputDStream}
 import org.apache.spark.streaming.scheduler._
-import org.apache.spark.util.{TestUtils, TestManualClock, Utils}
-import org.apache.spark.{Logging, SparkConf, SparkContext}
+import org.apache.spark.util.{TestManualClock, TestUtils, Utils}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.concurrent.Eventually.timeout
 import org.scalatest.concurrent.PatienceConfiguration
-import org.scalatest.time.{Seconds => ScalaTestSeconds, Span}
+import org.scalatest.time.{Span, Seconds => ScalaTestSeconds}
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Suite}
+import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.{ArrayBuffer, SynchronizedBuffer}
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -227,8 +230,8 @@ class BatchCounter(ssc: StreamingContext) {
  * This is the base trait for Spark Streaming testsuites. This provides basic functionality
  * to run user-defined set of input on user-defined stream operations, and verify the output.
  */
-trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self: Suite =>
-
+trait TestSuiteBase extends FunSuite with BeforeAndAfterAll { self: Suite =>
+  private val logger = LoggerFactory.getLogger(this.getClass)
   // Name of the framework for Spark context
   def framework: String = this.getClass.getSimpleName
 
@@ -241,7 +244,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
   // Directory where the checkpoint data will be saved
   lazy val checkpointDir: String = {
     val dir = Utils.createTempDir()
-    logDebug(s"checkpointDir: $dir")
+    logger.debug(s"checkpointDir: $dir")
     dir.toString
   }
 
@@ -268,10 +271,10 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
   override def beforeAll() {
     super.beforeAll()
     if (useManualClock) {
-      logInfo("Using manual clock")
+      logger.info("Using manual clock")
       conf.set("spark.streaming.clock", "org.apache.spark.util.TestManualClock")
     } else {
-      logInfo("Using real clock")
+      logger.info("Using real clock")
       conf.set("spark.streaming.clock", "org.apache.spark.util.SystemClock")
     }
     sc = new SparkContext(conf)
@@ -296,7 +299,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
         ssc.stop(stopSparkContext = true)
       } catch {
         case e: Exception =>
-          logError("Error stopping StreamingContext", e)
+          logger.error("Error stopping StreamingContext", e)
       }
     }
   }
@@ -313,7 +316,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
         testServer.stop()
       } catch {
         case e: Exception =>
-          logError("Error stopping TestServer", e)
+          logger.error("Error stopping TestServer", e)
       }
     }
   }
@@ -422,17 +425,17 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
         if (useManualClock) ssc.scheduler.clock.asInstanceOf[TestManualClock]
         else new TestManualClock(ssc.scheduler.clock.getTimeMillis())
 
-      logInfo("Manual clock before advancing = " + clock.getTimeMillis())
+      logger.info("Manual clock before advancing = " + clock.getTimeMillis())
       if (actuallyWait) {
         for (i <- 1 to numBatches) {
-          logInfo("Actually waiting for " + batchDuration)
+          logger.info("Actually waiting for " + batchDuration)
           clock.advance(batchDuration.milliseconds)
           Thread.sleep(batchDuration.milliseconds)
         }
       } else {
         clock.advance(numBatches * batchDuration.milliseconds)
       }
-      logInfo("Manual clock after advancing = " + clock.getTimeMillis())
+      logger.info("Manual clock after advancing = " + clock.getTimeMillis())
 
       val startTime = clock.getTimeMillis()
 
@@ -441,7 +444,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
       }
 
       val timeTaken = System.currentTimeMillis() - startTime
-      logInfo(s"Number of completed batches ${counter.getNumCompletedBatches} timeTaken $timeTaken")
+      logger.info(s"Number of completed batches ${counter.getNumCompletedBatches} timeTaken $timeTaken")
       Thread.sleep(500) // Give some time for the forgetting old RDDs to complete
     } finally {
       ssc.stop(stopSparkContext = false)
@@ -476,7 +479,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
                                             ): Seq[Seq[Seq[V]]] = {
     assert(numBatches > 0, "Number of batches to run stream computation is zero")
     assert(numExpectedOutput > 0, "Number of expected outputs after " + numBatches + " is zero")
-    logInfo("numBatches = " + numBatches + ", numExpectedOutput = " + numExpectedOutput)
+    logger.info("numBatches = " + numBatches + ", numExpectedOutput = " + numExpectedOutput)
 
     // Get the output buffer
     val outputStream = ssc.graph.getOutputStreams.
@@ -493,28 +496,28 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
         if (useManualClock) ssc.scheduler.clock.asInstanceOf[TestManualClock]
         else new TestManualClock(ssc.scheduler.clock.getTimeMillis())
 
-      logInfo("Manual clock before advancing = " + clock.getTimeMillis())
+      logger.info("Manual clock before advancing = " + clock.getTimeMillis())
       if (actuallyWait) {
         for (i <- 1 to numBatches) {
-          logInfo("Actually waiting for " + batchDuration)
+          logger.info("Actually waiting for " + batchDuration)
           clock.advance(batchDuration.milliseconds)
           Thread.sleep(batchDuration.milliseconds)
         }
       } else {
         clock.advance(numBatches * batchDuration.milliseconds)
       }
-      logInfo("Manual clock after advancing = " + clock.getTimeMillis())
+      logger.info("Manual clock after advancing = " + clock.getTimeMillis())
 
       // Wait until expected number of output items have been generated
       val startTime = System.currentTimeMillis()
       while (output.size < numExpectedOutput &&
         System.currentTimeMillis() - startTime < maxWaitTimeMillis) {
-        logInfo("output.size = " + output.size + ", numExpectedOutput = " + numExpectedOutput)
+        logger.info("output.size = " + output.size + ", numExpectedOutput = " + numExpectedOutput)
         ssc.awaitTerminationOrTimeout(50)
       }
       val timeTaken = System.currentTimeMillis() - startTime
-      logInfo("Output generated in " + timeTaken + " milliseconds")
-      output.foreach(x => logInfo("[" + x.mkString(",") + "]"))
+      logger.info("Output generated in " + timeTaken + " milliseconds")
+      output.foreach(x => logger.info("[" + x.mkString(",") + "]"))
       assert(timeTaken < maxWaitTimeMillis, "Operation timed out after " + timeTaken + " ms")
       assert(output.size == numExpectedOutput, "Unexpected number of outputs generated")
 
@@ -535,14 +538,14 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
                                  expectedOutput: Seq[Seq[V]],
                                  useSet: Boolean
                                  ) {
-    logInfo("--------------------------------")
-    logInfo("output.size = " + output.size)
-    logInfo("output")
-    output.foreach(x => logInfo("[" + x.mkString(",") + "]"))
-    logInfo("expected output.size = " + expectedOutput.size)
-    logInfo("expected output")
-    expectedOutput.foreach(x => logInfo("[" + x.mkString(",") + "]"))
-    logInfo("--------------------------------")
+    logger.info("--------------------------------")
+    logger.info("output.size = " + output.size)
+    logger.info("output")
+    output.foreach(x => logger.info("[" + x.mkString(",") + "]"))
+    logger.info("expected output.size = " + expectedOutput.size)
+    logger.info("expected output")
+    expectedOutput.foreach(x => logger.info("[" + x.mkString(",") + "]"))
+    logger.info("--------------------------------")
 
     // Match the output with the expected output
     for (i <- 0 until output.size) {
@@ -562,7 +565,7 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll with Logging { self:
         )
       }
     }
-    logInfo("Output verified successfully")
+    logger.info("Output verified successfully")
   }
 
   /**

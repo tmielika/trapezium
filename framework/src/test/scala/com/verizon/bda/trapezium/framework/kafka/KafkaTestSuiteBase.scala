@@ -25,8 +25,8 @@ import kafka.common.KafkaException
 import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.StringEncoder
 import kafka.server.{KafkaConfig, KafkaServer}
-import kafka.utils.ZKStringSerializer
-import org.I0Itec.zkclient.ZkClient
+import kafka.utils.{ZKStringSerializer, ZkUtils}
+import org.I0Itec.zkclient.{ZkClient, ZkConnection}
 import org.apache.commons.io
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.zookeeper.EmbeddedZookeeper
@@ -52,6 +52,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   private var zkReady = false
   private var brokerReady = false
 
+  protected var zkUtils: ZkUtils = _
   protected var zkClient: ZkClient = _
 
   before {
@@ -97,7 +98,11 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     zkReady = true
     kf_logger.info("==================== Zookeeper Started ====================")
 
-    zkClient = new ZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout, ZKStringSerializer)
+    zkClient = ZkUtils.createZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout)
+    val isSecureKafkaCluster = false
+
+    val zkUtils = new ZkUtils(zkClient, new ZkConnection(zkAddress), isSecureKafkaCluster)
+
     kf_logger.info("==================== Zookeeper Client Created ====================")
 
     // Kafka broker startup
@@ -291,7 +296,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
    private def waitUntilMetadataIsPropagated(topic: String, partition: Int) {
      eventually(timeout(10000 milliseconds), interval(100 milliseconds)) {
        assert(
-         server.apis.metadataCache.containsTopicAndPartition(topic, partition),
+         server.apis.metadataCache.containsTopicPartition(topic, partition),
          s"Partition [$topic, $partition] metadata not propagated after timeout"
        )
      }
@@ -305,7 +310,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
    */
   def createTopic(topic: String, nparts: Int = 1): Unit = {
 
-    new KafkaApplicationUtils(zkClient, kafkaBrokers).createTopic(topic, nparts)
+    new KafkaApplicationUtils(zkUtils, kafkaBrokers).createTopic(topic, nparts)
   }
 
   def setupWorkflow(workflowName: String, inputSeq: Seq[Seq[String]]): Unit = {
@@ -328,7 +333,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowName)
 
-    val utils = new KafkaApplicationUtils(zkClient, kafkaBrokers)
+    val utils = new KafkaApplicationUtils(zkUtils, kafkaBrokers)
 
     // create topcis
     utils.createTopics(workflowConfig)
@@ -384,7 +389,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.setWorkflowConfig(workflowNames(0))
 
-    val utils = new KafkaApplicationUtils(zkClient, kafkaBrokers)
+    val utils = new KafkaApplicationUtils(zkUtils, kafkaBrokers)
 
     // create topcis
     utils.createTopics(workflowConfig)

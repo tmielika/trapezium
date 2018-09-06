@@ -17,19 +17,23 @@ package com.verizon.bda.trapezium.framework.handler
 
 import java.sql.Time
 import java.text.SimpleDateFormat
-import java.util
+import java.{lang, util}
 import java.util.Date
 import java.util.regex.Pattern
+
 import com.typesafe.config.{Config, ConfigObject}
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.kafka.{KafkaRDD, KafkaDStream}
+import com.verizon.bda.trapezium.framework.kafka.{KafkaDStream, KafkaRDD}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, ScanFS}
 import com.verizon.bda.trapezium.transformation.DataTranformer
-import org.apache.spark.SparkContext
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkContext, sql}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.StringBuilder
 import scala.collection.mutable.{Map => MMap}
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -68,7 +72,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
       logger.info("inside rddOption.isDefined")
 
       val rdd = rddOption.get
-      val collectRDD = rdd._1.values.collect()
+      val collectRDD = rdd._1.map(record => record.value())
 
       var counter = rdd._2
       logger.info("collectRDD " + collectRDD.toString + "int counter " + counter)
@@ -182,14 +186,14 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
               input: Array[String],
               batchData: Config): MMap[String, DataFrame] = synchronized {
 
-    var dataMap = MMap[String, DataFrame]()
+    var dataMap = MMap[String, sql.DataFrame]()
 
     val name = batchData.getString("name")
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
-
-        dataMap += ((name, SQLContext.getOrCreate(sc).read.parquet(input: _*)))
+        val df: DataFrame = SQLContext.getOrCreate(sc).read.parquet(input: _*)
+        dataMap += ((name, df))
       }
       case "AVRO" => {
         logger.info(s"input source is Avro")

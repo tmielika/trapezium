@@ -35,14 +35,14 @@ import java.io.{BufferedWriter, OutputStreamWriter}
 import java.net.{ServerSocket, Socket, SocketException}
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch, TimeUnit}
 
-import org.apache.spark.Logging
+import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 
 
 /** This is a server to test the network input stream */
-class TestServer(portToBind: Int = 0) extends Logging {
-
+class TestServer(portToBind: Int = 0)  {
+  val logger = LoggerFactory.getLogger(this.getClass)
   val queue = new ArrayBlockingQueue[String](100)
 
   val serverSocket = new ServerSocket(portToBind)
@@ -53,7 +53,7 @@ class TestServer(portToBind: Int = 0) extends Logging {
     override def run() {
       try {
         while (true) {
-          logInfo("Accepting connections on port " + port)
+          logger.info("Accepting connections on port " + port)
           val clientSocket = serverSocket.accept()
           if (startLatch.getCount == 1) {
             // The first connection is a test connection to implement "waitForStart", so skip it
@@ -64,7 +64,7 @@ class TestServer(portToBind: Int = 0) extends Logging {
             startLatch.countDown()
           } else {
             // Real connections
-            logInfo("New connection")
+            logger.info("New connection")
             try {
               clientSocket.setTcpNoDelay(true)
               val outputStream = new BufferedWriter(
@@ -75,13 +75,13 @@ class TestServer(portToBind: Int = 0) extends Logging {
                 if (msg != null) {
                   outputStream.write(msg)
                   outputStream.flush()
-                  logInfo("Message '" + msg + "' sent")
+                  logger.info("Message '" + msg + "' sent")
                 }
               }
             } catch {
-              case e: SocketException => logError("TestServer error", e)
+              case e: SocketException => logger.error("TestServer error", e)
             } finally {
-              logInfo("Connection closed")
+              logger.info("Connection closed")
               if (!clientSocket.isClosed) {
                 clientSocket.close()
               }

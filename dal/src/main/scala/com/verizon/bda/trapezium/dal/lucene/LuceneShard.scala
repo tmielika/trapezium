@@ -1,16 +1,14 @@
 package com.verizon.bda.trapezium.dal.lucene
 
-import java.util.BitSet
-
-import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index._
 import org.apache.lucene.queryparser.classic.QueryParser
-import org.apache.lucene.search.{BooleanQuery, IndexSearcher, Query, ScoreDoc}
-import org.apache.spark.Logging
+import org.apache.lucene.search.{BooleanQuery, IndexSearcher, ScoreDoc}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
-
+import java.util.BitSet
+import org.slf4j.LoggerFactory
 import scala.collection.mutable.ArrayBuffer
+import org.apache.lucene.analysis.Analyzer
 
 /**
  * @author debasish83 on 12/15/16.
@@ -22,8 +20,9 @@ case class LuceneReader(leafReader: LeafReader, range: FeatureAttr)
 
 class LuceneShard(reader: IndexReader,
                   converter: OLAPConverter,
-                  analyzer: Analyzer) extends IndexSearcher(reader) with Logging {
-  logInfo(s"lucene shard leaf readers ${leafContexts.size}")
+                  analyzer: Analyzer) extends IndexSearcher(reader) {
+  private val log = LoggerFactory.getLogger(this.getClass)
+  log.info(s"lucene shard leaf readers ${leafContexts.size}")
 
   // TODO: LeafReader > 1 are shards created by singlethreaded index writer due to flush limits
   // TODO: Each flush limit generates a new shard
@@ -83,25 +82,16 @@ class LuceneShard(reader: IndexReader,
     // TODO: Provide sampling tricks that give provable count stats without affecting accuracy
     // val maxRowsPerPartition = Math.floor(sample * getIndexReader.numDocs()).toInt
     BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE)
-    val query = rewrite(parseQuery(queryStr))
+    val query = rewrite(qp.parse(queryStr))
     val collectionManager = new OLAPCollectionManager(reader.maxDoc())
     // TODO: this.executorService to run searches in multiple cores while partitions are done
     // at executor level
     search(query, collectionManager)
   }
 
-  /**
-    * Because Lucene query parsing is not Thread safe.
-    * @param queryStr
-    * @return
-    */
-  private def parseQuery(queryStr: String): Query = synchronized {
-    qp.parse(queryStr)
-  }
-
   def searchDocsWithRelevance(queryStr: String, sample: Double = 1.0): Array[ScoreDoc] = {
     val maxRowsPerPartition = Math.floor(sample * getIndexReader.numDocs()).toInt
-    val topDocs = search(parseQuery(queryStr), maxRowsPerPartition)
+    val topDocs = search(qp.parse(queryStr), maxRowsPerPartition)
     log.info("Hits within partition: " + topDocs.totalHits)
     topDocs.scoreDocs
   }
