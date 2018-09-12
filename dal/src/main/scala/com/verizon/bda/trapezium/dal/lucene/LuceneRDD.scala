@@ -28,17 +28,17 @@ class LuceneRDD(sc: SparkContext,
     val rows = this.flatMap((shard: LuceneShard) => {
       BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE)
       val maxRowsPerPartition = Math.floor(sample * shard.getIndexReader.numDocs()).toInt
-      val topDocs = shard.search(qp.parse(queryStr), maxRowsPerPartition)
+      val topDocs = shard.search(queryStr, maxRowsPerPartition)
 
       log.debug("Hits within partition: " + topDocs.totalHits)
-      topDocs.scoreDocs.map { d => converter.docToRow(shard.doc(d.doc)) }
+      topDocs.scoreDocs.map { d => converter.docToRow(shard.luceneShard.doc(d.doc)) }
     })
     rows
   }
 
   def count(queryStr: String): Int = {
     this.map((shard: LuceneShard) => {
-      shard.count(qp.parse(queryStr))
+      shard.count(queryStr)
     }).sum().toInt
   }
 }

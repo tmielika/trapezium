@@ -38,11 +38,7 @@ class LuceneDAO(val location: String,
 
   @transient lazy val log = Logger.getLogger(classOf[LuceneDAO])
 
-  @transient private lazy val analyzer: Analyzer = luceneAnalyzer match {
-    case "keyword" => new KeywordAnalyzer()
-    case "standard" => new StandardAnalyzer()
-    case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
-  }
+  @transient private lazy val analyzer: Analyzer = LuceneDAO.getAnalyzer(luceneAnalyzer)
 
   @transient private lazy val store: Field.Store =
     if (stored) Field.Store.YES
@@ -50,7 +46,8 @@ class LuceneDAO(val location: String,
 
   log.info(s"Using ${luceneAnalyzer} analyzer")
 
-  @transient lazy val converter = OLAPConverter(searchFields, store, searchAndStoredFields, storedFields)
+  @transient lazy val converter = OLAPConverter(searchFields, store,
+    searchAndStoredFields, storedFields)
   @transient private var _dictionary: DictionaryManager = _
 
   def encodeDictionary(df: DataFrame): LuceneDAO = {
@@ -205,7 +202,7 @@ class LuceneDAO(val location: String,
   // TODO: load logic will move to LuceneRDD
   @transient private var _shards: RDD[LuceneShard] = _
 
-  def load(sc: SparkContext): Unit = {
+  def load(sc: SparkContext, preload:Boolean=true): Unit = {
     val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
     val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
     val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
@@ -223,7 +220,7 @@ class LuceneDAO(val location: String,
       }
     })
     val numPartitions = status.length
-    log.info(s"Loading ${numPartitions} indices from path ${indexPath}")
+    log.info(s"LuceneDAO_Load: Loading ${numPartitions} indices from path ${indexPath}")
 
     val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
 
@@ -232,30 +229,25 @@ class LuceneDAO(val location: String,
       indices.map((index: Int) => {
         val sparkConf = new SparkConf()
         val localDir = new File(DalUtils.getLocalDir(sparkConf))
-        log.info(s"Created ${localDir} to write lucene shuffle")
+        log.info(s"LuceneDAO_Load: Created ${localDir} to write lucene shuffle")
 
         val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
         // Open a directory on Standalone/YARN/Mesos disk cache
         val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
         val shuffleIndexPath = shuffleIndexFile.toPath
-        log.info(s"Created ${shuffleIndexPath} to read lucene partition $index shuffle")
+        log.info(s"LuceneDAO_Load: Created ${shuffleIndexPath} to read lucene partition $index shuffle")
 
         val conf = new Configuration
         val shard: Option[LuceneShard] = {
           log.info(s"Copying data from deep storage: ${hdfsPath} to " +
             s"local shuffle: ${shuffleIndexPath}")
           try {
-            FileSystem.get(conf).copyToLocalFile(false,
-              new HadoopPath(hdfsPath),
-              new HadoopPath(shuffleIndexPath.toString))
-            val directory = new MMapDirectory(shuffleIndexPath)
-            directory.setPreload(true)
-            val reader = DirectoryReader.open(directory)
-            Some(LuceneShard(reader, converter, analyzer))
+            LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
+            Some(LuceneShard(hdfsPath,shuffleIndexFile.getAbsolutePath, preload, converter, luceneAnalyzer))
           } catch {
             case e: IOException =>
               throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
-                s"shuffle: ${shuffleIndexPath} failed")
+                s"shuffle: ${shuffleIndexPath} failed",e)
             case x: Throwable => throw new RuntimeException(x)
           }
         }
@@ -359,7 +351,7 @@ class LuceneDAO(val location: String,
   def count(queryStr: String): Long = {
     if (shards == null) throw new LuceneDAOException(s"count called with null shards")
     shards.map((shard: LuceneShard) => {
-      shard.count(shard.qp.parse(queryStr))
+      shard.count(queryStr)
     }).sum().toLong
   }
 
@@ -374,7 +366,7 @@ class LuceneDAO(val location: String,
     rows
   }
 
-  //search a query and retrieve for all stored fields
+  // search a query and retrieve for all stored fields
   def search(queryStr: String, sample: Double = 1.0): RDD[Row] = {
     search(queryStr, storedFields.toSeq ++ searchAndStoredFields.toSeq, sample)
   }
@@ -569,5 +561,14 @@ object LuceneDAO {
 
   val DICTIONARY_PREFIX = "dictionary"
   val SCHEMA_PREFIX = "schema"
+
+  def getAnalyzer(analyzerStr: String) : Analyzer = {
+    val analyzer: Analyzer = analyzerStr match {
+      case "keyword" => new KeywordAnalyzer()
+      case "standard" => new StandardAnalyzer()
+      case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
+    }
+    analyzer
+  }
 }
 
