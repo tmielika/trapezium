@@ -40,7 +40,7 @@ This file is divided into 3 sections:
 
   <check level="error" class="org.scalastyle.file.FileLineLengthChecker" enabled="true">
     <parameters>
-      <parameter name="maxLineLength"><![CDATA[100]]></parameter>
+      <parameter name="maxLineLength"><![CDATA[120]]></parameter>
       <parameter name="tabSize"><![CDATA[2]]></parameter>
       <parameter name="ignoreImports">true</parameter>
     </parameters>
@@ -86,14 +86,14 @@ This file is divided into 3 sections:
   <check level="error" class="org.scalastyle.scalariform.SpaceAfterCommentStartChecker" enabled="true"></check>
 
   <check level="error" class="org.scalastyle.scalariform.EnsureSingleSpaceBeforeTokenChecker" enabled="true">
-   <parameters>
-     <parameter name="tokens">ARROW, EQUALS, ELSE, TRY, CATCH, FINALLY, LARROW, RARROW</parameter>
-   </parameters>
+    <parameters>
+      <parameter name="tokens">ARROW, EQUALS, ELSE, TRY, CATCH, FINALLY, LARROW, RARROW</parameter>
+    </parameters>
   </check>
 
   <check level="error" class="org.scalastyle.scalariform.EnsureSingleSpaceAfterTokenChecker" enabled="true">
     <parameters>
-     <parameter name="tokens">ARROW, EQUALS, COMMA, COLON, IF, ELSE, DO, WHILE, FOR, MATCH, TRY, CATCH, FINALLY, LARROW, RARROW</parameter>
+      <parameter name="tokens">ARROW, EQUALS, COMMA, COLON, IF, ELSE, DO, WHILE, FOR, MATCH, TRY, CATCH, FINALLY, LARROW, RARROW</parameter>
     </parameters>
   </check>
 
@@ -122,14 +122,14 @@ This file is divided into 3 sections:
 
   <!-- Doesn't seem super big deal here ... -->
   <check level="error" class="org.scalastyle.scalariform.MethodLengthChecker" enabled="true">
-    <parameters><parameter name="maxLength">100</parameter></parameters>
+    <parameters><parameter name="maxLength">120</parameter></parameters>
   </check>
 
   <!-- As of SPARK-9613 JavaConversions should be replaced with JavaConverters -->
   <check customId="javaconversions" level="error" class="org.scalastyle.scalariform.TokenChecker" enabled="true">
     <parameters><parameter name="regex">JavaConversions</parameter></parameters>
     <customMessage>Instead of importing implicits in scala.collection.JavaConversions._, import
-    scala.collection.JavaConverters._ and use .asScala / .asJava methods</customMessage>
+      scala.collection.JavaConverters._ and use .asScala / .asJava methods</customMessage>
   </check>
 
   <!-- ================================================================================ -->
@@ -145,7 +145,7 @@ This file is divided into 3 sections:
   <!-- Maybe we should update it to allow basic symbolic names, and then we are good to go. -->
   <check level="error" class="org.scalastyle.scalariform.MethodNamesChecker" enabled="false">
     <parameters>
-    <parameter name="regex"><![CDATA[^[a-z][A-Za-z0-9]*$]]></parameter>
+      <parameter name="regex"><![CDATA[^[a-z][A-Za-z0-9]*$]]></parameter>
     </parameters>
   </check>
 

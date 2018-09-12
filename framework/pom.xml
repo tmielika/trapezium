@@ -192,13 +192,13 @@
 
 		<dependency>
 			<groupId>com.github.scopt</groupId>
-			<artifactId>scopt_2.10</artifactId>
+			<artifactId>scopt_${scala.binary.version}</artifactId>
 			<version>3.4.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.11</artifactId>
+			<artifactId>kafka_${scala.binary.version}</artifactId>
 			<version>${kafka.version}</version>
 			<exclusions>
 				<exclusion>
