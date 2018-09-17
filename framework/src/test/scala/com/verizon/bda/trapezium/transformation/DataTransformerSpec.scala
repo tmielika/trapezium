@@ -27,7 +27,7 @@ class DataTransformerSpec extends ApplicationManagerTestSuite with Matchers with
   //  var sqlContext: SQLContext = null
   var df: DataFrame = _
   before{
-    val sqlContext = new SQLContext(sc)
+    val sqlContext = sparkSession.sqlContext
     import sqlContext.implicits._
     df = sc.parallelize(Seq("one", "two", "three", "four")).toDF("numbers")
   }
@@ -64,6 +64,6 @@ class DataTransformerSpec extends ApplicationManagerTestSuite with Matchers with
       ApplicationManager.setWorkflowConfig("testWorkFlow3")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(sparkSession)
   }
 }

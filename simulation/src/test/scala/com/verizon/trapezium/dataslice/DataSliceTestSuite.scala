@@ -37,19 +37,19 @@ class DataSliceTestSuite extends ApplicationManagerTestSuite {
   FileUtils.deleteDirectory(new File("target/datasimulation"))
   test("test dataslice") {
     val workFlowConfig = ApplicationManager.setWorkflowConfig("dataslice_workflow")
-    ApplicationManager.runBatchWorkFlow(workFlowConfig , appConfig , 1)(sc)
+    ApplicationManager.runBatchWorkFlow(workFlowConfig , appConfig , 1)(sparkSession)
   }
 
 
   test("test DataSimulation") {
     val workflowConfig = ApplicationManager.setWorkflowConfig("datasimulationFlow")
-    ApplicationManager.runBatchWorkFlow(workflowConfig , appConfig, 1)(sc)
+    ApplicationManager.runBatchWorkFlow(workflowConfig , appConfig, 1)(sparkSession)
   }
 
 
   test("data validation") {
     val sourcedata = sc.textFile(s + "/src/test/data/testdata")
-    val sqlContext = new SQLContext(sc)
+    val sqlContext = sparkSession.sqlContext
     val growthdata = sqlContext.read.parquet("target/dataslice")
     val sourceDataCount = sourcedata.count()
     val growthdataCount = growthdata.count()

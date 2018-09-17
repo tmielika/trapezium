@@ -43,7 +43,7 @@ class ApplicationManagerReadByFileSuite extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(updatedDate, "readByOffset")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig , maxIters = 1)(sc)
+      appConfig , maxIters = 1)(sparkSession)
   }
   test("getElligbleFiles Test") {
     ApplicationManager.updateWorkflowTime(startTime, "readByOffset")
@@ -102,7 +102,7 @@ class ApplicationManagerReadByFileSuite extends ApplicationManagerTestSuite {
      val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("readByOffset")
      ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(sparkSession)
   }
 
   def getStartOfDay(dt : java.util.Date) : java.util.Date = {

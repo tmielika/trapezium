@@ -36,8 +36,8 @@ class ApplicationIsPersist extends ApplicationManagerTestSuite {
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("isPersistTest")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1)(sc)
-    val sqlContext = new SQLContext(sc)
+      appConfig, maxIters = 1)(sparkSession)
+    val sqlContext = sparkSession.sqlContext
     logger.info("file should not present")
     intercept[AssertionError] {
       val dfTestBatchTxn6 = sqlContext.read.parquet(

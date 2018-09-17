@@ -1,32 +1,34 @@
 /**
-* Copyright (C) 2016 Verizon. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+  * Copyright (C) 2016 Verizon. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.verizon.bda.trapezium.framework.handler
 
 import java.sql.Time
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, Timer, TimerTask}
+
 import com.typesafe.config.{Config, ConfigList, ConfigObject}
 import com.verizon.bda.trapezium.framework.kafka.KafkaSink
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.trapezium.framework.{ApplicationManager, BatchTransaction}
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.joda.time.LocalDateTime
 import org.slf4j.LoggerFactory
+
 import scala.StringBuilder
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable
@@ -35,23 +37,24 @@ import com.verizon.bda.trapezium.framework.utils.Waiter
 import org.slf4j.LoggerFactory
 
 /**
- * @author sumanth.venkatasubbaiah Handles the batch workflows
- *         debasish83: integrated timer scheduling API for local and integration test
-  *        hutashan: Added accumlator for batch stats
- *
- */
-private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
+  * @author sumanth.venkatasubbaiah Handles the batch workflows
+  *         debasish83: integrated timer scheduling API for local and integration test
+  *         hutashan: Added accumlator for batch stats
+  *
+  */
+private[framework] class BatchHandler(val workFlowConfig: WorkflowConfig,
                                       val appConfig: ApplicationConfig,
                                       val maxIter: Long)
-                                     (implicit var sc: SparkContext) extends TimerTask with Waiter {
+                                     (implicit var sparkSession: SparkSession) extends TimerTask with Waiter {
   /**
-   * method called by the TimerTask when a run is scheduled.
-   */
+    * method called by the TimerTask when a run is scheduled.
+    */
   val simpleFormat = new SimpleDateFormat("yyyy-MM-dd")
   val logger = LoggerFactory.getLogger(this.getClass)
+
   override def run(): Unit = {
     val startTime = System.currentTimeMillis()
-    var endTime : Long = System.currentTimeMillis() // Overriding
+    var endTime: Long = System.currentTimeMillis() // Overriding
     try {
       logger.info("workflow name" + workFlowConfig.workflow)
 
@@ -61,21 +64,21 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       ApplicationManager.setWorkflowConfig(workFlowConfig.workflow)
       val batchMode = workFlowConfig.dataSource
 
-      logger.info("mode == " + batchMode )
+      logger.info("mode == " + batchMode)
       batchMode match {
         case "HDFS" => {
           logger.info(s"Running BatchHandler in mode: $batchMode")
           handleWorkFlow
-          stopContext
+          stopSparkSession
           endTime = System.currentTimeMillis()
           printLogger(startTime, endTime)
           logger.info(s"batch completed for this run.")
-          }
-          case _ => {
-            logger.error("Not implemented mode. Exiting.. ", batchMode)
-            notifyStop()
-          }
         }
+        case _ => {
+          logger.error("Not implemented mode. Exiting.. ", batchMode)
+          notifyStop()
+        }
+      }
     } catch {
       case e: Throwable =>
         e.printStackTrace()
@@ -87,12 +90,12 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
 
-  def printLogger(startTime : Long, endTime : Long) : Unit = {
+  def printLogger(startTime: Long, endTime: Long): Unit = {
 
-    logger.info(s" Job Summary Status : Passed" )
+    logger.info(s" Job Summary Status : Passed")
     val hdfsBatchConfig = workFlowConfig.hdfsFileBatch.asInstanceOf[Config]
     val batchInfoList = hdfsBatchConfig.getList("batchInfo")
-    var inputNamePath : mutable.StringBuilder = new StringBuilder("[")
+    var inputNamePath: mutable.StringBuilder = new StringBuilder("[")
     batchInfoList.asScala.foreach { batchConfig =>
       val batchData: Config = batchConfig.asInstanceOf[ConfigObject].toConfig
       val dataDir = FileSourceGenerator.getDataDir(appConfig, batchData)
@@ -115,7 +118,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
 
-  def printLoggerError(startTime : Long, endTime : Long) : Unit = {
+  def printLoggerError(startTime: Long, endTime: Long): Unit = {
     val diff = endTime - startTime
     val diffSeconds = diff / 1000 % 60;
     val diffMinutes = diff / (60 * 1000) % 60;
@@ -129,34 +132,43 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
   }
 
+  def createSession: SparkSession = {
+    logger.info("making sparkSession")
+    sparkSession = SparkSession.builder()
+      .appName(appConfig.appName)
+      .config(ApplicationManager.getSparkConf(appConfig))
+      .enableHiveSupport()
+      .getOrCreate()
+    sparkSession
+  }
 
-  def createContext : SparkContext = {
-    logger.info("getting context")
-    if (sc == null || sc.isStopped) {
-      logger.info("Starting context")
-      sc = new SparkContext(ApplicationManager.getSparkConf(appConfig))
-      ApplicationManager.setHadoopConf(sc, appConfig)
-      logger.info("Started context")
-     }
-    sc
- }
+  //  def createContext: SparkContext = {
+  //    logger.info("getting context")
+  //    if (sc == null || sc.isStopped) {
+  //      logger.info("Starting context")
+  //      sc = createSession.sparkContext
+  //      ApplicationManager.setHadoopConf(sc, appConfig)
+  //      logger.info("Started context")
+  //    }
+  //    sc
+  //  }
 
-  def stopContext: Unit = {
+  def stopSparkSession: Unit = {
 
-    if (ApplicationUtils.env != "local" && !sc.isStopped &&
+    if (ApplicationUtils.env != "local" && !sparkSession.sparkContext.isStopped &&
       (workFlowConfig.httpServer == null || !workFlowConfig.httpServer.hasPath("hostname"))) {
-      logger.info("Stoping context")
-      sc.stop
-      logger.info("Stopped context")
+      logger.info("Stopping current sparkSession")
+      sparkSession.stop
+      logger.info("Stopped current sparkSession")
     }
   }
 
-  def handleWorkFlow : Unit = {
+  def handleWorkFlow: Unit = {
 
     var runCount = 0
     do {
       ApplicationUtils.waitForDependentWorkflow(appConfig, workFlowConfig)
-      createContext
+      val sc = createSession.sparkContext
       ApplicationManager.startHttpServer(sc, workFlowConfig)
 
       val (workflowTimeToSave, runSuccess, mode) = executeWorkFlow
@@ -164,7 +176,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
       completed(workflowTimeToSave, runSuccess, mode)
 
-      if( mode.equalsIgnoreCase("groupFile")) {
+      if (mode.equalsIgnoreCase("groupFile")) {
         val keyFileProcessed = s"/etl/${workFlowConfig.workflow}/fileProccessed"
         logger.info("Deleting key fileProccessed")
         ApplicationUtils.deleteKeyZk(keyFileProcessed, appConfig.zookeeperList)
@@ -174,78 +186,79 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     } while (runCount < maxIter)
 
     logger.info("Could not generate RDD in this batch run.")
-    if ((workFlowConfig.singleRun) || ( !(runCount < maxIter) && (maxIter != -1))) {
+    if ((workFlowConfig.singleRun) || (!(runCount < maxIter) && (maxIter != -1))) {
       notifyStop()
     }
   }
 
 
-  def executeWorkFlow() : (Time, Boolean, String) = {
+  def executeWorkFlow(): (Time, Boolean, String) = {
     var runSuccess = false
     var mode: String = "None"
 
-    val fileSourceGenerator = new FileSourceGenerator(workFlowConfig, appConfig, sc).get
+    val fileSourceGenerator = new FileSourceGenerator(workFlowConfig, appConfig, sparkSession.sparkContext).get
 
     var workflowTimeToSave = new Time(System.currentTimeMillis)
 
 
-    fileSourceGenerator.foreach( fileSource => {
+    fileSourceGenerator.foreach(fileSource => {
 
       workflowTimeToSave = fileSource._1
       val rddMap = fileSource._2._1
       if (fileSource._2._2.toString.equalsIgnoreCase("eventType")) {
         logger.info("workflowTimeToSave " + workflowTimeToSave + "rddMap " +
-          rddMap.keySet.toString()  )
+          rddMap.keySet.toString())
         if (rddMap.size > 0) {
           runSuccess = processAndPersist(workflowTimeToSave, rddMap)
         }
         val zkpath = ApplicationUtils.
           getCurrentWorkflowKafkaPath(appConfig, workFlowConfig.workflow, workFlowConfig)
-          ApplicationUtils.updateZkValue(zkpath + "/0",
-            fileSource._2._3.toString, appConfig.zookeeperList )
-        logger.info("update zk " +zkpath + "/0" + " = " + fileSource._2._3.toString  )
+        ApplicationUtils.updateZkValue(zkpath + "/0",
+          fileSource._2._3.toString, appConfig.zookeeperList)
+        logger.info("update zk " + zkpath + "/0" + " = " + fileSource._2._3.toString)
 
-      } else { if (fileSource._2._2.toString.equalsIgnoreCase("groupFile") ) {
-        mode = fileSource._2.toString
-        val LastCal = Calendar.getInstance()
-        val currentCal = Calendar.getInstance()
-        val keyFileProcessed = s"/etl/${workFlowConfig.workflow}/fileProccessed"
-        val lastProcessedDateFiles = ApplicationUtils.getValFromZk(keyFileProcessed,
-          appConfig.zookeeperList)
-        if (lastProcessedDateFiles != null) {
-          val lastProcessedDateFilesStr = new String(lastProcessedDateFiles).toLong
-          logger.info("Test processed time " + new Date(lastProcessedDateFilesStr))
-          LastCal.setTime(new Date(lastProcessedDateFilesStr))
-          currentCal.setTime(workflowTimeToSave)
-          if (LastCal.before(currentCal)) {
+      } else {
+        if (fileSource._2._2.toString.equalsIgnoreCase("groupFile")) {
+          mode = fileSource._2.toString
+          val LastCal = Calendar.getInstance()
+          val currentCal = Calendar.getInstance()
+          val keyFileProcessed = s"/etl/${workFlowConfig.workflow}/fileProccessed"
+          val lastProcessedDateFiles = ApplicationUtils.getValFromZk(keyFileProcessed,
+            appConfig.zookeeperList)
+          if (lastProcessedDateFiles != null) {
+            val lastProcessedDateFilesStr = new String(lastProcessedDateFiles).toLong
+            logger.info("Test processed time " + new Date(lastProcessedDateFilesStr))
+            LastCal.setTime(new Date(lastProcessedDateFilesStr))
+            currentCal.setTime(workflowTimeToSave)
+            if (LastCal.before(currentCal)) {
+              logger.info(s"Starting Batch transaction with workflowTime: $workflowTimeToSave")
+              if (rddMap.size > 0) {
+                runSuccess = processAndPersist(workflowTimeToSave, rddMap)
+              }
+              else logger.warn("No new RDD in this batch run.")
+            } else {
+              logger.debug("Skipping files")
+            }
+          } else {
             logger.info(s"Starting Batch transaction with workflowTime: $workflowTimeToSave")
+            logger.info(s"file split mode first time")
             if (rddMap.size > 0) {
               runSuccess = processAndPersist(workflowTimeToSave, rddMap)
             }
             else logger.warn("No new RDD in this batch run.")
-          } else {
-            logger.debug("Skipping files")
           }
+          val processedTime: Long = workflowTimeToSave.getTime
+          logger.info("setting date " + new Date(processedTime.toLong))
+          ApplicationUtils.updateZookeeperValue(keyFileProcessed,
+            workflowTimeToSave.getTime, appConfig.zookeeperList)
         } else {
-          logger.info(s"Starting Batch transaction with workflowTime: $workflowTimeToSave")
-          logger.info(s"file split mode first time")
           if (rddMap.size > 0) {
+            logger.info("files from batch time")
             runSuccess = processAndPersist(workflowTimeToSave, rddMap)
           }
           else logger.warn("No new RDD in this batch run.")
         }
-        val processedTime: Long = workflowTimeToSave.getTime
-        logger.info("setting date " + new Date(processedTime.toLong))
-        ApplicationUtils.updateZookeeperValue(keyFileProcessed,
-          workflowTimeToSave.getTime, appConfig.zookeeperList)
-      } else {
-        if (rddMap.size > 0) {
-          logger.info("files from batch time")
-          runSuccess = processAndPersist(workflowTimeToSave, rddMap)
-        }
-        else logger.warn("No new RDD in this batch run.")
       }
-    }
       //
     })
 
@@ -253,28 +266,28 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
 
-
   def processAndPersist(workflowTime: Time,
                         dfMap: MMap[String,
                           DataFrame]): Boolean = {
     try {
       val processedDataMap = processTransactions(workflowTime, dfMap)
-      saveData(workflowTime, processedDataMap )
+      saveData(workflowTime, processedDataMap)
     } catch {
       case e: Throwable => {
         logger.error(s"Caught Exception during processing", e.getCause)
         rollBackTransactions(workflowTime)
-       throw e
+        throw e
 
       }
     }
   }
 
   /**
-   * method used to call the process method of the transactions in the current workflow
-   * @param dataMap
-   * @return map of string and DataFrame
-   */
+    * method used to call the process method of the transactions in the current workflow
+    *
+    * @param dataMap
+    * @return map of string and DataFrame
+    */
   private def processTransactions(workflowTime: Time,
                                   dataMap: MMap[String, DataFrame]): MMap[String, DataFrame] = {
     val transactionList = workFlowConfig.transactions
@@ -286,7 +299,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       val transactionClass: BatchTransaction = ApplicationUtils.getWorkflowClass(
         transactionClassName, appConfig.tempDir).asInstanceOf[BatchTransaction]
 
-      transactionClass.preprocess(sc)
+      transactionClass.preprocess(sparkSession.sparkContext)
 
       // MMap to hold the list of all input data sets for this transaction
       val inputData: ConfigList = transaction.getList("inputData")
@@ -338,11 +351,11 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
     * This method is called only if all the transactions that are part of the workflow
     * are complted successfully.
     */
-  private def completed(workflowTime: Time, isSuccess: Boolean, mode : String ): Unit = {
+  private def completed(workflowTime: Time, isSuccess: Boolean, mode: String): Unit = {
     try {
       if (isSuccess) {
         logger.info(s"Workflow with time $workflowTime completed successfully.")
-        ApplicationManager.updateWorkflowTime( workflowTime.getTime, workFlowConfig.workflow)
+        ApplicationManager.updateWorkflowTime(workflowTime.getTime, workFlowConfig.workflow)
       } else {
         logger.info("process method is returning false")
       }
@@ -357,10 +370,10 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
   /**
-   * method to roll back all the transactions
-   * All the transactions in the workflow will be rolled back if any error/exception occurs
-   * during the work-flow execution.
-   */
+    * method to roll back all the transactions
+    * All the transactions in the workflow will be rolled back if any error/exception occurs
+    * during the work-flow execution.
+    */
   private def rollBackTransactions(workflowTime: Time): Unit = {
 
     logger.warn(s"Rolling back all transactions in the current workFlow")
@@ -387,10 +400,10 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
   }
 
   /**
-   *
-   * @param dataMap map of DataFrames which contains the dataframes that will be persisted.
-   * @return true if persist is successful, false otherwise
-   */
+    *
+    * @param dataMap map of DataFrames which contains the dataframes that will be persisted.
+    * @return true if persist is successful, false otherwise
+    */
   private def saveData(workflowTime: Time,
                        dataMap: MMap[String, DataFrame]): Boolean = {
     val transactionList = workFlowConfig.transactions
@@ -401,7 +414,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
 
       val persistDataName = transaction.getString("persistDataName")
       val isPersist = {
-        if (transaction.hasPath("isPersist")){
+        if (transaction.hasPath("isPersist")) {
           transaction.getBoolean("isPersist")
         } else {
           true
@@ -411,11 +424,12 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
       if (dataMap.contains(persistDataName) && isPersist) {
         try {
           val persistDF = dataMap(persistDataName)
-            logger.info(s"Persisting data: ${persistDataName}")
+          logger.info(s"Persisting data: ${persistDataName}")
           val callbackEvent = transactionClass.persistBatch(persistDF, workflowTime)
-          if (callbackEvent!=null && !(callbackEvent.isEmpty)){
+          if (callbackEvent != null && !(callbackEvent.isEmpty)) {
             val returnEvent = callbackEvent.get
             logger.info("Inside return event")
+            val sc = sparkSession.sparkContext
             val kafkaConf = ApplicationManager.getKafkaConf()
             val kafkaSink = sc.broadcast(KafkaSink(kafkaConf))
             logger.info("is spark context live " + sc.isStopped)
@@ -431,7 +445,7 @@ private[framework] class BatchHandler(val workFlowConfig : WorkflowConfig,
         } catch {
           case e: Throwable => {
             logger.error(s"Exception occured while running transaction: $transactionClassName",
-              e.getMessage )
+              e.getMessage)
             throw e
           }
         }
@@ -447,16 +461,17 @@ private[framework] object BatchHandler {
   val logger = LoggerFactory.getLogger(this.getClass)
 
   /**
-   *
-   * Schedules the batch workflows
-   * @param workFlowConfig the workflow config
-   * @param appConfig the ApplicationConfig object
-   * @param sc SparkContext instance
-   */
+    *
+    * Schedules the batch workflows
+    *
+    * @param workFlowConfig the workflow config
+    * @param appConfig      the ApplicationConfig object
+    * @param sparkSession   SparkSession instance
+    */
   def scheduleBatchRun(workFlowConfig: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long,
-                       sc: SparkContext): Unit = {
+                       sparkSession: SparkSession): Unit = {
     val timer: Timer = new Timer(true)
     try {
       logger.info("Starting Batch WorkFlow")
@@ -471,7 +486,7 @@ private[framework] object BatchHandler {
         System.exit(-1)
       }
 
-      val batchHandler = new BatchHandler(workFlowConfig, appConfig, maxIters)(sc)
+      val batchHandler = new BatchHandler(workFlowConfig, appConfig, maxIters)(sparkSession)
       val nextRun = workFlowConfig.hdfsFileBatch.asInstanceOf[Config].getString("timerStartDelay")
       val nextRunHourMinute = nextRun.split(":")
       if (nextRunHourMinute.size == 1) {
@@ -479,7 +494,7 @@ private[framework] object BatchHandler {
       } else {
         timer.scheduleAtFixedRate(batchHandler, getdtNextRun(nextRunHourMinute), batchTime * 1000)
       }
-      if(batchHandler.waitForStopOrError) stopTimer(timer)
+      if (batchHandler.waitForStopOrError) stopTimer(timer)
     } catch {
       case e: Throwable =>
         logger.error("Caught exception during scheduling BatchJob", e.getCause)
@@ -488,7 +503,7 @@ private[framework] object BatchHandler {
     }
   }
 
-  def getdtNextRun( nextRunHourMinute: Array[String]) : java.util.Date = {
+  def getdtNextRun(nextRunHourMinute: Array[String]): java.util.Date = {
     val calendar = Calendar.getInstance()
     calendar.setTime(new java.util.Date())
     if (nextRunHourMinute.size > 1) {
@@ -496,7 +511,7 @@ private[framework] object BatchHandler {
       val currentMin = calendar.get(Calendar.MINUTE)
       val scheduleHour = nextRunHourMinute(0).toInt
       val scheduleMin = nextRunHourMinute(1).toInt
-      if (currentHour > scheduleHour || (currentHour == scheduleHour && currentMin >scheduleMin)){
+      if (currentHour > scheduleHour || (currentHour == scheduleHour && currentMin > scheduleMin)) {
         calendar.set(Calendar.HOUR_OF_DAY, (nextRunHourMinute(0).toInt + 24))
       } else {
         calendar.set(Calendar.HOUR_OF_DAY, nextRunHourMinute(0).toInt)
@@ -507,8 +522,8 @@ private[framework] object BatchHandler {
     if (nextRunHourMinute.size > 2) {
       calendar.set(Calendar.SECOND, nextRunHourMinute(2).toInt)
     }
-     val dt = calendar.getTime()
-     logger.info(s"Job scheduled for $dt")
+    val dt = calendar.getTime()
+    logger.info(s"Job scheduled for $dt")
 
     return dt
   }

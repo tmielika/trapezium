@@ -25,6 +25,6 @@ class BadRecordSplitAtSuite extends ApplicationManagerTestSuite {
       ApplicationManager.setWorkflowConfig("badRecordFilterWorkflow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig )(sc)
+      appConfig )(sparkSession)
   }
 }
