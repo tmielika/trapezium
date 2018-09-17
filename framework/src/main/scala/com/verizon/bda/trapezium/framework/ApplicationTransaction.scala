@@ -27,10 +27,11 @@ import org.apache.spark.streaming.dstream.DStream
   *         and model training on batch data
   */
 trait ApplicationTransaction extends Serializable {
-  def preprocess(sc: SparkContext): Unit = {}
+
 }
 
 trait StreamingTransaction extends ApplicationTransaction {
+  def preprocess(sc: SparkContext): Unit = {}
 
   def processStream(dStreams: Map[String, DStream[Row]],
                     workflowTime: Time): DStream[Row]
@@ -41,6 +42,7 @@ trait StreamingTransaction extends ApplicationTransaction {
 }
 
 trait BatchTransaction extends ApplicationTransaction {
+  def preprocess(sparkSession: SparkSession): Unit = {}
 
   def processBatch(df: Map[String, DataFrame],
                    workflowTime: Time): DataFrame

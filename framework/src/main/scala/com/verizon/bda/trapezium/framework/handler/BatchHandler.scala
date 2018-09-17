@@ -299,7 +299,7 @@ private[framework] class BatchHandler(val workFlowConfig: WorkflowConfig,
       val transactionClass: BatchTransaction = ApplicationUtils.getWorkflowClass(
         transactionClassName, appConfig.tempDir).asInstanceOf[BatchTransaction]
 
-      transactionClass.preprocess(sparkSession.sparkContext)
+      transactionClass.preprocess(sparkSession)
 
       // MMap to hold the list of all input data sets for this transaction
       val inputData: ConfigList = transaction.getList("inputData")
