@@ -86,7 +86,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     ApplicationManager.runBatchWorkFlow(
       workFlow,
       appConfig,
-      maxIters = 2)(sc)
+      maxIters = 2)(sparkSession)
   }
 
   test("multiple workflows in single test"){
@@ -134,7 +134,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(sparkSession)
   }
 
   test("read parquet file") {
@@ -142,7 +142,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("readParquet")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(sparkSession)
   }
 
   test("read avro file") {
@@ -150,7 +150,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("readAvro")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(sparkSession)
   }
 
   test("read json file") {
@@ -158,7 +158,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     val workFlow: WorkflowConfig = ApplicationManager.setWorkflowConfig("readJson")
     ApplicationManager.runBatchWorkFlow(
       workFlow,
-      appConfig )(sc)
+      appConfig )(sparkSession)
   }
 
   test("read test local envconf file with environment values ") {
@@ -181,7 +181,7 @@ class ApplicationManagerSuite extends ApplicationManagerTestSuite {
     ApplicationManager.runBatchWorkFlow(
       workFlow,
       appConfig,
-      maxIters = 2 )(sc)
+      maxIters = 2 )(sparkSession)
     fileDelete
   }
 

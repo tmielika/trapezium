@@ -37,7 +37,7 @@ class ApplicationManagerFileSplitSuite extends ApplicationManagerTestSuite {
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("fileSplitWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig , maxIters = 1)(sc)
+      appConfig , maxIters = 1)(sparkSession)
   }
 
   test("testDataSplitFiles ") {
@@ -51,7 +51,7 @@ class ApplicationManagerFileSplitSuite extends ApplicationManagerTestSuite {
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("fileSplitWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(sparkSession)
   }
 
   def getStartOfDay(dt : java.util.Date) : java.util.Date = {

@@ -16,6 +16,7 @@ package com.verizon.bda.trapezium.framework.handler
 
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
 import org.apache.spark.SparkContext
+import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
 
 /**
@@ -26,7 +27,7 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
 
   test("Start Context test") {
     val logger = LoggerFactory.getLogger(this.getClass)
-    val thread1 = new WFThread(sc, "batchWorkFlow")
+    val thread1 = new WFThread(sparkSession, "batchWorkFlow")
     thread1.start()
     while (thread1.isRunning) {
       Thread.sleep(100)
@@ -43,8 +44,8 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
       logger.info("Context stopped")
     }
     val workflowConfig = ApplicationManager.setWorkflowConfig("batchWorkFlow")
-    val batchHandler = new BatchHandler(workflowConfig, appConfig, 1)(sc)
-    val sc1 = batchHandler.createContext
+    val batchHandler = new BatchHandler(workflowConfig, appConfig, 1)(sparkSession)
+    val sc1 = batchHandler.createSession.sparkContext
     assert(!sc1.isStopped)
     if (!sc1.isStopped) {
       sc1.stop()
@@ -58,7 +59,7 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
   }
 
 }
-  class WFThread(sc: SparkContext, wf: String) extends Thread {
+  class WFThread(sparkSession: SparkSession, wf: String) extends Thread {
     val logger = LoggerFactory.getLogger(this.getClass)
     var isRunning = true
 
@@ -67,7 +68,7 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
       val workflowConfig = ApplicationManager.setWorkflowConfig(wf)
       logger.info(" ####################Job Start ######  " + wf + " ####################")
       ApplicationManager.runBatchWorkFlow(
-        workflowConfig, ApplicationManager.getConfig(), 1)(sc)
+        workflowConfig, ApplicationManager.getConfig(), 1)(sparkSession)
       logger.info(" ####################Job completed ######  " + wf + " ####################")
       isRunning = false
     }

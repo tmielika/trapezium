@@ -16,21 +16,22 @@ package com.verizon.bda.trapezium.framework
 
 import org.apache.kafka.common.TopicPartition
 import com.typesafe.config.Config
-import com.verizon.bda.trapezium.framework.handler.{FileSourceGenerator, BatchHandler, StreamingHandler}
+import com.verizon.bda.trapezium.framework.handler.{BatchHandler, FileSourceGenerator, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
-import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils}
-import com.verizon.bda.license.{LicenseLib, LicenseType, LicenseException}
+import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import org.apache.spark.sql.{Row, SQLContext, DataFrame}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
 import scopt.OptionParser
 import java.net.InetAddress
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MMap}
 import java.util.Properties
@@ -178,11 +179,11 @@ object ApplicationManager {
             initStreamThread(workFlowToRun)
           }
           case _ => {
-            var sc: SparkContext = null
-            runBatchWorkFlow(workflowConfig, appConfig)(sc)
+            var sparkSession: SparkSession = null
+            runBatchWorkFlow(workflowConfig, appConfig)(sparkSession)
             // if spark context is not stopped, stop it
-            if (sc != null && !sc.isStopped) {
-              sc.stop
+            if (sparkSession != null && !sparkSession.sparkContext.isStopped) {
+              sparkSession.stop
             }
           }
         }
@@ -440,8 +441,8 @@ object ApplicationManager {
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long = -1)
-                      (implicit sc: SparkContext): Unit = {
-    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
+                      (implicit sparkSession: SparkSession): Unit = {
+    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sparkSession)
   }
 
   def getSynchronizationTime: String = {

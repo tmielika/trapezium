@@ -16,6 +16,7 @@ package com.verizon.bda.trapezium.framework.utils
 
 import com.verizon.bda.trapezium.framework.{ApplicationManager, ApplicationManagerTestSuite}
 import org.apache.spark.SparkContext
+import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
 
 
@@ -72,11 +73,11 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
   test("Test dependency waitForDependentWorkflow") {
 
     // Run workflow1
-    val dependentTest1 = new WFThread(sc, "dependent1")
+    val dependentTest1 = new WFThread(sparkSession, "dependent1")
     dependentTest1.start()
-    val dependentTest = new WFThread(sc, "dependentWorkflow")
+    val dependentTest = new WFThread(sparkSession, "dependentWorkflow")
     dependentTest.start()
-    val dependentTest2 = new WFThread(sc, "dependent2")
+    val dependentTest2 = new WFThread(sparkSession, "dependent2")
     dependentTest2.start()
 
     logger.info("dependent val set")
@@ -87,12 +88,12 @@ class DependentWorkflowsSuite extends ApplicationManagerTestSuite {
 }
 
 
-class WFThread (sc : SparkContext, wf : String) extends Thread {
+class WFThread (sparkSession: SparkSession, wf : String) extends Thread {
   var isRunning = true
   override def run(): Unit = {
     val workflowConfig = ApplicationManager.setWorkflowConfig(wf)
     ApplicationManager.runBatchWorkFlow(
-      workflowConfig, ApplicationManager.getConfig(), 1)(sc)
+      workflowConfig, ApplicationManager.getConfig(), 1)(sparkSession)
     isRunning = false
   }
 }
