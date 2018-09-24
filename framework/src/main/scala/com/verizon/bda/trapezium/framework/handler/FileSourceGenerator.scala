@@ -30,7 +30,7 @@ import com.verizon.bda.trapezium.transformation.DataTranformer
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkContext, sql}
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
 
@@ -45,14 +45,14 @@ import scala.collection.JavaConversions._
   *
   * @param workflowConfig the workflow for which RDD's needs to be created
   * @param appConfig Application config
-  * @param sc Spark Context instance
+  * @param sparkSession Spark Session instance
   */
 // TO DO :
 private[framework] case class
 FileSourceGenerator(workflowConfig: WorkflowConfig,
                     appConfig: ApplicationConfig,
-                    sc: SparkContext)  // readFullDataset is true then run only 1 times
-  extends SourceGenerator(workflowConfig, appConfig, sc) {
+                    sparkSession: SparkSession)  // readFullDataset is true then run only 1 times
+  extends SourceGenerator(workflowConfig, appConfig, sparkSession.sparkContext) {
 
   import FileSourceGenerator.getSortedFileMap
   import FileSourceGenerator.getWorkFlowTime
@@ -67,7 +67,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
   def getDFFromKafka (topicName : String) : util.TreeMap[Time,
     (MMap[String, DataFrame], String, Long)] = {
     val dataSources = new java.util.TreeMap[Time, (MMap[String, DataFrame], String, Long)]
-    val rddOption = KafkaRDD.getRDDFromKafka(topicName, appConfig, workflowConfig, sc)
+    val rddOption = KafkaRDD.getRDDFromKafka(topicName, appConfig, workflowConfig, sparkSession.sparkContext)
     if (rddOption.isDefined) {
       logger.info("inside rddOption.isDefined")
 
@@ -77,7 +77,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
       var counter = rdd._2
       logger.info("collectRDD " + collectRDD.toString + "int counter " + counter)
       collectRDD.foreach(row => {
-        val dfMap = FileSourceGenerator.getDFFromStream(row, sc)
+        val dfMap = FileSourceGenerator.getDFFromStream(row, sparkSession.sparkContext)
         val workflowTime = new Time(System.currentTimeMillis())
         logger.info("Kafka --> on offset" + rdd._2)
         counter = counter + 1
@@ -143,7 +143,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             logger.info("fileSplit running for date " + sDate + " , files are " +
               files.toString())
             workflowTime = getWorkFlowTime(sDate, currentWorkflowTime)
-            val dataMap = addDF(sc, files.toString().split(","), batchData)
+            val dataMap = addDF(sparkSession, files.toString().split(","), batchData)
             val existingDataMap = dataSources.get(workflowTime)
             if (existingDataMap != null) {
               logger.info(s"Entry exists for this workflow time ${existingDataMap}")
@@ -162,7 +162,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             s": ${batchFiles.size}")
           if (batchFiles.size > 0) {
             logger.info(s"list of files for this run " + batchFiles.mkString(","))
-            val dataMap = addDF(sc, batchFiles, batchData)
+            val dataMap = addDF(sparkSession, batchFiles, batchData, dataDir)
             dataSourcesNoSplit ++= dataMap
           }
         }
@@ -182,9 +182,10 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
 
 
   import DynamicSchemaHelper.generateDataFrame
-  def  addDF (sc: SparkContext,
+  def  addDF (sparkSession: SparkSession,
               input: Array[String],
-              batchData: Config): MMap[String, DataFrame] = synchronized {
+              batchData: Config,
+              dataDir: String): MMap[String, DataFrame] = synchronized {
 
     var dataMap = MMap[String, sql.DataFrame]()
 
@@ -192,28 +193,20 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
-        val df: DataFrame = SQLContext.getOrCreate(sc).read.parquet(input: _*)
+        val df: DataFrame = sparkSession.read.option("basePath", dataDir).parquet(input: _*)
         dataMap += ((name, df))
       }
       case "AVRO" => {
         logger.info(s"input source is Avro")
-        dataMap += ((name, SQLContext.getOrCreate(sc).read.format("com.databricks.spark.avro")
+        dataMap += ((name, sparkSession.read.format("com.databricks.spark.avro")
           .load(input: _*)))
-      }
-      case "DYNAMICSCHEMA" => {
-        val configfiles = input.filter(filename => filename.endsWith(".conf"))
-        input.filter(filename => !filename.endsWith(".conf")).map((file: String) => {
-          logger.info("FileName" + file)
-          dataMap += generateDataFrame(sc.textFile(Array(file).mkString(",")).
-            map(line => Row(line.toString)), name, file, sc)
-        })
       }
       case "JSON" => {
         logger.info(s"input source is Json")
-        dataMap += ((name, SQLContext.getOrCreate(sc).read.text(input: _*)))
+        dataMap += ((name, sparkSession.read.text(input: _*)))
       }
       case _ => {
-        val rdd = sc.textFile(input.mkString(",")).map(line => Row(line.toString))
+        val rdd = sparkSession.read.textFile(input.mkString(",")).rdd.map(line => Row(line.toString))
         dataMap += ((name, SourceGenerator.validateRDD(rdd, batchData)))
       }
     }

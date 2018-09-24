@@ -196,7 +196,7 @@ private[framework] class BatchHandler(val workFlowConfig: WorkflowConfig,
     var runSuccess = false
     var mode: String = "None"
 
-    val fileSourceGenerator = new FileSourceGenerator(workFlowConfig, appConfig, sparkSession.sparkContext).get
+    val fileSourceGenerator = new FileSourceGenerator(workFlowConfig, appConfig, sparkSession).get
 
     var workflowTimeToSave = new Time(System.currentTimeMillis)
 
