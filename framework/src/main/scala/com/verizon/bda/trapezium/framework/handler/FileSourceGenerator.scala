@@ -143,7 +143,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             logger.info("fileSplit running for date " + sDate + " , files are " +
               files.toString())
             workflowTime = getWorkFlowTime(sDate, currentWorkflowTime)
-            val dataMap = addDF(sparkSession, files.toString().split(","), batchData)
+            val dataMap = addDF(sparkSession, files.toString().split(","), batchData, dataDir)
             val existingDataMap = dataSources.get(workflowTime)
             if (existingDataMap != null) {
               logger.info(s"Entry exists for this workflow time ${existingDataMap}")
