@@ -16,13 +16,14 @@
 package com.verizon.bda.trapezium.framework.handler
 
 import java.io._
+
 import com.typesafe.config.{Config, ConfigFactory}
 import com.verizon.bda.trapezium.validation.DataValidator
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
 
 object DynamicSchemaHelper {
@@ -33,7 +34,7 @@ object DynamicSchemaHelper {
   def generateDataFrame(csv: RDD[Row],
                         name: String,
                         file: String,
-                        sc: SparkContext): (String, DataFrame) = {
+                        sparkSession: SparkSession): (String, DataFrame) = {
     var config: Config = null
     var conffilename: String = null
     var conffilecontents: String = null
