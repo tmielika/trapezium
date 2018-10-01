@@ -193,7 +193,13 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
-        val df: DataFrame = sparkSession.read.option("basePath", dataDir).parquet(input: _*)
+        val path = new java.io.File(dataDir)
+        var df: DataFrame = null
+        if(path.isDirectory) {
+          df = sparkSession.read.option("basePath", dataDir).parquet(input: _*)
+        } else {
+          df = sparkSession.read.parquet(input: _*)
+        }
         dataMap += ((name, df))
       }
       case "AVRO" => {
