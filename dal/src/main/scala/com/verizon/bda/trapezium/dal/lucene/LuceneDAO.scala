@@ -2,6 +2,7 @@ package com.verizon.bda.trapezium.dal.lucene
 
 import java.io._
 import java.sql.Time
+
 import com.verizon.bda.trapezium.dal.exceptions.LuceneDAOException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, FileUtil, PathFilter, Path => HadoopPath}
@@ -14,18 +15,22 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode
 import org.apache.lucene.index._
 import org.apache.lucene.store.{Directory, LockFactory, MMapDirectory, NoLockFactory}
 import org.apache.solr.store.hdfs.HdfsDirectory
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
 import java.io.File
+
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.util.{DalUtils, RDDUtils}
 import org.apache.spark.{SparkConf, SparkContext}
+
 import scala.collection.mutable
 import scala.util.Random
 
+@SerialVersionUID(-1903255539854886099L)
 class LuceneDAO(val location: String,
                 val searchFields: Set[String],
                 val searchAndStoredFields: Set[String],
@@ -66,25 +71,6 @@ class LuceneDAO(val location: String,
     this
   }
 
-  /**
-    * Udf to compute the indices and values for sparse vector.
-    * Here s is storedDimension and m is featureColumns mapped as Array
-    * corresponding to the dimensions. Support measures that are MapType
-    * with keys as the hierarchical dimension
-    */
-  val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
-                               m: mutable.WrappedArray[Map[String, Double]]) =>
-    val indVal = s.zip(m).flatMap { x =>
-      if (x._2 == null) {
-        Map[Int, Double]()
-      }
-      else {
-        val output: Map[Int, Double] = x._2.map(kv => (_dictionary.indexOf(x._1, kv._1), kv._2))
-        output.filter(_._1 >= 0)
-      }
-    }.sortBy(_._1)
-    Vectors.sparse(_dictionary.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
-  }
 
   /**
     * 2 step process to generate feature vectors:
@@ -93,13 +79,42 @@ class LuceneDAO(val location: String,
     * Step 2: Pass arrFeatures and the featureColumns to featureIndexUdf
     * to generate the vector
     */
+  /* def vectorize(df: DataFrame, vectorizedColumn: String,
+                dimension: Seq[String],
+                features: Seq[String]): DataFrame = {
+    log.info(s"dimension Length :${dimension.length}")
+    log.info(s"vectorizedColumn :$vectorizedColumn")
+    log.info(s"features :$features")
+    val dfWithFeatures = df.withColumn("arrFeatures", array(features.map(df(_)): _*))
+    log.info("Before printing dfWithFeatures")
+    dfWithFeatures.show(20, false)
+    dfWithFeatures("arrFeatures")
+    log.info(s"dfFeatures ${dfWithFeatures("arrFeatures")}")
+    val vectorized: DataFrame = dfWithFeatures.withColumn(vectorizedColumn,
+      featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures")))
+    vectorized.drop("arrFeatures")
+  } */
+
   def vectorize(df: DataFrame, vectorizedColumn: String,
                 dimension: Seq[String],
                 features: Seq[String]): DataFrame = {
     val dfWithFeatures = df.withColumn("arrFeatures", array(features.map(df(_)): _*))
-    val vectorized = dfWithFeatures.withColumn(vectorizedColumn,
-      featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures")))
-    vectorized.drop("arrFeatures")
+    dfWithFeatures.show(false)
+    dfWithFeatures.count()
+    val key = this
+    var udfObject = ObjectManager.get(key)
+    if(udfObject.isEmpty) {
+      val broadcastDictionary : Broadcast[DictionaryManager] = df.sqlContext.sparkContext.broadcast(_dictionary)
+      log.info("Creating a broadcast dictionary")
+      var newUdfObject = new FeatureUDF(broadcastDictionary)
+      ObjectManager.put(key, newUdfObject)
+      udfObject = ObjectManager.get(key)
+    }
+    val udf = udfObject.get.asInstanceOf[FeatureUDF].
+      featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures"))
+    val vectorized = dfWithFeatures.withColumn(vectorizedColumn, udf)
+    val finalDF = vectorized.drop("arrFeatures")
+    finalDF
   }
 
   // TODO: If index already exist we have to merge dictionary and update indices
@@ -552,6 +567,56 @@ class LuceneDAO(val location: String,
   }
 }
 
+/**
+  * A plain simple wrapper on the UDF that helps to hold the broadcasted dictionary for the
+  * current request session
+  * @param broadcastDictionary
+  */
+
+class FeatureUDF( val broadcastDictionary : Broadcast[DictionaryManager]) extends Serializable {
+  /**
+    * Udf to compute the indices and values for sparse vector.
+    * Here s is storedDimension and m is featureColumns mapped as Array
+    * corresponding to the dimensions. Support measures that are MapType
+    * with keys as the hierarchical dimension
+    */
+  val featureIndexUdf = udf { (s: mutable.WrappedArray[String],
+                               m: mutable.WrappedArray[Map[String, Double]]) =>
+    val indVal = s.zip(m).flatMap { x =>
+      if (x._2 == null) {
+        Map[Int, Double]()
+      }
+      else {
+        val output: Map[Int, Double] = x._2.map(kv => (broadcastDictionary.value.indexOf(x._1, kv._1), kv._2))
+        output.filter(_._1 >= 0)
+      }
+    }.sortBy(_._1)
+    Vectors.sparse(broadcastDictionary.value.size, indVal.map(_._1).toArray, indVal.map(_._2).toArray)
+  }
+}
+
+object ObjectManager {
+
+  val repository = scala.collection.mutable.Map[Object, Object]()
+
+  def put(key:Object, value: Object) : Option[Object] = {
+    repository.put(key, value)
+  }
+
+  def remove(key:Object): Option[Object] = {
+    repository.remove(key)
+  }
+
+  def removeAll(): Unit = {
+    repository.clear()
+  }
+
+  def get(key:Object): Option[Object] = {
+    repository.get(key)
+  }
+
+}
+
 object LuceneDAO {
   val PREFIX = "trapezium-lucenedao"
   val SUFFIX = "part-"
@@ -571,4 +636,3 @@ object LuceneDAO {
     analyzer
   }
 }
-
