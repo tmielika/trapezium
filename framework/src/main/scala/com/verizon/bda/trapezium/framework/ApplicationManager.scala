@@ -299,11 +299,13 @@ object ApplicationManager {
     val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
     val kafkaBrokerList = appConfig.kafkabrokerList
 
-    logger.info("Kafka broker list " + kafkaBrokerList)
+    logger.info("Kafka broker list faraz" + kafkaBrokerList)
 
     ssc = KafkaDStream.createStreamingContext(sparkConf)
     setHadoopConf(ssc.sparkContext, appConfig)
     val topicPartitionOffsets = MMap[TopicPartition, Long]()
+
+    //System.out.println("created streaming context")
 
     streamsInfo.asScala.foreach(streamInfo => {
       val topicName = streamInfo.getString("topicName")
@@ -311,12 +313,15 @@ object ApplicationManager {
       topicPartitionOffsets ++= partitionOffset
     })
 
+    //System.out.println("before  create stream")
+
     val dStreams = KafkaDStream.createDStreams(
       ssc,
       kafkaBrokerList,
       kafkaConfig,
       topicPartitionOffsets.toMap,
       appConfig)
+    //System.out.println("reached at end of  initKafkaDstream")
     dStreams
   }
 
@@ -374,6 +379,7 @@ object ApplicationManager {
    */
   private[framework] def startHttpServer(sc: SparkContext, workflowConfig: WorkflowConfig): Unit = {
 
+    //System.out.println("stating akka server inside streaming workflow")
     val serverConfig = workflowConfig.httpServer
     if (serverConfig != null) {
       val provider = serverConfig.getString("provider")
@@ -402,6 +408,7 @@ object ApplicationManager {
    * @param dStreams input dstreams
    */
   def runStreamWorkFlow(dStreams: MMap[String, DStream[Row]]) : Unit = {
+    //System.out.println("inside running streaming workflow")
     StreamingHandler.handleWorkflow(dStreams)
   }
 
@@ -561,6 +568,7 @@ class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
       }
       case ex: Throwable => {
 
+        ex.printStackTrace()
         logger.error("Stopping job", ex.getMessage)
         ApplicationManager.stopStreaming = true
       }
