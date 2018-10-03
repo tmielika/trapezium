@@ -511,6 +511,8 @@ private[framework] object KafkaDStream {
     val kafkaParams = new HashMap[String, String]()
 
     kafkaParams += ("bootstrap.servers" -> getKafkaBrokerList(kafkabrokerlist))
+    kafkaParams += ("key.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer")
+    kafkaParams += ("value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer")
 
     val offsetReset =
       try {
