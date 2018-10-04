@@ -519,8 +519,8 @@ private[framework] object KafkaDStream {
         kafkaConfig.getString("auto.offset.reset")
       } catch {
         case ex: Throwable => {
-          logger.warn("auto.offset.reset does not exist. Using smallest as the default value")
-          "smallest"
+          logger.warn("auto.offset.reset does not exist. Using earliest as the default value")
+          "earliest"
         }
       }
 
