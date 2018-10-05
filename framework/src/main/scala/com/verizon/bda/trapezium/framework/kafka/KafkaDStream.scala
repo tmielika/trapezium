@@ -524,6 +524,15 @@ private[framework] object KafkaDStream {
         }
       }
 
+    val groupId = try {
+      kafkaConfig.getString("group.id")
+    } catch {
+      case e : Throwable => {
+        logger.warn("group.id does not exist. Using group as the default value")
+        "group"
+      }
+    }
+    kafkaParams += ("group.id" -> groupId)
     kafkaParams += ("auto.offset.reset" -> offsetReset)
 
     kafkaParams.toMap
