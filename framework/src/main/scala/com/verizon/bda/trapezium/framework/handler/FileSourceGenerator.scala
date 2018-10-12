@@ -212,7 +212,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
         dataMap += ((name, sparkSession.read.text(input: _*)))
       }
       case _ => {
-        val rdd = sparkSession.read.textFile(input.mkString(",")).rdd.map(line => Row(line.toString))
+        val rdd = sparkSession.sparkContext.textFile(input.mkString(",")).map(line => Row(line.toString))
         dataMap += ((name, SourceGenerator.validateRDD(rdd, batchData)))
       }
     }

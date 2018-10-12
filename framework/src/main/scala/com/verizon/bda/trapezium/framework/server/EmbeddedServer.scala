@@ -37,7 +37,7 @@ import scala.concurrent.Future
 /**
   * Created by Jegan on 5/20/16.
   */
-sealed trait EmbeddedHttpServer {
+sealed trait EmbeddedServer {
   val logger = LoggerFactory.getLogger(this.getClass)
   // exposed
   private var bindPort: Int = _
@@ -66,7 +66,7 @@ sealed trait EmbeddedHttpServer {
   def stop(stopSparkContext: Boolean = false)
 }
 
-class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
+class AkkaServer extends EmbeddedServer {
 
   implicit lazy val actorSystem = ActorSystem("AkkaHttpServer")
   implicit lazy val materializer = ActorMaterializer()
@@ -82,7 +82,7 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
 
   // scalastyle:on
   override def init(config: Config): Unit = {
-    val routeHandler = new AkkaRouteHandler(sc, actorSystem)
+    val routeHandler = new AkkaRouteHandler(null, actorSystem)
     config.getList("endPoints").asScala.foreach(ep => {
       val config = ep.asInstanceOf[ConfigObject].toConfig
       val path = config.getString("path")
@@ -124,10 +124,6 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
   }
 
   override def stop(stopSparkContext: Boolean = false): Unit = {
-    if ( stopSparkContext && !sc.isStopped ){
-      sc.stop
-    }
-
     bindingFuture.flatMap(_.unbind())
       .onComplete(_ => actorSystem.shutdown())
   }
@@ -135,7 +131,7 @@ class AkkaHttpServer(sc: SparkContext) extends EmbeddedHttpServer {
   def compose(routes: List[Route]): Route = routes.reduce((r1, r2) => r1 ~ r2)
 }
 
-class JettyHttpServer(sc: SparkContext, val serverConfig: Config) extends EmbeddedHttpServer {
+class JettyServer(val serverConfig: Config) extends EmbeddedServer {
 
   var server: Server = _
 
@@ -172,7 +168,7 @@ class JettyHttpServer(sc: SparkContext, val serverConfig: Config) extends Embedd
       val servletConfig = servletHolder.asInstanceOf[ConfigObject].toConfig
       // scalastyle:off classforname
       val classInstance = Class.forName(servletConfig.getString("className"))
-        .getConstructors()(0).newInstance(sc).asInstanceOf[HttpServlet]
+        .getConstructors()(0).newInstance().asInstanceOf[HttpServlet]
 
       // scalastyle:on classforname
       context.addServlet(
@@ -183,10 +179,6 @@ class JettyHttpServer(sc: SparkContext, val serverConfig: Config) extends Embedd
   override def start(config: Config): Unit = server.start()
 
   override def stop(stopSparkContext: Boolean = false): Unit = {
-    if ( stopSparkContext && !sc.isStopped ){
-      sc.stop
-    }
-
     server.stop()
   }
 }

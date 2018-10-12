@@ -37,8 +37,12 @@ object EndPointUtils {
     * Create instance of endpoint using the constructor either the one with having
     * SparkContext param or the one with ActorSystem
     */
-    val instance = instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
+    val instance = if (sc != null) {
+      instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
+        instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
+    } else {
       instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
+    }
 
     instance.getOrElse {
       logger.error(

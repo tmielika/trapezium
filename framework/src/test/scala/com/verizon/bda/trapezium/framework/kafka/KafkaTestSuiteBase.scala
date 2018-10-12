@@ -22,12 +22,12 @@ import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import kafka.common.KafkaException
-import kafka.producer.{KeyedMessage, Producer, ProducerConfig}
 import kafka.serializer.StringEncoder
 import kafka.server.{KafkaConfig, KafkaServer}
 import kafka.utils.{ZKStringSerializer, ZkUtils}
 import org.I0Itec.zkclient.{ZkClient, ZkConnection}
 import org.apache.commons.io
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
@@ -48,7 +48,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   private var server2: KafkaServer = _
   private var brokerPort2 = 9093
   private var brokerConf2: KafkaConfig = _
-  private var producer: Producer[String, String] = _
+  private var producer: KafkaProducer[String, String] = _
   private var zkReady = false
   private var brokerReady = false
 
@@ -101,7 +101,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     zkClient = ZkUtils.createZkClient(zkAddress, zkSessionTimeout, zkConnectionTimeout)
     val isSecureKafkaCluster = false
 
-    val zkUtils = new ZkUtils(zkClient, new ZkConnection(zkAddress), isSecureKafkaCluster)
+    zkUtils = new ZkUtils(zkClient, new ZkConnection(zkAddress), isSecureKafkaCluster)
 
     kf_logger.info("==================== Zookeeper Client Created ====================")
 
@@ -230,11 +230,10 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
   }
 
   private def sendMessages(topic: String, messages: Array[String]) {
-    producer = new Producer[String, String](new ProducerConfig(getProducerConfig()))
-    // producer.send(messages.map { new KeyedMessage[String, String](topic, _ ) }: _*)
-    producer.send(messages.map {
-      new KeyedMessage[String, String](topic, null, _)
-    }: _*)
+    producer = new KafkaProducer[String, String](getProducerConfig())
+    messages.map{msg =>
+      producer.send(new ProducerRecord[String, String](topic, msg))
+    }
     producer.close()
     kf_logger.info(s"=============== Sent Messages ===================")
   }
@@ -287,8 +286,15 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
     var brokerAddr = brokerConf.hostName + ":" + brokerConf.port
     if (brokerConf2 != null) brokerAddr += "," + brokerConf2.hostName + ":" + brokerConf2.port
     val props = new Properties()
-    props.put("metadata.broker.list", brokerAddr)
-    props.put("serializer.class", classOf[StringEncoder].getName)
+    props.put("bootstrap.servers", brokerAddr)
+    props.put("batch.num.messages", "200")
+    props.put("queue.buffering.max.ms", "1000")
+    props.put("producer.type", "async")
+    props.put("request.required.acks", "0")
+    props.put("message.send.max.retries", "0")
+    props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    props.put("group.id", "testgroup")
     props
   }
 

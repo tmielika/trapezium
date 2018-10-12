@@ -20,7 +20,7 @@ import com.verizon.bda.trapezium.framework.handler.{BatchHandler, FileSourceGene
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
-import com.verizon.bda.trapezium.framework.server.{AkkaHttpServer, EmbeddedHttpServer, JettyServer}
+import com.verizon.bda.trapezium.framework.server._
 import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
 import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
@@ -57,7 +57,8 @@ object ApplicationManager {
   private val threadLocalWorkflowConfig = new ThreadLocal[WorkflowConfig]();
   var stopStreaming: Boolean = false
   val ERROR_EXIT_CODE = -1
-  private var embeddedServer: EmbeddedHttpServer = _
+  private var embeddedHttpServer: EmbeddedHttpServer = _
+  private var embeddedServer: EmbeddedServer = _
   private var uid = ""
 
   private var validLicense: Boolean = true
@@ -66,6 +67,10 @@ object ApplicationManager {
   private var licenseCheckTimeout: Calendar = Calendar.getInstance()
 
   def getEmbeddedServer: EmbeddedHttpServer = {
+    embeddedHttpServer
+  }
+
+  def getEmbeddedServerV2: EmbeddedServer = {
     embeddedServer
   }
 
@@ -159,9 +164,9 @@ object ApplicationManager {
     }
 
     val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
-    val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
-    registerDriverHost(currentWorkflowName)
     val runMode = workflowConfig.runMode
+    val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
+    if (!runMode.equals("APIV2")) registerDriverHost(currentWorkflowName)
     runMode match {
       case "STREAM" => {
 
@@ -193,6 +198,9 @@ object ApplicationManager {
         setHadoopConf(sc, appConfig)
         startHttpServer(sc, workflowConfig)
 
+      }
+      case "APIV2" => {
+        startHttpServer(workflowConfig)
       }
       case _ => logger.error("Not implemented run mode. Exiting.. {}", runMode)
     }
@@ -305,15 +313,11 @@ object ApplicationManager {
     setHadoopConf(ssc.sparkContext, appConfig)
     val topicPartitionOffsets = MMap[TopicPartition, Long]()
 
-    //System.out.println("created streaming context")
-
     streamsInfo.asScala.foreach(streamInfo => {
       val topicName = streamInfo.getString("topicName")
       val partitionOffset = KafkaDStream.fetchPartitionOffsets(topicName, runMode, appConfig)
       topicPartitionOffsets ++= partitionOffset
     })
-
-    //System.out.println("before  create stream")
 
     val dStreams = KafkaDStream.createDStreams(
       ssc,
@@ -321,7 +325,6 @@ object ApplicationManager {
       kafkaConfig,
       topicPartitionOffsets.toMap,
       appConfig)
-    //System.out.println("reached at end of  initKafkaDstream")
     dStreams
   }
 
@@ -373,19 +376,38 @@ object ApplicationManager {
   }
 
   /**
+    * Start HTTP (Jetty) server
+    *
+    * @param workflowConfig
+    */
+  private[framework] def startHttpServer(sc: SparkContext, workflowConfig: WorkflowConfig): Unit = {
+
+    val serverConfig = workflowConfig.httpServer
+    if (serverConfig != null) {
+      val provider = serverConfig.getString("provider")
+      embeddedHttpServer = provider match {
+        case "akka" => new AkkaHttpServer(sc)
+        case "jetty" => new JettyHttpServer(sc, serverConfig)
+      }
+      logger.info(s"Starting $provider based Embedded HTTP Server")
+      embeddedHttpServer.init(serverConfig)
+      embeddedHttpServer.start(serverConfig)
+    }
+  }
+
+  /**
    * Start HTTP (Jetty) server
    *
    * @param workflowConfig
    */
-  private[framework] def startHttpServer(sc: SparkContext, workflowConfig: WorkflowConfig): Unit = {
+  private[framework] def startHttpServer(workflowConfig: WorkflowConfig): Unit = {
 
-    //System.out.println("stating akka server inside streaming workflow")
     val serverConfig = workflowConfig.httpServer
     if (serverConfig != null) {
       val provider = serverConfig.getString("provider")
       embeddedServer = provider match {
-        case "akka" => new AkkaHttpServer(sc)
-        case "jetty" => new JettyServer(sc, serverConfig)
+        case "akka" => new AkkaServer()
+        case "jetty" => new JettyServer(serverConfig)
       }
       logger.info(s"Starting $provider based Embedded HTTP Server")
       embeddedServer.init(serverConfig)
@@ -408,7 +430,6 @@ object ApplicationManager {
    * @param dStreams input dstreams
    */
   def runStreamWorkFlow(dStreams: MMap[String, DStream[Row]]) : Unit = {
-    //System.out.println("inside running streaming workflow")
     StreamingHandler.handleWorkflow(dStreams)
   }
 
