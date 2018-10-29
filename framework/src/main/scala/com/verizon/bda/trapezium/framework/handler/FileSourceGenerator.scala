@@ -15,6 +15,7 @@
 
 package com.verizon.bda.trapezium.framework.handler
 
+import java.net.URI
 import java.sql.Time
 import java.text.SimpleDateFormat
 import java.{lang, util}
@@ -27,6 +28,8 @@ import com.verizon.bda.trapezium.framework.kafka.{KafkaDStream, KafkaRDD}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, ScanFS}
 import com.verizon.bda.trapezium.transformation.DataTranformer
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkContext, sql}
@@ -77,7 +80,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
       var counter = rdd._2
       logger.info("collectRDD " + collectRDD.toString + "int counter " + counter)
       collectRDD.foreach(row => {
-        val dfMap = FileSourceGenerator.getDFFromStream(row, sparkSession.sparkContext)
+        val dfMap = FileSourceGenerator.getDFFromStream(row, sparkSession)
         val workflowTime = new Time(System.currentTimeMillis())
         logger.info("Kafka --> on offset" + rdd._2)
         counter = counter + 1
@@ -193,12 +196,28 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
     SourceGenerator.getFileFormat(batchData).toUpperCase match {
       case "PARQUET" => {
         logger.info(s"input source is Parquet")
-        val path = new java.io.File(dataDir)
         var df: DataFrame = null
-        if(path.isDirectory) {
-          df = sparkSession.read.option("basePath", dataDir).parquet(input: _*)
+
+        val uri: URI = new URI(dataDir)
+        val config: Configuration = new Configuration
+        val fileSystem: FileSystem = FileSystem.get(uri, config)
+        val hdfsPath: Path = new Path(dataDir)
+        val fileStatus: Array[FileStatus] = fileSystem.globStatus(hdfsPath)
+
+        if (fileStatus != null) {
+          fileStatus.foreach { file => {
+            val fileType: String = file.getPath.getName
+            if (fileType != null) {
+              if (file.isDirectory) {
+                df = sparkSession.read.option("basePath", dataDir).parquet(input: _*)
+              } else {
+                df = sparkSession.read.parquet(input: _*)
+              }
+            }
+            }
+          }
         } else {
-          df = sparkSession.read.parquet(input: _*)
+          df = sparkSession.read.option("basePath", dataDir).parquet(input: _*)
         }
         dataMap += ((name, df))
       }
@@ -226,7 +245,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
 object FileSourceGenerator {
   val logger = LoggerFactory.getLogger(this.getClass)
 
-  def getDFFromStream(json : String, sc: SparkContext) : MMap[String, DataFrame] = {
+  def getDFFromStream(json : String, sparkSession: SparkSession) : MMap[String, DataFrame] = {
     val dataMap = MMap[String, DataFrame]()
     logger.info("json to read " + json)
     try {
@@ -239,7 +258,7 @@ object FileSourceGenerator {
         val sourceLocation = jObject.getString("location")
         logger.info("source location : " + sourceLocation)
        try {
-         dataMap += ((sourcesName, SQLContext.getOrCreate(sc).
+         dataMap += ((sourcesName, sparkSession.sqlContext.
            read.parquet(sourceLocation)))
        } catch {
          case ex : AssertionError => {
