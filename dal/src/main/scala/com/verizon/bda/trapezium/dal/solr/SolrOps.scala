@@ -11,6 +11,7 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.log4j.Logger
+import org.apache.spark.SparkContext
 import org.codehaus.jackson.map.ObjectMapper
 
 import scala.collection.mutable.ListBuffer
@@ -218,7 +219,7 @@ object SolrOps {
   val log = Logger.getLogger(classOf[SolrOps])
 
   def apply(mode: String,
-            params: Map[String, String]): SolrOps = {
+            params: Map[String, String], sparkContext: SparkContext = null): SolrOps = {
     val solrOps = mode.toUpperCase() match {
       case "HDFS" => {
         val set = Set("appName", "zkHosts", "nameNode", "zroot", "storageDir",
@@ -241,6 +242,16 @@ object SolrOps {
             " assigning a default value: ~/.ssh/id_rsa")
         }
         new SolrOpsLocal(params)
+      }
+      case "LOCAL_API" => {
+        val set = Set("appName", "zkHosts", "nameNode",
+          "folderPrefix", "zroot", "rootDirs", "storageDir", "solrConfig",
+          "replicationFactor", "uploadEndPoint","deleteEndPoint", "uploadServicePort", "httpType")
+        set.foreach(p =>
+          if (!params.contains(p)) {
+            throw new SolrOpsException(s"Map Doesn't have ${p} map should contain ${set}")
+          })
+        new SolrOpsLocalApi(params, sparkContext)
       }
     }
     for ((k, v) <- params) {
@@ -321,8 +332,9 @@ object SolrOps {
           log.info(s"response status: ${response.getStatusLine} and status" +
             s" code ${response.getStatusLine.getStatusCode} ")
           responseBody = EntityUtils.toString(response.getEntity())
-          if(printResponse)
-          {log.info(s"responseBody: ${responseBody} for url ")}
+          if (printResponse) {
+            log.info(s"responseBody: ${responseBody} for url ")
+          }
           if (response.getStatusLine.getStatusCode != 200) {
             noError = true
             retries = retries + 1

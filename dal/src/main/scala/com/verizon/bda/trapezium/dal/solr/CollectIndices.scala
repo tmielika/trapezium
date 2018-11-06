@@ -210,10 +210,10 @@ object CollectIndices {
     val solrNodes = new ListBuffer[CollectIndices]
 
     val shards = coreMap.keySet.toArray
-    var partFileMap = MMap[(String, String), ListBuffer[String]]()
-    var outMap = MMap[String, ListBuffer[(String, String)]]()
+    val partFileMap = MMap[(String, String), ListBuffer[String]]()
+    val outMap = MMap[String, ListBuffer[(String, String)]]()
     val rootDirs = solrMap("rootDirs").split(",")
-    var rootMap = MMap[String, Int]()
+    val rootMap = MMap[String, Int]()
     for ((replicaName, host) <- coreMap) {
       val tmp = replicaName.split("_")
       val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
