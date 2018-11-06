@@ -226,6 +226,14 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
         dataMap += ((name, sparkSession.read.format("com.databricks.spark.avro")
           .load(input: _*)))
       }
+      case "DYNAMICSCHEMA" => {
+        val configfiles = input.filter(filename => filename.endsWith(".conf"))
+        input.filter(filename => !filename.endsWith(".conf")).map((file: String) => {
+          logger.info("FileName" + file)
+          dataMap += generateDataFrame(sparkSession.sparkContext.textFile(Array(file).mkString(",")).
+            map(line => Row(line.toString)), name, file, sparkSession)
+        })
+      }
       case "JSON" => {
         logger.info(s"input source is Json")
         dataMap += ((name, sparkSession.read.text(input: _*)))

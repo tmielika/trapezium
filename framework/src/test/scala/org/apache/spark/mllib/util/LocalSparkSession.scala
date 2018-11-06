@@ -43,7 +43,6 @@ trait LocalSparkSession extends BeforeAndAfterAll  { self: Suite =>
     val conf = TestUtils.getSparkConf()
     spark = SparkSession.builder()
       .config(conf)
-      .enableHiveSupport()
       .getOrCreate()
   }
 
