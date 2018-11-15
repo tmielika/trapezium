@@ -1,6 +1,6 @@
 package com.verizon.bda.trapezium.dal.solr
 
-import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
+import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import org.apache.spark.SparkContext
 
 import scala.collection.mutable.ListBuffer
@@ -10,8 +10,13 @@ class SolrOpsLocalApi(solrMap: Map[String, String], sparkContext: SparkContext)
 
   override def getHostToFileMap(): Map[String, ListBuffer[(String, String)]] = {
     try {
-      return PostZipDataAPI.postDataViaHTTP(sparkContext, solrMap, hdfsIndexFilePath,
-        indexLocationInRoot, coreMap, collectionName)
+      val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(map.keySet, solrMap)
+      if (isRunning) {
+        return PostZipDataAPI.postDataViaHTTP(sparkContext, solrMap, hdfsIndexFilePath,
+           coreMap, collectionName)
+      } else {
+        throw new SolrOpsException(s"could not create collection :$collectionName")
+      }
     }
     catch {
       case e: Exception => {

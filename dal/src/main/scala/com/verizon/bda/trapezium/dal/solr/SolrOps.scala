@@ -27,6 +27,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   val solrDeployerZnode = "/solrDeployer"
   lazy val log = Logger.getLogger(classOf[SolrOps])
   val appName = solrMap("appName")
+  val httpTypeSolr = solrMap("httpTypeSolr")
   var aliasCollectionName: String = null
   var collectionName: String = null
   lazy val configName = s"$appName/${aliasCollectionName}"
@@ -45,7 +46,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   def getSolrCollectionUrl(): String = {
     val host = SolrClusterStatus.solrLiveNodes.head
-    val solrServerUrl = s"http://$host/solr/admin/collections"
+    val solrServerUrl = s"$httpTypeSolr$host/solr/admin/collections"
     solrServerUrl
   }
 
@@ -133,7 +134,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     SolrOps.makeHttpRequest(createCollectionUrl)
 
     requestPolling(asyncId)
-    val solrReponse = SolrClusterStatus.parseSolrResponse
+    val solrReponse = SolrClusterStatus.parseSolrResponse(httpTypeSolr)
     coreMap = solrReponse.map(p => (p.coreName, p.machine)).toMap
     for ((corename, ip) <- coreMap) {
       log.info(s"coreName:  ${corename} ip ${ip}"
@@ -245,8 +246,10 @@ object SolrOps {
       }
       case "LOCAL_API" => {
         val set = Set("appName", "zkHosts", "nameNode",
-          "folderPrefix", "zroot", "rootDirs", "storageDir", "solrConfig",
-          "replicationFactor", "uploadEndPoint","deleteEndPoint", "uploadServicePort", "httpType")
+          "folderPrefix", "zroot", "solrConfig",
+          "replicationFactor", "uploadEndPoint",
+          "deleteEndPoint", "testEndPoint", "uploadServicePort",
+          "httpType", "httpTypeSolr")
         set.foreach(p =>
           if (!params.contains(p)) {
             throw new SolrOpsException(s"Map Doesn't have ${p} map should contain ${set}")
