@@ -134,11 +134,18 @@ private[framework] class BatchHandler(val workFlowConfig: WorkflowConfig,
 
   def createSession: SparkSession = {
     logger.info("making sparkSession")
-    sparkSession = SparkSession.builder()
-      .appName(appConfig.appName)
-      .config(ApplicationManager.getSparkConf(appConfig))
-      .enableHiveSupport()
-      .getOrCreate()
+    if(appConfig.env != "local") {
+      sparkSession = SparkSession.builder()
+        .appName(appConfig.appName)
+        .config(ApplicationManager.getSparkConf(appConfig))
+        .enableHiveSupport()
+        .getOrCreate()
+    } else {
+      sparkSession = SparkSession.builder()
+        .appName(appConfig.appName)
+        .config(ApplicationManager.getSparkConf(appConfig))
+        .getOrCreate()
+    }
     sparkSession
   }
 
