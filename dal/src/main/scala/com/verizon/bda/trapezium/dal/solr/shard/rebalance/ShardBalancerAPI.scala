@@ -245,7 +245,7 @@ object ShardBalancerAPI {
             //            sol.createCoresOnSolr(ipShardMap, collection,
             //              failureShards.configName)
 
-            val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(SolrClusterStatus.solrLiveNodes.toSet, solrMap)
+            val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(failureShards.coreMap, solrMap)
             require(isRunning, "all the Api nodes are not running")
             // moved data to the location on solr
             val ipShardMap =

@@ -198,7 +198,7 @@
                 </snapshots>
                 <id>bintray-yahoo-maven</id>
                 <name>bintrary</name>
-                <url> http://md-bdadev-3.verizon.com:8081/artifactory/bintrary</url>
+                <url>http://md-bdadev-3.verizon.com:8081/artifactory/bintrary</url>
             </repository>
     </repositories>
 </project>

@@ -35,6 +35,7 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
   }
 
   def createCores(): Unit = {
+    log.info("inside create create cores")
     log.info(map)
     createCoresOnSolr(map, collectionName, configName)
   }

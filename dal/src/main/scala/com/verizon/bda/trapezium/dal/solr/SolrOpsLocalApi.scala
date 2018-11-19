@@ -9,11 +9,12 @@ class SolrOpsLocalApi(solrMap: Map[String, String], sparkContext: SparkContext)
   extends SolrOpsLocal(solrMap: Map[String, String]) {
 
   override def getHostToFileMap(): Map[String, ListBuffer[(String, String)]] = {
+    log.info("inside SolrOpsLocal.getHostToFileMap")
     try {
-      val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(map.keySet, solrMap)
+      val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(coreMap, solrMap)
       if (isRunning) {
         return PostZipDataAPI.postDataViaHTTP(sparkContext, solrMap, hdfsIndexFilePath,
-           coreMap, collectionName)
+          coreMap, collectionName)
       } else {
         throw new SolrOpsException(s"could not create collection :$collectionName")
       }
@@ -30,7 +31,7 @@ class SolrOpsLocalApi(solrMap: Map[String, String], sparkContext: SparkContext)
   override def deleteOldCollections(oldCollection: String): Unit = {
     if (oldCollection != null) {
       deleteCollection(oldCollection, false)
-      PostZipDataAPI.deleteDirectoryViaHTTP(oldCollection, map.keySet, solrMap)
+      PostZipDataAPI.deleteDirectoryViaHTTP(oldCollection, coreMap, solrMap)
     }
   }
 

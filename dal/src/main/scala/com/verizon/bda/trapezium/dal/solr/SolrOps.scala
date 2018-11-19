@@ -58,9 +58,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val response = SolrOps.makeHttpRequest(aliaseCollectionUrl)
     //    storeFiledsinZk()
     ZooKeeperClient(solrMap("zkHosts"))
-
-    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/indicesPath",
-      (solrMap("storageDir").stripSuffix("/") + "/" + collectionName).getBytes())
+    if (solrMap.contains("storageDir")) {
+      ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/indicesPath",
+        (solrMap("storageDir").stripSuffix("/") + "/" + collectionName).getBytes())
+    }
     ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/hdfsPath",
       hdfsIndexFilePath.getBytes())
     ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/failureCoreCount",

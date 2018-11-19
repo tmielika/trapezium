@@ -19,12 +19,15 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ListBuffer
 
 object PostZipDataAPI {
-  def isApiRunningOnAllMachines(solrHosts: Set[String], solrMap: Map[String, String]): Boolean = {
+  def isApiRunningOnAllMachines(coreMap: Map[String, String], solrMap: Map[String, String]): Boolean = {
+    val solrHosts = getNodes(coreMap)
+    log.info("inside PostZipDataAPI.isApiRunningOnAllMachines")
+
     for (solrHost <- solrHosts) {
       val url = s"${solrMap("httpType")}" +
         s"${solrHost.split(":")(0) + ":" + solrMap("uploadServicePort")}${solrMap("testEndPoint")}"
       try {
-        val response = SolrOps.makeHttpRequest(url, 5, true)
+        val response = SolrOps.makeHttpRequest(url)
         if (response == null) {
           log.error(s"could not retrieve response from ${solrHost.split(":")(0)} for request:${url}")
           return false
@@ -38,12 +41,20 @@ object PostZipDataAPI {
     true
   }
 
+  def getNodes(coreMap: Map[String, String]): Set[String] = {
+    log.info("inside PostZipDataAPI.getNodes")
+
+    coreMap.values.toSet
+  }
 
   def deleteDirectoryViaHTTP(oldCollection: String,
-                             solrHosts: Set[String], solrMap: Map[String, String]): Unit = {
+                             coreMap: Map[String, String], solrMap: Map[String, String]): Unit = {
+    val solrHosts = getNodes(coreMap)
+    log.info(s"inside delete deleteDirectoryViaHTTP ${solrHosts.toList}")
+
     solrHosts.foreach(solrHost => {
       val url = s"${solrMap("httpType")}" +
-        s"${solrHost.split(":")(0) + ":" + solrMap("uploadServicePort")}${solrMap("deleteEndPoint")}"
+        s"${solrHost.split(":")(0) + ":" + solrMap("uploadServicePort")}${solrMap("deleteEndPoint")}/$oldCollection"
       SolrOps.makeHttpRequest(url)
     })
   }
@@ -55,9 +66,12 @@ object PostZipDataAPI {
                       hdfsIndexFilePath: String,
                       coreMap: Map[String, String],
                       collectionName: String): Map[String, ListBuffer[(String, String)]] = {
+    log.info("inside PostZipDataAPI.postDataViaHTTP")
+
     val partFileMap = transformCoreMap(coreMap, solrMap)
     val partFileMapB = sc.broadcast(partFileMap)
     val partitionIds = sc.parallelize(partFileMapB.value.keySet.toList, sc.defaultParallelism)
+    log.info(s"inside postDataViaHTTP $partFileMap")
     val operationStatusMap = RDDUtils.mapPartitionsInternal(partitionIds,
       (partFiles: Iterator[String]) => {
         partFiles.map((partFile: String) => {
@@ -77,10 +91,10 @@ object PostZipDataAPI {
             log.info("After zip ****************")
             log.info(getListOfFiles(localDir.getAbsolutePath))
             val success = upload(shuffleIndexPath.toString + ".zip",
-              s"$realPartFile.zip", partFileMapB.value, collectionName)
+              s"$realPartFile.zip", partFileMapB.value, collectionName, partFile)
             log.info("After upload ****************")
             log.info(getListOfFiles(localDir.getAbsolutePath))
-            (s"$realPartFile", success)
+            (s"$partFile", success)
           } catch {
             case ex: Exception => ex.printStackTrace()
               (partFile, (null, false))
@@ -88,6 +102,10 @@ object PostZipDataAPI {
         }
         )
       }).collect().toMap
+    log.info("inside PostZiClass.postDataViaHTTP before rdd map")
+    log.info(operationStatusMap)
+    log.info("inside PostZiClass.postDataViaHTTP after rdd map")
+
     for ((_, uploadStatus) <- operationStatusMap) {
       if (!uploadStatus._2) {
         throw SolrOpsException(s"could not successfully upload " +
@@ -110,6 +128,8 @@ object PostZipDataAPI {
   }
 
   def transformCoreMap(coreMap: Map[String, String], solrMap: Map[String, String]): Map[String, String] = {
+    log.info("inside PostZipDataAPI.transformCoreMap")
+
     val partFileMap = MMap[String, String]()
     for ((replicaName, host) <- coreMap) {
       val partFile = replicaNameToFolderName(solrMap, replicaName)
@@ -123,6 +143,8 @@ object PostZipDataAPI {
   //  replicaName = qa_clarobr150_gemini_collection_1538182429399_shard3_replica1
 
   def replicaNameToFolderName(solrMap: Map[String, String], replicaName: String): String = {
+    log.info("inside PostZipDataAPI.replicaNameToFolderName")
+
     val folderPrefix = solrMap("folderPrefix").stripSuffix("/")
     val tmp = replicaName.split("_")
     val partFile = folderPrefix + (tmp(tmp.length - 2).substring(5).toInt - 1) + "_" + tmp(tmp.length - 1).charAt(7)
@@ -130,7 +152,9 @@ object PostZipDataAPI {
   }
 
   def upload(zipFile: String, fileName: String,
-             partFileMap: Map[String, String], collectionName: String): (String, Boolean) = {
+             partFileMap: Map[String, String], collectionName: String, partFile: String): (String, Boolean) = {
+    log.info("inside PostZipDataAPI.upload")
+    log.info(partFileMap)
     val inFile = new File(zipFile)
     log.info(zipFile)
     //    val host = partFileMap(fileName)
@@ -140,7 +164,7 @@ object PostZipDataAPI {
     builder.addPart("uploadedFile", fileBody)
     //    builder.addPart("collectionName", collectionName)
     val entity = builder.build
-    val request = new HttpPost(partFileMap(fileName))
+    val request = new HttpPost(partFileMap(partFile))
     request.setHeader("collectionName", collectionName)
     request.setEntity(entity)
     val client = HttpClientBuilder.create.build
@@ -150,21 +174,24 @@ object PostZipDataAPI {
 
       log.info(response.getStatusLine)
       log.info(responseString)
+      // ToDo
       if (response.getStatusLine.getStatusCode == 200) {
-        val path = EntityUtils.toString(response.getEntity).split(":")(1)
+        val path = responseString.split(":")(1)
         (path, true)
       } else {
         (null, false)
       }
     } catch {
       case e: Throwable =>
-        log.error(s"could not push file $fileName to host: ${partFileMap(fileName)}", e)
+        log.error(s"could not push file $fileName to host: ${partFileMap(partFile)}", e)
         (null, false)
     }
   }
 
 
   def getListOfFiles(dir: String): List[File] = {
+    log.info("inside PostZipDataAPI.getListOfFiles")
+
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
       d.listFiles.filter(_.isFile).toList
