@@ -106,11 +106,11 @@ class SolrOpsLocal(solrMap: Map[String, String]) extends SolrOps(solrMap: Map[St
         val sizeOnHdfs = getShardSizeOnHdfs(nameNode, hdfsDataLocation)
         log.info(s"shard$id on local $sizeOnLocal and size on hdfs $sizeOnHdfs")
 
-        if (Math.abs(sizeOnLocal - sizeOnHdfs) != 0) {
-          log.warn(s"size of shard$id on hdfs and local didn't match hence " +
-            s"initiating a roll back")
-          return false
-        }
+//        if (Math.abs(sizeOnLocal - sizeOnHdfs) != 0) {
+//          log.warn(s"size of shard$id on hdfs and local didn't match hence " +
+//            s"initiating a roll back")
+//          return false
+//        }
       }
     }
     true

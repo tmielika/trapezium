@@ -42,7 +42,7 @@ object SolrClusterStatus {
   def getSolrNodes(cloudClient: ZkClientClusterStateProvider): List[String] = {
     cloudClient.connect()
     log.info(s"in getSolrNodes the value of cloud client:$cloudClient ")
-    log.info(s"cloudclientObject $cloudClient")
+    log.info(s"cloudclient Object $cloudClient")
     try {
       log.info(s"liveNodes ${cloudClient.liveNodes}")
     }

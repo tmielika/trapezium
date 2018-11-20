@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.{Path, Paths}
 import java.sql.Time
 import java.util.UUID
+import javax.net.ssl.SSLContext
 
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
@@ -140,7 +141,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     for ((corename, ip) <- coreMap) {
       log.info(s"coreName:  ${corename} ip ${ip}"
       )
-      lb.append(SolrOps.unloadCore(ip, corename))
+      lb.append(SolrOps.unloadCore(ip, corename, solrMap("httpTypeSolr")))
     }
 
     log.info(coreMap)
@@ -219,6 +220,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
 object SolrOps {
   val log = Logger.getLogger(classOf[SolrOps])
+  var sslContext: SSLContext = _
 
   def apply(mode: String,
             params: Map[String, String], sparkContext: SparkContext = null): SolrOps = {
@@ -254,7 +256,13 @@ object SolrOps {
         set.foreach(p =>
           if (!params.contains(p)) {
             throw new SolrOpsException(s"Map Doesn't have ${p} map should contain ${set}")
-          })
+          }
+        )
+        sslContext = PostZipDataAPI.getSSLContext(params)
+        if(sslContext==null && params("httpType")=="https://" && params("httpTypeSolr")=="https://")
+         {
+           throw new SolrOpsException(s"sslContext could not be generated")
+         }
         new SolrOpsLocalApi(params, sparkContext)
       }
     }
@@ -265,11 +273,14 @@ object SolrOps {
   }
 
 
-  def unloadCore(node: String, coreName: String): Future[Boolean] = {
+  def unloadCore(node: String, coreName: String,
+                 httpType: String = "http://"): Future[Boolean] = {
     val unloadFuture: Future[Boolean] = Future {
       log.info("unloading core")
-      val client = HttpClientBuilder.create().build()
-      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
+
+      val client = HttpClientBuilder.create().setSslcontext(sslContext).build()
+
+      val request = new HttpGet(s"$httpType$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
       val response = client.execute(request)
       response.close()
       client.close()
@@ -321,13 +332,14 @@ object SolrOps {
   }
 
   @throws(classOf[Exception])
-  def makeHttpRequest(url: String, retry: Int = 5, printResponse: Boolean = true): String = {
+  def makeHttpRequest(url: String, retry: Int = 5,
+                      printResponse: Boolean = true): String = {
     var responseBody: String = null
     var noError = false
     var retries = 0
     try {
       do {
-        val client = HttpClientBuilder.create().build()
+        val client = HttpClientBuilder.create().setSslcontext(sslContext).build()
         val request = new HttpGet(url)
         // check for response status (should be 0)
         log.info(s"making request to url ${url}")

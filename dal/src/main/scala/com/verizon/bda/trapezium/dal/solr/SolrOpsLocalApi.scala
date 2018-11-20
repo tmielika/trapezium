@@ -13,17 +13,17 @@ class SolrOpsLocalApi(solrMap: Map[String, String], sparkContext: SparkContext)
     try {
       val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(coreMap, solrMap)
       if (isRunning) {
-        return PostZipDataAPI.postDataViaHTTP(sparkContext, solrMap, hdfsIndexFilePath,
+        PostZipDataAPI.postDataViaHTTP(sparkContext, solrMap, hdfsIndexFilePath,
           coreMap, collectionName)
       } else {
-        throw new SolrOpsException(s"could not create collection :$collectionName")
+        throw SolrOpsException(s"could not create collection :$collectionName")
       }
     }
     catch {
       case e: Exception => {
         rollBackCollections(collectionName)
         log.error(s"could not create collection ${collectionName}", e)
-        return null
+        null
       }
     }
   }

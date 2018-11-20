@@ -1,11 +1,14 @@
 package com.verizon.bda.trapezium.dal.solr
 
 import java.io.{File, IOException}
+import javax.net.ssl.SSLContext
 
+import com.oath.auth.{KeyRefresher, Utils}
 import com.verizon.bda.trapezium.dal.ZipDir
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import com.verizon.bda.trapezium.dal.lucene.LuceneShard
-import scala.collection.mutable.{Set => MSet, Map => MMap}
+
+import scala.collection.mutable.{Map => MMap, Set => MSet}
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.{HttpMultipartMode, MultipartEntityBuilder}
@@ -19,7 +22,10 @@ import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.mutable.ListBuffer
 
 object PostZipDataAPI {
-  def isApiRunningOnAllMachines(coreMap: Map[String, String], solrMap: Map[String, String]): Boolean = {
+
+
+  def isApiRunningOnAllMachines(coreMap: Map[String, String],
+                                solrMap: Map[String, String]): Boolean = {
     val solrHosts = getNodes(coreMap)
     log.info("inside PostZipDataAPI.isApiRunningOnAllMachines")
 
@@ -49,6 +55,7 @@ object PostZipDataAPI {
 
   def deleteDirectoryViaHTTP(oldCollection: String,
                              coreMap: Map[String, String], solrMap: Map[String, String]): Unit = {
+
     val solrHosts = getNodes(coreMap)
     log.info(s"inside delete deleteDirectoryViaHTTP ${solrHosts.toList}")
 
@@ -70,6 +77,8 @@ object PostZipDataAPI {
 
     val partFileMap = transformCoreMap(coreMap, solrMap)
     val partFileMapB = sc.broadcast(partFileMap)
+    val ssLContext = getSSLContext(solrMap)
+    val sslContextB = sc.broadcast(ssLContext)
     val partitionIds = sc.parallelize(partFileMapB.value.keySet.toList, sc.defaultParallelism)
     log.info(s"inside postDataViaHTTP $partFileMap")
     val operationStatusMap = RDDUtils.mapPartitionsInternal(partitionIds,
@@ -81,6 +90,7 @@ object PostZipDataAPI {
           val hdfsPath = hdfsIndexFilePath + realPartFile + "/"
           val shuffleIndexFile = new File(localDir.getAbsolutePath + realPartFile)
           val shuffleIndexPath = shuffleIndexFile.toPath
+          val sslContext = sslContextB.value
           try {
             LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
             log.info(s"Copying data from deep storage: ${hdfsPath} to local shuffle:${shuffleIndexPath}")
@@ -91,7 +101,7 @@ object PostZipDataAPI {
             log.info("After zip ****************")
             log.info(getListOfFiles(localDir.getAbsolutePath))
             val success = upload(shuffleIndexPath.toString + ".zip",
-              s"$realPartFile.zip", partFileMapB.value, collectionName, partFile)
+              s"$realPartFile.zip", partFileMapB.value, collectionName, partFile, sslContextInput = sslContext)
             log.info("After upload ****************")
             log.info(getListOfFiles(localDir.getAbsolutePath))
             (s"$partFile", success)
@@ -151,11 +161,19 @@ object PostZipDataAPI {
     partFile
   }
 
+  def getMd5(file: File): String = {
+    import java.io.FileInputStream
+    val fis = new FileInputStream(File)
+    org.apache.commons.codec.digest.DigestUtils.md5Hex(fis)
+  }
+
   def upload(zipFile: String, fileName: String,
-             partFileMap: Map[String, String], collectionName: String, partFile: String): (String, Boolean) = {
+             partFileMap: Map[String, String],
+             collectionName: String, partFile: String, sslContextInput: SSLContext = null): (String, Boolean) = {
     log.info("inside PostZipDataAPI.upload")
     log.info(partFileMap)
     val inFile = new File(zipFile)
+    val md5 = getMd5(inFile)
     log.info(zipFile)
     //    val host = partFileMap(fileName)
     val fileBody = new FileBody(inFile, ContentType.DEFAULT_BINARY, fileName)
@@ -165,9 +183,10 @@ object PostZipDataAPI {
     //    builder.addPart("collectionName", collectionName)
     val entity = builder.build
     val request = new HttpPost(partFileMap(partFile))
+    request.setHeader("md5", md5)
     request.setHeader("collectionName", collectionName)
     request.setEntity(entity)
-    val client = HttpClientBuilder.create.build
+    val client = HttpClientBuilder.create.setSslcontext(sslContextInput).build
     try {
       val response = client.execute(request)
       val responseString = EntityUtils.toString(response.getEntity, "UTF-8")
@@ -197,6 +216,26 @@ object PostZipDataAPI {
       d.listFiles.filter(_.isFile).toList
     } else {
       List[File]()
+    }
+  }
+
+
+  def getSSLContext(map: Map[String, String]): SSLContext = {
+    try {
+      val keyPath = map("keyPath")
+      val certPath = map("certPath")
+      val trustStorePath = map("trustStorePath")
+      val trustStorePassword = map("trustStorePassword")
+      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
+        certPath, keyPath)
+      // Default refresh period is every hour.
+      keyRefresher.startup()
+      // Can be adjusted to use other values in milliseconds.
+      // keyRefresher.startup(900000);
+      Utils.buildSSLContext(keyRefresher.getKeyManagerProxy(),
+        keyRefresher.getTrustManagerProxy())
+    } catch {
+      case th: Throwable => null
     }
   }
 
