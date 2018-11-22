@@ -20,7 +20,7 @@ object ShardBalancerAPI {
   val solrDeployerZnode = "/solrDeployer"
 
 
-  lazy val log = Logger.getLogger(classOf[ShardBalancer])
+  lazy val log = Logger.getLogger(this.getClass)
 
   def getDeleterReplicaUrl(solrNode: String, collection: String,
                            coreNode: String, shardId: String,

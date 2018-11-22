@@ -186,7 +186,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       hdfsPath
     }
     collectionName = s"${aliasCollectionName}_${workflowTime.getTime.toString}"
-    SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName)
+    SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName, solrMap("httpTypeSolr"))
     val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName)
     ZooKeeperClient(solrMap("zkHosts"))
     ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 1.toString.getBytes)

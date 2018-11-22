@@ -14,7 +14,7 @@ case class SolrCollectionStatus(machine: String, state: String, collectionName: 
 
 
 object SolrClusterStatus {
-  lazy val log = Logger.getLogger(SolrClusterStatus.getClass)
+  lazy val log = Logger.getLogger(this.getClass)
 
   var zkHostList: String = _
   // "listOfzookeepers"
@@ -22,10 +22,12 @@ object SolrClusterStatus {
   var collectionName: String = _
   var solrLiveNodes: List[String] = Nil
   var cloudClient: ZkClientClusterStateProvider = _
+  var solrHttpType: String = _
 
   // "zroot"
-  def apply(zkList: String, zroot: String, collection: String): Unit = {
+  def apply(zkList: String, zroot: String, collection: String, solrHttpTypeI: String = "http://"): Unit = {
     zkHostList = zkList
+    solrHttpType = solrHttpTypeI
     chroot = zroot
     collectionName = collection
     val zkHosts = zkHostList.split(",").toList.asJava
@@ -95,7 +97,7 @@ object SolrClusterStatus {
   def getOldCollectionMapped(aliasName: String): String = {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
     val oldCollectionName = try {
-      val oldAliases = getCollectionAliasMap()
+      val oldAliases = getCollectionAliasMap(solrHttpType)
       if (oldAliases != null) oldAliases.get(aliasName).get else null
     }
     catch {

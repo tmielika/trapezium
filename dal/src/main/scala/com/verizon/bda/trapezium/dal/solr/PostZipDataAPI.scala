@@ -1,12 +1,14 @@
 package com.verizon.bda.trapezium.dal.solr
 
 import java.io.{File, IOException}
+import java.nio.file.{Files, Path, Paths}
 import javax.net.ssl.SSLContext
 
 import com.oath.auth.{KeyRefresher, Utils}
 import com.verizon.bda.trapezium.dal.ZipDir
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import com.verizon.bda.trapezium.dal.lucene.LuceneShard
+import org.apache.commons.io.FileUtils
 
 import scala.collection.mutable.{Map => MMap, Set => MSet}
 import org.apache.http.client.methods.HttpPost
@@ -23,6 +25,7 @@ import scala.collection.mutable.ListBuffer
 
 object PostZipDataAPI {
 
+  lazy val log = Logger.getLogger(this.getClass)
 
   def isApiRunningOnAllMachines(coreMap: Map[String, String],
                                 solrMap: Map[String, String]): Boolean = {
@@ -66,7 +69,10 @@ object PostZipDataAPI {
     })
   }
 
-  val log = Logger.getLogger(classOf[CollectIndices])
+
+  def makeByteFromPem(file: String): Array[Byte] = {
+    Files.readAllBytes(Paths.get(file))
+  }
 
   @throws(classOf[Exception])
   def postDataViaHTTP(sc: SparkContext, solrMap: Map[String, String],
@@ -78,7 +84,17 @@ object PostZipDataAPI {
     val partFileMap = transformCoreMap(coreMap, solrMap)
     val partFileMapB = sc.broadcast(partFileMap)
     val ssLContext = getSSLContext(solrMap)
-    val sslContextB = sc.broadcast(ssLContext)
+    if (ssLContext == null) {
+      log.error("ssl context null")
+    }
+
+
+    val caCertsB = sc.broadcast(makeByteFromPem(solrMap("trustStorePath")))
+    val privateKeyB = sc.broadcast(makeByteFromPem(solrMap("keyPath")))
+    val publicKeyB = sc.broadcast(makeByteFromPem(solrMap("certPath")))
+    val trustStorePassword = solrMap("trustStorePassword")
+
+    //    val sslContextB = sc.broadcast(ssLContext)
     val partitionIds = sc.parallelize(partFileMapB.value.keySet.toList, sc.defaultParallelism)
     log.info(s"inside postDataViaHTTP $partFileMap")
     val operationStatusMap = RDDUtils.mapPartitionsInternal(partitionIds,
@@ -90,8 +106,14 @@ object PostZipDataAPI {
           val hdfsPath = hdfsIndexFilePath + realPartFile + "/"
           val shuffleIndexFile = new File(localDir.getAbsolutePath + realPartFile)
           val shuffleIndexPath = shuffleIndexFile.toPath
-          val sslContext = sslContextB.value
+
+
           try {
+            val sslContext = makeSSLContext(localDir.getAbsolutePath, caCertsB.value,
+              privateKeyB.value, publicKeyB.value, trustStorePassword)
+            if (sslContext == null) {
+              log.error("sslcontext not intialized")
+            }
             LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
             log.info(s"Copying data from deep storage: ${hdfsPath} to local shuffle:${shuffleIndexPath}")
             log.info("Before zip ****************")
@@ -163,8 +185,21 @@ object PostZipDataAPI {
 
   def getMd5(file: File): String = {
     import java.io.FileInputStream
-    val fis = new FileInputStream(File)
+    val fis = new FileInputStream(file)
     org.apache.commons.codec.digest.DigestUtils.md5Hex(fis)
+  }
+
+  def makeSSLContext(path: String, caCerts: Array[Byte],
+                     privateKey: Array[Byte], publicKey: Array[Byte], trustStorePassword: String): SSLContext = {
+    val caCertsPath = path + "/caCerts.jks"
+    val privateKeyPath = path + "/privateKey.pem"
+    val publicKeyPath = path + "/publicKey.pem"
+    log.info("caCertsPath: {}, publicKeyPath: {}, privateKeyPath:{}, trustStorePassword{}",
+      caCertsPath, publicKeyPath, privateKeyPath, trustStorePassword)
+    FileUtils.writeByteArrayToFile(new File(caCertsPath), caCerts)
+    FileUtils.writeStringToFile(new File(privateKeyPath), new String(privateKey), "UTF-8")
+    FileUtils.writeStringToFile(new File(publicKeyPath), new String(publicKey), "UTF-8")
+    createSSLContext(caCertsPath, publicKeyPath, privateKeyPath, trustStorePassword)
   }
 
   def upload(zipFile: String, fileName: String,
@@ -221,23 +256,38 @@ object PostZipDataAPI {
 
 
   def getSSLContext(map: Map[String, String]): SSLContext = {
-    try {
-      val keyPath = map("keyPath")
-      val certPath = map("certPath")
+
+      //      val caCerts = map("trustStorePath")
+      //      val privateKey = map("keyPath")
+      //      val publicKey = map("certPath")
+      val privateKey = map("keyPath")
+      val publicKey = map("certPath")
       val trustStorePath = map("trustStorePath")
       val trustStorePassword = map("trustStorePassword")
-      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
-        certPath, keyPath)
+      //                val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
+      //                    certPath, keyPath)
+      createSSLContext(trustStorePath, publicKey, privateKey, trustStorePassword)
+
+  }
+
+  def createSSLContext(caCerts: String, publicKey: String,
+                       privateKey: String, trustStorePassword: String): SSLContext = {
+    try {
+      //    val keyRefresher: KeyRefresher = Utils.generateKeyRefresherFromCaCert(caCerts, publicKey, privateKey)
+      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(caCerts, trustStorePassword,
+        publicKey, privateKey)
       // Default refresh period is every hour.
       keyRefresher.startup()
       // Can be adjusted to use other values in milliseconds.
       // keyRefresher.startup(900000);
-      Utils.buildSSLContext(keyRefresher.getKeyManagerProxy(),
+      Utils.buildSSLContext(keyRefresher.getKeyManagerProxy,
         keyRefresher.getTrustManagerProxy())
-    } catch {
-      case th: Throwable => null
+    }
+    catch {
+      case th: Throwable =>
+        log.error("sslcontext not formed", th)
+        null
     }
   }
-
 
 }
