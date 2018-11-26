@@ -11,7 +11,7 @@ import com.verizon.bda.trapezium.dal.lucene.LuceneShard
 import org.apache.commons.io.FileUtils
 
 import scala.collection.mutable.{Map => MMap, Set => MSet}
-import org.apache.http.client.methods.HttpPost
+import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.{HttpMultipartMode, MultipartEntityBuilder}
 import org.apache.http.entity.mime.content.FileBody
@@ -222,8 +222,9 @@ object PostZipDataAPI {
     request.setHeader("collectionName", collectionName)
     request.setEntity(entity)
     val client = HttpClientBuilder.create.setSslcontext(sslContextInput).build
+    var response: CloseableHttpResponse = null
     try {
-      val response = client.execute(request)
+      response = client.execute(request)
       val responseString = EntityUtils.toString(response.getEntity, "UTF-8")
 
       log.info(response.getStatusLine)
@@ -239,6 +240,9 @@ object PostZipDataAPI {
       case e: Throwable =>
         log.error(s"could not push file $fileName to host: ${partFileMap(partFile)}", e)
         (null, false)
+    } finally {
+      response.close()
+      client.close()
     }
   }
 
@@ -257,16 +261,16 @@ object PostZipDataAPI {
 
   def getSSLContext(map: Map[String, String]): SSLContext = {
 
-      //      val caCerts = map("trustStorePath")
-      //      val privateKey = map("keyPath")
-      //      val publicKey = map("certPath")
-      val privateKey = map("keyPath")
-      val publicKey = map("certPath")
-      val trustStorePath = map("trustStorePath")
-      val trustStorePassword = map("trustStorePassword")
-      //                val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
-      //                    certPath, keyPath)
-      createSSLContext(trustStorePath, publicKey, privateKey, trustStorePassword)
+    //      val caCerts = map("trustStorePath")
+    //      val privateKey = map("keyPath")
+    //      val publicKey = map("certPath")
+    val privateKey = map("keyPath")
+    val publicKey = map("certPath")
+    val trustStorePath = map("trustStorePath")
+    val trustStorePassword = map("trustStorePassword")
+    //                val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
+    //                    certPath, keyPath)
+    createSSLContext(trustStorePath, publicKey, privateKey, trustStorePassword)
 
   }
 
