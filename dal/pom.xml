@@ -21,6 +21,7 @@
 
     <dependencyManagement>
         <dependencies>
+
             <dependency>
                 <groupId>org.codehaus.janino</groupId>
                 <artifactId>commons-compiler</artifactId>
@@ -36,6 +37,16 @@
 
 
     <dependencies>
+        <dependency>
+            <groupId>com.yahoo.athenz</groupId>
+            <artifactId>athenz-zts-java-client</artifactId>
+            <version>1.7.51</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yahoo.athenz</groupId>
+            <artifactId>athenz-cert-refresher</artifactId>
+            <version>1.7.51</version>
+        </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>
             <artifactId>config</artifactId>
@@ -180,4 +191,14 @@
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
         <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     </build>
+    <repositories>
+            <repository>
+                <snapshots>
+                    <enabled>false</enabled>
+                </snapshots>
+                <id>bintray-yahoo-maven</id>
+                <name>bintrary</name>
+                <url>http://md-bdadev-3.verizon.com:8081/artifactory/bintrary</url>
+            </repository>
+    </repositories>
 </project>
