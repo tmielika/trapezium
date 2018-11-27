@@ -21,7 +21,7 @@ import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server._
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, HttpsConnectionContextBuilder}
 import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
@@ -38,6 +38,8 @@ import java.util.Properties
 import java.io.InputStream
 import java.util.Calendar
 import java.sql.Time
+
+import akka.http.scaladsl.HttpsConnectionContext
 
 /**
  * @author Pankaj on 9/1/15.
@@ -406,7 +408,16 @@ object ApplicationManager {
     if (serverConfig != null) {
       val provider = serverConfig.getString("provider")
       embeddedServer = provider match {
-        case "akka" => new AkkaServer()
+        case "akka" => {
+          val httpConfig = workflowConfig.workflowConfig
+          val enableHttps = httpConfig.getBoolean("enableHttps")
+          if (!enableHttps) {
+            new AkkaServer
+          } else {
+            val https: HttpsConnectionContext = HttpsConnectionContextBuilder.build(httpConfig)
+            new AkkaTlsServer(httpsContext = https)
+          }
+        }
         case "jetty" => new JettyServer(serverConfig)
       }
       logger.info(s"Starting $provider based Embedded HTTP Server")

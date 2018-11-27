@@ -223,20 +223,32 @@
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-experimental_${scala.binary.version}</artifactId>
-			<version>2.0.4</version>
+			<artifactId>akka-actor_${scala.binary.version}</artifactId>
+			<version>2.4.17</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-spray-json-experimental_${scala.binary.version}</artifactId>
-			<version>2.0.4</version>
+			<artifactId>akka-stream_${scala.binary.version}</artifactId>
+			<version>2.4.17</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-http-testkit-experimental_${scala.binary.version}</artifactId>
-			<version>2.0.4</version>
+			<artifactId>akka-http_${scala.binary.version}</artifactId>
+			<version>10.0.4</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-http-spray-json_${scala.binary.version}</artifactId>
+			<version>10.0.4</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-http-testkit_${scala.binary.version}</artifactId>
+			<version>10.0.4</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
