@@ -182,12 +182,10 @@ object CollectIndices {
 
     while (disksTried < rootDirs.length) {
       val root = rootDirs(tempDiskNum)
-      val command = s"touch ${root}${FileLocation}test"
-      log.info(s"verifying the disk ${root}${FileLocation}test")
-      val code = machine.runCommand(command, true, 5)
-      if (code == 0) {
-        return root
-      }
+      val command = s"touch $root${FileLocation}test"
+      log.info(s"verifying the disk $root${FileLocation}test")
+      val code = machine.runCommand(command, true)
+      if (code == 0) return root
       else {
         tempDiskNum = (tempDiskNum + 1) % rootDirs.length
         disksTried = disksTried + 1
@@ -196,7 +194,7 @@ object CollectIndices {
     }
     log.error(s"Remove the Node ${machine.session.getHost} from " +
       s"solr live nodes as there is no writable disk")
-    return null
+    null
   }
 
   def moveFilesFromHdfsToLocal(solrMap: Map[String, String],
@@ -210,10 +208,10 @@ object CollectIndices {
     val solrNodes = new ListBuffer[CollectIndices]
 
     val shards = coreMap.keySet.toArray
-    var partFileMap = MMap[(String, String), ListBuffer[String]]()
-    var outMap = MMap[String, ListBuffer[(String, String)]]()
+    val partFileMap = MMap[(String, String), ListBuffer[String]]()
+    val outMap = MMap[String, ListBuffer[(String, String)]]()
     val rootDirs = solrMap("rootDirs").split(",")
-    var rootMap = MMap[String, Int]()
+    val rootMap = MMap[String, Int]()
     for ((replicaName, host) <- coreMap) {
       val tmp = replicaName.split("_")
       val folderPrefix = solrMap("folderPrefix").stripSuffix("/")

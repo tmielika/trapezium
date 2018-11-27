@@ -50,7 +50,7 @@ object SolrRestore {
     }
     SolrClusterStatus(solrRestore.zkList, solrRestore.zroot, collection)
     val li = SolrClusterStatus.parseSolrResponse()
-      .filter(p => !(p.state.equalsIgnoreCase("active")))
+      .filter(p => !p.state.equalsIgnoreCase("active"))
     li.foreach(p => {
       SolrOps.unloadCore(p.machine, p.coreName)
     })
@@ -63,7 +63,7 @@ object SolrRestore {
         s"collection=${p.collectionName}&" +
         s"collection.configName=${p.configName}&" +
         s"name=${p.coreName}&" +
-        s"dataDir=${dataDir}&" +
+        s"dataDir=$dataDir&" +
         s"shard=${p.shard}&" +
         s"wt=json&indent=true"
     })
