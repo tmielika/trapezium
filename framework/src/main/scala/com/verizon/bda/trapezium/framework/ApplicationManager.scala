@@ -409,12 +409,11 @@ object ApplicationManager {
       val provider = serverConfig.getString("provider")
       embeddedServer = provider match {
         case "akka" => {
-          val httpConfig = workflowConfig.workflowConfig
-          val enableHttps = httpConfig.getBoolean("enableHttps")
+          val enableHttps = serverConfig.getBoolean("enableHttps")
           if (!enableHttps) {
             new AkkaServer
           } else {
-            val https: HttpsConnectionContext = HttpsConnectionContextBuilder.build(httpConfig)
+            val https: HttpsConnectionContext = HttpsConnectionContextBuilder.build(serverConfig)
             new AkkaTlsServer(httpsContext = https)
           }
         }
