@@ -95,14 +95,15 @@ object PostZipDataAPI {
     val trustStorePassword = solrMap("trustStorePassword")
 
     //    val sslContextB = sc.broadcast(ssLContext)
-    val partitionIds = sc.parallelize(partFileMapB.value.keySet.toList, sc.defaultParallelism)
+    val partitionIds = sc.parallelize(partFileMapB.value.keySet.toList, sc.defaultParallelism).repartition(sc.defaultParallelism)
     log.info(s"inside postDataViaHTTP $partFileMap")
     val operationStatusMap = RDDUtils.mapPartitionsInternal(partitionIds,
       (partFiles: Iterator[String]) => {
         partFiles.map((partFile: String) => {
           val realPartFile = partFile.split("_")(0)
           val sparkConf = new SparkConf()
-          val localDir = new File(DalUtils.getLocalDir(sparkConf))
+          val localDir = new File(DalUtils.getLocalDir(sparkConf) + s"/$collectionName$partFile")
+          localDir.mkdirs()
           val hdfsPath = hdfsIndexFilePath + realPartFile + "/"
           val shuffleIndexFile = new File(localDir.getAbsolutePath + realPartFile)
           val shuffleIndexPath = shuffleIndexFile.toPath

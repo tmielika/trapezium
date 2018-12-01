@@ -1,6 +1,5 @@
 package com.verizon.bda.trapezium.dal.util.zookeeper
 
-import org.apache.commons.io.Charsets
 import org.apache.curator.RetryPolicy
 import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry

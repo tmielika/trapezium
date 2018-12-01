@@ -24,12 +24,12 @@ object ShardBalancerAPI {
 
   def getDeleterReplicaUrl(solrNode: String, collection: String,
                            coreNode: String, shardId: String,
-                           skipCoreNode: Boolean = false): String = {
+                           skipCoreNode: Boolean = false, httpType:String="http://"): String = {
     if (skipCoreNode) {
-      s"http://$solrNode/solr/admin/collections?action=DELETEREPLICA" +
+      s"$httpType$solrNode/solr/admin/collections?action=DELETEREPLICA" +
         s"&collection=$collection&shard=$shardId&wt=json"
     } else {
-      s"http://$solrNode/solr/admin/collections?action=DELETEREPLICA" +
+      s"$httpType$solrNode/solr/admin/collections?action=DELETEREPLICA" +
         s"&collection=$collection&replica=$coreNode&shard=$shardId&wt=json"
     }
   }
