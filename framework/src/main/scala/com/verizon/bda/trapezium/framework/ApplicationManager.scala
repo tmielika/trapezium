@@ -160,10 +160,14 @@ object ApplicationManager {
     // load start up class
     initialize(appConfig)
 
+    logger.info("Done with initialize(appConfig)")
+
     // Initialize license library and licenseValidationTimeout
     if (ApplicationManager.getConfig().env != "local" ) {
       LicenseLib.init(appConfig.zookeeperList)
     }
+
+    logger.info("Done with LicenseLib.init")
 
     val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
     val runMode = workflowConfig.runMode
@@ -202,6 +206,7 @@ object ApplicationManager {
 
       }
       case "APIV2" => {
+        logger.info("Running in APIV2 mode")
         startHttpServer(workflowConfig)
       }
       case _ => logger.error("Not implemented run mode. Exiting.. {}", runMode)
@@ -411,8 +416,10 @@ object ApplicationManager {
         case "akka" => {
           val enableHttps = serverConfig.getBoolean("enableHttps")
           if (!enableHttps) {
+            logger.info("Starting in HTTP mode")
             new AkkaServer
           } else {
+            logger.info("Starting in HTTPS mode")
             val https: HttpsConnectionContext = HttpsConnectionContextBuilder.build(serverConfig)
             new AkkaTlsServer(httpsContext = https)
           }

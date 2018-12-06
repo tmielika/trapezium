@@ -79,6 +79,7 @@
         <version>${scala.version}</version>
       </dependency>
     <dependency>
+
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
       <version>3.0.0</version>
@@ -216,6 +217,12 @@
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-cert-refresher</artifactId>
+        <version>1.7.51</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
