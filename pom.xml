@@ -47,6 +47,7 @@
     <scoverage.plugin.version>1.1.1</scoverage.plugin.version>
     <hadoop.deps.scope>compile</hadoop.deps.scope>
     <parquet.deps.scope>compile</parquet.deps.scope>
+      <akka.http.version>10.0.4</akka.http.version>
     <test.java.home>${java.home}</test.java.home>
 
     <PermGen>64m</PermGen>
@@ -73,7 +74,13 @@
 		</pluginRepository>
 	</pluginRepositories>
 	<dependencies>
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>${scala.version}</version>
+      </dependency>
     <dependency>
+
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
       <version>3.0.0</version>
@@ -211,6 +218,12 @@
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-cert-refresher</artifactId>
+        <version>1.7.51</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 

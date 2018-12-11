@@ -21,7 +21,7 @@ import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server._
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.utils.{AkkaServerBuilder, ApplicationUtils, HttpsConnectionContextBuilder}
 import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
@@ -38,6 +38,8 @@ import java.util.Properties
 import java.io.InputStream
 import java.util.Calendar
 import java.sql.Time
+
+import akka.http.scaladsl.HttpsConnectionContext
 
 /**
  * @author Pankaj on 9/1/15.
@@ -158,10 +160,14 @@ object ApplicationManager {
     // load start up class
     initialize(appConfig)
 
+    logger.info("Done with initialize(appConfig)")
+
     // Initialize license library and licenseValidationTimeout
     if (ApplicationManager.getConfig().env != "local" ) {
       LicenseLib.init(appConfig.zookeeperList)
     }
+
+    logger.info("Done with LicenseLib.init")
 
     val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
     val runMode = workflowConfig.runMode
@@ -200,6 +206,7 @@ object ApplicationManager {
 
       }
       case "APIV2" => {
+        logger.info("Running in APIV2 mode")
         startHttpServer(workflowConfig)
       }
       case _ => logger.error("Not implemented run mode. Exiting.. {}", runMode)
@@ -406,7 +413,9 @@ object ApplicationManager {
     if (serverConfig != null) {
       val provider = serverConfig.getString("provider")
       embeddedServer = provider match {
-        case "akka" => new AkkaServer()
+        case "akka" => {
+          AkkaServerBuilder.build(serverConfig)
+        }
         case "jetty" => new JettyServer(serverConfig)
       }
       logger.info(s"Starting $provider based Embedded HTTP Server")

@@ -15,10 +15,10 @@
 package com.verizon.bda.trapezium.framework.server
 
 import java.net.ServerSocket
-import javax.servlet.http.HttpServlet
 
+import javax.servlet.http.HttpServlet
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{Http, HttpsConnectionContext}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
@@ -96,7 +96,7 @@ class AkkaServer extends EmbeddedServer {
     })
   }
 
-  override def start(config: Config): Unit = {
+  def prepareHostPortRoute(config: Config): (String, Int, Route) = {
     val host = config.getString("hostname")
 
     val localBindPort =
@@ -120,6 +120,12 @@ class AkkaServer extends EmbeddedServer {
     // Compose all routes defined by the verticals.
     val route = compose(routes.toList)
 
+    (host, localBindPort, route)
+  }
+
+  override def start(config: Config): Unit = {
+    val (host: String, localBindPort: Int, route: Route) = prepareHostPortRoute(config)
+
     bindingFuture = Http().bindAndHandle(route, host, localBindPort)
   }
 
@@ -129,6 +135,19 @@ class AkkaServer extends EmbeddedServer {
   }
 
   def compose(routes: List[Route]): Route = routes.reduce((r1, r2) => r1 ~ r2)
+}
+
+class AkkaTlsServer(httpsContext: HttpsConnectionContext) extends AkkaServer {
+
+  require(httpsContext != null, "TLS ConnectionContext required!")
+
+  override def start(config: Config): Unit = {
+    val (host: String, localBindPort: Int, route: Route) = prepareHostPortRoute(config)
+
+    Http().setDefaultServerHttpContext(httpsContext)
+    logger.info(s"running in HttpsContext")
+    bindingFuture = Http().bindAndHandle(route, host, localBindPort, connectionContext = httpsContext)
+  }
 }
 
 class JettyServer(val serverConfig: Config) extends EmbeddedServer {
