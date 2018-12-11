@@ -5,8 +5,25 @@ import java.security.{KeyStore, SecureRandom}
 import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
 import com.oath.auth.{KeyRefresher, Utils}
 import com.typesafe.config.Config
+import com.verizon.bda.trapezium.framework.server.{AkkaServer, AkkaTlsServer, EmbeddedServer}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 import org.apache.log4j.Logger
+
+object AkkaServerBuilder {
+  lazy val log = Logger.getLogger(this.getClass)
+  def build(serverConfig: Config): EmbeddedServer = {
+    val enableHttps = serverConfig.getBoolean("enableHttps")
+    if (!enableHttps) {
+      log.info("Starting in HTTP mode")
+      new AkkaServer
+    }
+    else {
+      log.info("Starting in HTTPS mode")
+      val https: HttpsConnectionContext = HttpsConnectionContextBuilder.build(serverConfig)
+      new AkkaTlsServer(httpsContext = https)
+    }
+  }
+}
 
 object HttpsConnectionContextBuilder {
   lazy val log = Logger.getLogger(this.getClass)
