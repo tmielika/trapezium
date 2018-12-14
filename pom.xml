@@ -5,7 +5,7 @@
   <groupId>com.verizon.bda</groupId>
   <artifactId>trapezium-parent</artifactId>
   <!--NOTE: While changing the version Also update the property trapezium.version below in the properties  -->
-  <version>1.3.3</version>
+  <version>1.3.3-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Verizon BDA Trapezium Parent POM</name>
   <prerequisites>
@@ -26,7 +26,7 @@
   </modules>
   
   <properties>
-    <trapezium.version>1.3.3</trapezium.version>
+    <trapezium.version>1.3.3-SNAPSHOT</trapezium.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>
