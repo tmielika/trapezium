@@ -15,6 +15,7 @@
 
 package com.verizon.bda.trapezium.framework.handler
 
+import java.io.File
 import java.net.URI
 import java.nio.file.Paths
 import java.sql.Time
@@ -205,14 +206,13 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
         val hdfsPath: Path = new Path(dataDir)
         val fileStatus: Array[FileStatus] = fileSystem.globStatus(hdfsPath)
 
-        val basePath = Paths.get(dataDir)
-        val basePath1 = basePath.getParent.toFile.getAbsolutePath
+        val basePath = new File(dataDir).getParent
         if (fileStatus != null) {
           fileStatus.foreach { file => {
             val fileType: String = file.getPath.getName
             if (fileType != null) {
               if (file.isDirectory) {
-                df = sparkSession.read.option("basePath", basePath1).parquet(input: _*)
+                df = sparkSession.read.option("basePath", basePath).parquet(input: _*)
               } else {
                 df = sparkSession.read.parquet(input: _*)
               }
@@ -220,7 +220,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             }
           }
         } else {
-          df = sparkSession.read.option("basePath", basePath1).parquet(input: _*)
+          df = sparkSession.read.option("basePath", basePath).parquet(input: _*)
         }
         dataMap += ((name, df))
       }
