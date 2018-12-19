@@ -24,7 +24,7 @@ object ShardBalancerAPI {
 
   def getDeleterReplicaUrl(solrNode: String, collection: String,
                            coreNode: String, shardId: String,
-                           skipCoreNode: Boolean = false, httpType:String="http://"): String = {
+                           skipCoreNode: Boolean = false, httpType: String = "http://"): String = {
     if (skipCoreNode) {
       s"$httpType$solrNode/solr/admin/collections?action=DELETEREPLICA" +
         s"&collection=$collection&shard=$shardId&wt=json"
@@ -175,8 +175,9 @@ object ShardBalancerAPI {
       val deployerUsage = ZooKeeperClient.getData(s"$solrDeployerZnode/isRunning")
       ZooKeeperClient.close()
       if (deployerUsage.toInt != 1) {
-        SolrClusterStatus(zkList, zroot, "")
-        val aliasMap = SolrClusterStatus.getCollectionAliasMap()
+        val httpTypeSolr = config.getString("solr.httpTypeSolr")
+        SolrClusterStatus(zkList, zroot, "", httpTypeSolr)
+        val aliasMap = SolrClusterStatus.getCollectionAliasMap(httpTypeSolr)
         if (aliasMap.keySet.isEmpty) {
           throw new Exception("no aliases found")
         }
