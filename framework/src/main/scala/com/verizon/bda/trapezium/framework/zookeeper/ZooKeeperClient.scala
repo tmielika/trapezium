@@ -1,10 +1,13 @@
-package com.verizon.bda.trapezium.dal.util.zookeeper
+package com.verizon.bda.trapezium.framework.zookeeper
 
 import org.apache.curator.RetryPolicy
-import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
+import org.apache.curator.framework.{CuratorFrameworkFactory, CuratorFramework}
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.curator.utils.CloseableUtils
 
+/**
+ * Created by parmana on 12/20/18.
+ */
 object ZooKeeperClient {
   var curatorFramework: CuratorFramework = _
 
@@ -12,7 +15,7 @@ object ZooKeeperClient {
             sessionTimeoutInMillis: Int = 6000): Unit = {
     val retryPolicy = new ExponentialBackoffRetry(1000, 10)
     curatorFramework = init(quorum, connectionTimeoutInMillis, sessionTimeoutInMillis, retryPolicy)
-//    curatorFramework.getZookeeperClient.getZooKeeper
+    //    curatorFramework.getZookeeperClient.getZooKeeper
   }
 
   def create(znode: String): Unit = {
@@ -72,11 +75,4 @@ object ZooKeeperClient {
     client
   }
 
-  def main(args: Array[String]): Unit = {
-    ZooKeeperClient("istgbd019.verizon.com:2181," +
-      "istgbd018.verizon.com:2181,istgbd017.verizon.com:2181")
-    ZooKeeperClient.setData("/test11/test111", "hello world1".getBytes)
-    //    println(ZooKeeperClient.delete("/test11"))
-    //    println()
-  }
 }

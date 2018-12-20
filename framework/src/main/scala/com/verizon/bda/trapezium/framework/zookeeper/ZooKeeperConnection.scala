@@ -13,7 +13,6 @@
 * limitations under the License.
 */
 package com.verizon.bda.trapezium.framework.zookeeper
-
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.apache.zookeeper.ZooKeeper
 import org.apache.zookeeper.ZooKeeper.States
@@ -59,7 +58,9 @@ private[framework] object ZooKeeperConnection {
             }
           } else {
 
-            zkcTemp = new ZooKeeper(zookeeperList, 30 * 60 * 1000, ZooKeeperWatcher)
+            ZooKeeperClient(zookeeperList)
+            zkcTemp= ZooKeeperClient.curatorFramework.getZookeeperClient.getZooKeeper
+           // zkcTemp = new ZooKeeper(zookeeperList, 30 * 60 * 1000, ZooKeeperWatcher)
 
           }
 
@@ -73,13 +74,14 @@ private[framework] object ZooKeeperConnection {
       logger.info(s"Reusing ZooKeeper connection and state is ${zkc.getState.name}")
     }
     zkc
+
   }
 
   def close: Unit = {
 
     if (zkc != null && zkc.getState.equals(States.CONNECTED)){
 
-      zkc.close()
+     zkc.close()
     }
 
   }
