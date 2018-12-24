@@ -9,7 +9,10 @@ import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index._
 import org.apache.lucene.search.{Query, ScoreDoc, TopDocs}
 import org.apache.lucene.store.MMapDirectory
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.util.DalUtils
+import com.verizon.bda.trapezium.dal.lucene.LuceneDAO.{PREFIX, SUFFIX, INDEX_PREFIX}
 
 
 /**
@@ -31,8 +34,8 @@ class LuceneShard(hdfsPath: String,
     analyzerStr)
 
 
-  private def createLocalLuceneShard(indexPath: String, preload: Boolean,converter: OLAPConverter,
-                                     analyzerStr: String ) : LocalLuceneShard = {
+  private def createLocalLuceneShard(indexPath: String, preload: Boolean, converter: OLAPConverter,
+                                     analyzerStr: String) : LocalLuceneShard = {
     val directory = new MMapDirectory(new File(indexPath).toPath)
     directory.setPreload(preload)
     val reader = DirectoryReader.open(directory)
@@ -42,11 +45,34 @@ class LuceneShard(hdfsPath: String,
 
 
   override def searchDocs(queryStr: String, sample: Double): util.BitSet = {
-    luceneShard.searchDocs(queryStr,sample)
+    if (luceneShard == null){
+      LuceneShard.getLogger.info(s"Search indexPath:${new File(indexPath).exists()}:${hdfsPath}:${indexPath}")
+      if(!new File(indexPath).exists()) {
+        LuceneShard.getLogger.info(s"Search LuceneShard construction: Copying the hdfs file to local from ${hdfsPath}")
+        LuceneShard.copyToLocal(hdfsPath, indexPath.toString)
+      }
+      /* else {
+        LuceneShard.getLogger.info(s"Search LuceneShard construction: indexPath exists ${hdfsPath}")
+        val sparkConf = new SparkConf()
+        val s1 = hdfsPath.substring(hdfsPath.indexOf(SUFFIX))
+        val s2 = s1.substring(0, s1.indexOf("/"))
+        val index = s2.substring(s2.indexOf("-") + 1)
+        val localDir = new File(DalUtils.getLocalDir(sparkConf) + "/" + SUFFIX + index)
+        // Open a directory on Standalone/YARN/Mesos disk cache
+        val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
+        indexPath = shuffleIndexFile.toPath.toString
+
+        LuceneShard.getLogger.info(s"Search LuceneShard construction: copy to local ${localDir}")
+        LuceneShard.copyToLocal(hdfsPath, indexPath.toString)
+      } */
+      luceneShard = createLocalLuceneShard(indexPath, preload, converter, analyzerStr)
+      LuceneShard.getLogger.info(s"Search Created the lucene shard ${hdfsPath} -> ${luceneShard}")
+    }
+    luceneShard.searchDocs(queryStr, sample)
   }
 
   override def searchDocsWithRelevance(queryStr: String, sample: Double): Array[ScoreDoc] = {
-    luceneShard.searchDocsWithRelevance(queryStr,sample)
+    luceneShard.searchDocsWithRelevance(queryStr, sample)
   }
 
   override def search(queryStr: String, columns: Seq[String], sample: Double): Iterator[Row] = {
@@ -58,19 +84,21 @@ class LuceneShard(hdfsPath: String,
   }
 
   override def aggregate(queryStr: String, measure: String, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.aggregate(queryStr,measure,agg)
+    luceneShard.aggregate(queryStr, measure, agg)
   }
 
   override def facet(queryStr: String, dimension: String, dimOffset: Int, agg: OLAPAggregator): OLAPAggregator = {
     luceneShard.facet(queryStr , dimension , dimOffset , agg)
   }
 
-  override def group(queryStr: String, dimension: String, dimOffset: Int, measure: String, minTime: Long, maxTime: Long, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.group(queryStr , dimension , dimOffset , measure , minTime , maxTime , agg)
+  override def group(queryStr: String, dimension: String, dimOffset: Int, measure: String,
+                     minTime: Long, maxTime: Long, agg: OLAPAggregator): OLAPAggregator = {
+    luceneShard.group(queryStr, dimension, dimOffset, measure, minTime, maxTime, agg)
   }
 
-  override def timeseries(queryStr: String, minTime: Long, maxTime: Long, rollup: Long, measure: String, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.timeseries(queryStr , minTime , maxTime , rollup , measure , agg)
+  override def timeseries(queryStr: String, minTime: Long, maxTime: Long, rollup: Long, measure: String,
+                          agg: OLAPAggregator): OLAPAggregator = {
+    luceneShard.timeseries(queryStr, minTime, maxTime, rollup, measure, agg)
   }
 
   def count(query: String): Long = {
@@ -86,12 +114,12 @@ class LuceneShard(hdfsPath: String,
   }
 
   def search(query: String, n: Int) : TopDocs = {
-    luceneShard.search(parseQuery(query),n)
+    luceneShard.search(parseQuery(query), n)
   }
 
 
   /** Used by the JVM when serializing this object. */
-  private def writeObject(out: ObjectOutputStream): Unit =  {
+  private def writeObject(out: ObjectOutputStream): Unit = {
     out.defaultWriteObject()
   }
 
@@ -111,7 +139,7 @@ class LuceneShard(hdfsPath: String,
     }
 
     LuceneShard.getLogger.info("Creating the lucene shard")
-    luceneShard = createLocalLuceneShard(indexPath,preload, converter, analyzerStr)
+    luceneShard = createLocalLuceneShard(indexPath, preload, converter, analyzerStr)
   }
 
 
@@ -122,7 +150,7 @@ object LuceneShard {
   @transient var log : Logger = null
 
   def getLogger : Logger = {
-    if(log == null) log = Logger.getLogger( classOf[LuceneShard] )
+    if (log == null) log = Logger.getLogger( classOf[LuceneShard] )
     log
   }
 
@@ -134,7 +162,7 @@ object LuceneShard {
     new LuceneShard(hdfsPath, path, preload, converter, analyzer)
   }
 
-  def copyToLocal(hdfsPath:String,indexPath:String):Unit = {
+  def copyToLocal(hdfsPath: String, indexPath: String): Unit = {
     val conf = new org.apache.hadoop.conf.Configuration
     FileSystem.get(conf).copyToLocalFile(false,
       new HadoopPath(hdfsPath),
