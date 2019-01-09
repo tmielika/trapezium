@@ -110,7 +110,7 @@ object ShardBalancerAPI {
             log.info(s"node to be used for $replicaName is" +
               s" ${solrLiveNodes(count)} from $solrLiveNodes")
             nodeSet.add(nodeName)
-            val deleteUrl = getDeleterReplicaUrl(solrNode, collection, coreNodeName, shardId)
+            val deleteUrl = getDeleterReplicaUrl(solrNode, collection, coreNodeName, shardId, httpType = httpType)
             lb.append(deleteUrl)
           }
           else {
@@ -123,7 +123,6 @@ object ShardBalancerAPI {
     FailureShardInfomation(lb.toList, coreMap.toMap, collectionConfig,
       nodeSet.toList.sorted.mkString(","))
   }
-
 
 
   case class ShardBalancer(configDir: String = null, configFile: String = null,
@@ -245,8 +244,8 @@ object ShardBalancerAPI {
               (collectionFailurecount + "").getBytes())
             log.info(s"Number of times Solr Collection failed is $collectionFailurecount")
 
-            val indexLocation = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
-              s"$aliasCollection/indicesPath")
+            //            val indexLocation = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
+            //              s"$aliasCollection/indicesPath")
             val hdfsIndexFilePath = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
               s"$aliasCollection/hdfsPath")
             ZooKeeperClient.close()
