@@ -4,15 +4,17 @@ import java.io.File
 import java.util
 
 import com.typesafe.config.{Config, ConfigFactory}
+import com.verizon.bda.trapezium.dal.JsonConverter
 import com.verizon.bda.trapezium.dal.solr._
 import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
 import org.apache.log4j.Logger
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
-import org.json.JSONObject
+import org.json.{JSONException, JSONObject}
 import scopt.OptionParser
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
@@ -37,15 +39,15 @@ object ShardBalancerAPI {
   case class FailureShardInfomation(deleteUrls: List[String], coreMap: Map[String, String],
                                     configName: String, failureNodes: String)
 
-  def collectAllFailureNodes(collection: String, failureRepeat: Int):
+  def collectAllFailureNodes(collection: String, failureRepeat: Int, httpType: String = "http://"):
   FailureShardInfomation = {
-    val collectionJson = new JSONObject(SolrClusterStatus.getClusterStatus(collection))
+    val collectionJson = new JSONObject(SolrClusterStatus.getClusterStatus(collection, httpTypeSolr = httpType))
       .getJSONObject("cluster")
       .getJSONObject("collections")
       .getJSONObject(collection)
     val collectionConfig = collectionJson.getString("configName")
-    val shardMap = collectionJson.getJSONObject("shards")
-      .toMap.asScala.toMap
+    val shardMap = JsonConverter.toMap(collectionJson.getJSONObject("shards")
+    ).asScala.toMap
     val solrLiveNodes = SolrClusterStatus.solrLiveNodes
     val coreMap = scala.collection.mutable.Map[String, String]()
     val lb = new ListBuffer[String]
@@ -122,6 +124,8 @@ object ShardBalancerAPI {
       nodeSet.toList.sorted.mkString(","))
   }
 
+
+
   case class ShardBalancer(configDir: String = null, configFile: String = null,
                            waitInMins: Int = 0, collections: String = null)
 
@@ -151,6 +155,31 @@ object ShardBalancerAPI {
     }
   }
 
+
+  def buildMap(config: Config): Map[String, String] = {
+    Map(
+      "appName" -> "solr_ha",
+      "zkHosts" -> config.getString("solr.zkhosts"),
+      "nameNode" -> config.getString("solr.nameNode"),
+      "folderPrefix" -> config.getString("solr.index_folder_prefix"),
+      "zroot" -> config.getString("solr.zroot"),
+      "solrConfig" -> "",
+      "replicationFactor" -> "1",
+      "uploadEndPoint" -> config.getString("solr.uploadEndPoint"),
+      "deleteEndPoint" -> config.getString("solr.deleteEndPoint"),
+      "testEndPoint" -> config.getString("solr.testEndPoint"),
+      "uploadServicePort" -> config.getString("solr.uploadServicePort"),
+      "httpType" -> config.getString("solr.httpType"),
+      "httpTypeSolr" -> config.getString("solr.httpTypeSolr"),
+      "numHTTPTasks" -> config.getString("solr.httpTasks"),
+      "keyPath" -> config.getString("solr.keyPath"),
+      "certPath" -> config.getString("solr.certPath"),
+      "trustStorePath" -> config.getString("solr.trustStorePath"),
+      "trustStorePassword" -> config.getString("solr.trustStorePassword")
+    )
+
+  }
+
   def main(args: Array[String]): Unit = {
     val parser = inputParser()
     while (true) {
@@ -163,6 +192,10 @@ object ShardBalancerAPI {
       val config: Config = readConfigs(configDir, configFile)
       val zkList = config.getString("solr.zkhosts")
       val zroot = config.getString("solr.zroot")
+      // ToDo remove this log
+      log.info(config.toString)
+      val essentialMap = buildMap(config)
+      SolrOps("local_api", essentialMap)
       haStart(zkList, zroot, config, collections, spark.sparkContext)
       Thread.sleep(1000L * 60 * shardBalancer.waitInMins)
     }
@@ -175,6 +208,7 @@ object ShardBalancerAPI {
       val deployerUsage = ZooKeeperClient.getData(s"$solrDeployerZnode/isRunning")
       ZooKeeperClient.close()
       if (deployerUsage.toInt != 1) {
+
         val httpTypeSolr = config.getString("solr.httpTypeSolr")
         SolrClusterStatus(zkList, zroot, "", httpTypeSolr)
         val aliasMap = SolrClusterStatus.getCollectionAliasMap(httpTypeSolr)
@@ -190,7 +224,7 @@ object ShardBalancerAPI {
           var collectionFailurecount = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
             s"$aliasCollection/collectionFailurecount").toInt
           collectionFailurecount = collectionFailurecount + 1
-          val failureShards = collectAllFailureNodes(collection, collectionFailurecount)
+          val failureShards = collectAllFailureNodes(collection, collectionFailurecount, httpTypeSolr)
           val actualLiveNodes = ZooKeeperClient.getData(s"$solrDeployerZnode/" +
             s"$aliasCollection/assignedLiveNodes").toDouble
           val allowedFailure = config.getInt("solr.clusterCapacity") * 0.01
@@ -220,21 +254,21 @@ object ShardBalancerAPI {
             val deleteReplicaUrls = failureShards.deleteUrls
             SolrOps.makeHttpRequests(deleteReplicaUrls)
 
-            val folderPrefix = config.getString("solr.index_folder_prefix")
-            val uploadServicePort = config.getString("solr.uploadServicePort")
-            val httpType = config.getString("solr.httpType")
-            val uploadEndPoint = config.getString("solr.uploadEndPoint")
-            val httpTypeSolr = config.getString("solr.httpTypeSolr")
+            //            val folderPrefix = config.getString("solr.index_folder_prefix")
+            //            val uploadServicePort = config.getString("solr.uploadServicePort")
+            //            val httpType = config.getString("solr.httpType")
+            //            val uploadEndPoint = config.getString("solr.uploadEndPoint")
+            //            val httpTypeSolr = config.getString("solr.httpTypeSolr")
 
-            val solrMap = Map(
-              "folderPrefix" -> folderPrefix,
-              "storageDir" -> indexLocation.concat("/"),
-              "appName" -> "",
-              "uploadServicePort" -> uploadServicePort,
-              "httpType" -> httpType,
-              "uploadEndPoint" -> uploadEndPoint,
-              "httpTypeSolr" -> httpTypeSolr
-            )
+            //            val solrMap = Map(
+            //              "folderPrefix" -> folderPrefix,
+            //              "storageDir" -> indexLocation.concat("/"),
+            //              "appName" -> "",
+            //              "uploadServicePort" -> uploadServicePort,
+            //              "httpType" -> httpType,
+            //              "uploadEndPoint" -> uploadEndPoint,
+            //              "httpTypeSolr" -> httpTypeSolr
+            //            )
 
             //            val ipShardMap = CollectIndices.moveFilesFromHdfsToLocal(
             //              solrMap,
@@ -245,15 +279,16 @@ object ShardBalancerAPI {
             //            sol.hdfsIndexFilePath = hdfsIndexFilePath
             //            sol.createCoresOnSolr(ipShardMap, collection,
             //              failureShards.configName)
+            val essentialMap = buildMap(config)
 
-            val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(failureShards.coreMap, solrMap)
+            val isRunning = PostZipDataAPI.isApiRunningOnAllMachines(failureShards.coreMap, essentialMap)
             require(isRunning, "all the Api nodes are not running")
             // moved data to the location on solr
             val ipShardMap =
-              PostZipDataAPI.postDataViaHTTP(sparkContext, solrMap, hdfsIndexFilePath,
+              PostZipDataAPI.postDataViaHTTP(sparkContext, essentialMap, hdfsIndexFilePath,
                 failureShards.coreMap, collection)
 
-            val sol = new SolrOpsLocalApi(solrMap, sparkContext)
+            val sol = new SolrOpsLocalApi(buildMap(config), sparkContext)
             sol.hdfsIndexFilePath = hdfsIndexFilePath
             sol.createCoresOnSolr(ipShardMap, collection,
               failureShards.configName)
