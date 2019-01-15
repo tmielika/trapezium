@@ -96,7 +96,14 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
     if (useAsync) {
       SolrOps.makeHttpRequest(deleteCollectionUrl + s"&async=$asyncId")
-      requestPolling(asyncId)
+      try {
+        requestPolling(asyncId)
+      } catch {
+        case se: SolrOpsException => {
+          log.warn(se.getMessage)
+          SolrOps.makeHttpRequest(deleteCollectionUrl)
+        }
+      }
     } else {
       SolrOps.makeHttpRequest(deleteCollectionUrl)
     }
@@ -131,10 +138,16 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       s"replicationFactor=$replicationFactor&" +
       s"maxShardsPerNode=$maxShardsPerNode" +
       s"&collection.configName=$configName&" +
-      s"router.name=compositeId&async=$asyncId"
+      s"router.name=compositeId"
 
-    SolrOps.makeHttpRequest(createCollectionUrl)
-
+    SolrOps.makeHttpRequest(createCollectionUrl + s"&async=$asyncId")
+    try {
+      requestPolling(asyncId)
+    } catch {
+      case se: SolrOpsException =>
+        log.warn(se.getMessage)
+        SolrOps.makeHttpRequest(createCollectionUrl, 5, true)
+    }
     requestPolling(asyncId)
     val solrReponse = SolrClusterStatus.parseSolrResponse(httpTypeSolr)
     coreMap = solrReponse.map(p => (p.coreName, p.machine)).toMap
@@ -163,6 +176,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   }
 
+  @throws(classOf[Exception])
   def requestPolling(asyncId: String): Unit = {
     log.info(s"polling on request for asyncId: ${asyncId}")
 
@@ -203,6 +217,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   }
 
+  @throws(classOf[Exception])
   def isReqComplete(asyncId: String): Boolean = {
     val url = getSolrCollectionUrl()
     val asyncUrl = s"$url?action=REQUESTSTATUS&requestid=$asyncId&wt=json"
@@ -210,6 +225,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val objectMapper = new ObjectMapper()
     val jsonNode = objectMapper.readTree(response)
     val asyncState = jsonNode.get("status").get("state").asText()
+    if (!asyncState.equalsIgnoreCase("failed")) {
+      throw SolrOpsException(s"async state for $asyncId failed there might be problem solr." +
+        s"So trying with out async")
+    }
     log.info(s"async state for $asyncId is $asyncState")
     log.info(response)
     asyncState.equalsIgnoreCase("completed")
@@ -259,10 +278,9 @@ object SolrOps {
           }
         )
         sslContext = PostZipDataAPI.getSSLContext(params)
-        if(sslContext==null && params("httpType")=="https://" && params("httpTypeSolr")=="https://")
-         {
-           throw new SolrOpsException(s"sslContext could not be generated")
-         }
+        if (sslContext == null && params("httpType") == "https://" && params("httpTypeSolr") == "https://") {
+          throw new SolrOpsException(s"sslContext could not be generated")
+        }
         new SolrOpsLocalApi(params, sparkContext)
       }
     }
