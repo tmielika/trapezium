@@ -225,7 +225,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val objectMapper = new ObjectMapper()
     val jsonNode = objectMapper.readTree(response)
     val asyncState = jsonNode.get("status").get("state").asText()
-    if (!asyncState.equalsIgnoreCase("failed")) {
+    if (asyncState.equalsIgnoreCase("failed")) {
       throw SolrOpsException(s"async state for $asyncId failed there might be problem solr." +
         s"So trying with out async")
     }
