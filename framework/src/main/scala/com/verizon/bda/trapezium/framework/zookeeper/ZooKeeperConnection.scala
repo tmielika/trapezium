@@ -57,11 +57,17 @@ private[framework] object ZooKeeperConnection {
               }
             }
           } else {
+            try {
 
-            ZooKeeperClient(zookeeperList)
-            zkcTemp= ZooKeeperClient.curatorFramework.getZookeeperClient.getZooKeeper
-           // zkcTemp = new ZooKeeper(zookeeperList, 30 * 60 * 1000, ZooKeeperWatcher)
-
+              ZooKeeperClient(zookeeperList)
+              zkcTemp = ZooKeeperClient.curatorFramework.getZookeeperClient.getZooKeeper
+             // zkcTemp = new ZooKeeper(zookeeperList, 30 * 60 * 1000, ZooKeeperWatcher)
+            } catch {
+              case e : Exception => {
+                logger.error(s"Exception while creating zookeeper ${e.getMessage}")
+                throw new Exception(e)
+              }
+            }
           }
 
           // This reassignment is needed to assign ZooKeeper connection after the sleep

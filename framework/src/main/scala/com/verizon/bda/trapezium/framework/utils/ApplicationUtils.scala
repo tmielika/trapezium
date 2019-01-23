@@ -1,17 +1,17 @@
 /**
-* Copyright (C) 2016 Verizon. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+  * Copyright (C) 2016 Verizon. All Rights Reserved.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.verizon.bda.trapezium.framework.utils
 
 import java.io.FileNotFoundException
@@ -39,7 +39,7 @@ private[framework] object ApplicationUtils {
   val lastSynchronizationTime: String = "lastSynchronizationTime"
   val zkPrefix: String = "/bda/apps/"
   val registerHostName = "driverHostName"
-  var trapeziumEnv : String = null
+  var trapeziumEnv: String = null
 
   val env = try {
     trapeziumEnv = System.getProperties.getProperty("trapezium.clustername")
@@ -88,8 +88,8 @@ private[framework] object ApplicationUtils {
     workflowClassObj
   }
 
-  def  getWorkflowClass(workflowClassName: String,
-                       tempDir: String): ApplicationTransaction = synchronized{
+  def getWorkflowClass(workflowClassName: String,
+                       tempDir: String): ApplicationTransaction = synchronized {
 
     // Use reflection in scala to get Singleton instance of workflow classes
     val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
@@ -112,9 +112,9 @@ private[framework] object ApplicationUtils {
 
     try {
 
-      val dependentWorkflowTime = getSyncWorkflowWorkflowTime( appConfig, workflowConfig)
+      val dependentWorkflowTime = getSyncWorkflowWorkflowTime(appConfig, workflowConfig)
 
-      val currentWorkflowTime = getCurrentWorkflowTime( appConfig, workflowConfig )
+      val currentWorkflowTime = getCurrentWorkflowTime(appConfig, workflowConfig)
 
       logger.info(s"LastSuccessfulAccess for current workflow $currentWorkflowTime")
 
@@ -124,8 +124,8 @@ private[framework] object ApplicationUtils {
 
         minRememberDuration =
           (System.currentTimeMillis() - dependentWorkflowTime.get) / 1000
-            // commented as per CS-507
-            // Math.min(dependentWorkflowTime.get, currentWorkflowTime)) / 1000
+        // commented as per CS-507
+        // Math.min(dependentWorkflowTime.get, currentWorkflowTime)) / 1000
       } else {
 
         minRememberDuration = (System.currentTimeMillis() - currentWorkflowTime) / 1000
@@ -136,7 +136,7 @@ private[framework] object ApplicationUtils {
       case ex: Throwable => {
 
         // expected to get exception in local mode
-        if ( appConfig.env != "local") {
+        if (appConfig.env != "local") {
           logger.error("ZooKeeperException {}", ex.getMessage)
         }
 
@@ -159,30 +159,28 @@ private[framework] object ApplicationUtils {
 
   def updateSynchronizationTime(workflowName: String,
                                 timeStamp: Long,
-                                zookeeperList: String ): Unit = {
+                                zookeeperList: String): Unit = {
 
     val key = s"/${workflowName}/${lastSynchronizationTime}"
     updateZookeeperValue(key, timeStamp.toString, zookeeperList)
   }
 
   def registerHostName(workflowName: String,
-                                hostName: String,
-                                zookeeperList: String ): Unit = {
+                       hostName: String,
+                       zookeeperList: String): Unit = {
 
     val key = s"/${workflowName}/${registerHostName}"
     updateZookeeperValue(key, hostName, zookeeperList)
   }
 
 
-
   def updateCurrentWorkflowTime(workflowName: String,
                                 timeStamp: Long,
-                                zookeeperList: String ): Unit = {
+                                zookeeperList: String): Unit = {
 
     val key = s"/${workflowName}/${lastSuccessfulAccess}"
     updateZookeeperValue(key, timeStamp.toString, zookeeperList)
   }
-
 
 
   def updateZookeeperValue(zkNode: String,
@@ -192,16 +190,17 @@ private[framework] object ApplicationUtils {
     val zk = ZooKeeperConnection.create(zookeeperList)
 
     val modified_zkNode = modifyKey(zkNode, appPrefix)
-    updateZkValue(modified_zkNode, value, zookeeperList )
+    updateZkValue(modified_zkNode, value, zookeeperList)
   }
 
 
   def updateZkValue(zkKey: String,
-                           value: String,
-                           zookeeperList: String
-                           ): Unit = {
+                    value: String,
+                    zookeeperList: String
+                   ): Unit = {
     val zk = ZooKeeperConnection.create(zookeeperList)
     try {
+
       checkPath(zk, zkKey)
 
       logger.info(s"Update $zkKey ${value}")
@@ -211,6 +210,7 @@ private[framework] object ApplicationUtils {
 
       case ex: Throwable => {
         logger.error("ZooKeeperException {}", ex.getMessage)
+        ex.printStackTrace()
         throw new Exception(ex)
 
       }
@@ -219,7 +219,7 @@ private[framework] object ApplicationUtils {
 
   }
 
-  def getZKOffset(workflowConfig : WorkflowConfig, appConfig : ApplicationConfig) : Long = {
+  def getZKOffset(workflowConfig: WorkflowConfig, appConfig: ApplicationConfig): Long = {
     val zkpath = ApplicationUtils.
       getCurrentWorkflowKafkaPath(appConfig, workflowConfig.workflow, workflowConfig)
     val sb = new StringBuilder(zkpath).append("/").append(0).toString()
@@ -258,7 +258,7 @@ private[framework] object ApplicationUtils {
   }
 
   def getSyncWorkflowWorkflowTime(appConfig: ApplicationConfig,
-                               workflowConfig: WorkflowConfig): Option[Long] = {
+                                  workflowConfig: WorkflowConfig): Option[Long] = {
 
     if (workflowConfig.syncWorkflow != null) {
 
@@ -277,33 +277,32 @@ private[framework] object ApplicationUtils {
     getLongValFromZk(zkNode, appConfig)
   }
 
-   def getLongValFromZk(zkNode: String, appConfig: ApplicationConfig): Long = {
+  def getLongValFromZk(zkNode: String, appConfig: ApplicationConfig): Long = {
 
     val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
 
-    if ( workflowTimeZk != null) {
+    if (workflowTimeZk != null) {
 
       workflowTimeZk.toLong
     } else {
       val currentTime = System.currentTimeMillis
-      updateZookeeperValue(zkNode, currentTime, appConfig.zookeeperList )
+      updateZookeeperValue(zkNode, currentTime, appConfig.zookeeperList)
       currentTime
     }
 
   }
 
 
-
   def getOffsetZk(zkNode: String, appConfig: ApplicationConfig): Long = {
 
     val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
 
-    if ( workflowTimeZk != null) {
+    if (workflowTimeZk != null) {
 
       workflowTimeZk.toLong
     } else {
 
-      updateZookeeperValue(zkNode, 0L, appConfig.zookeeperList )
+      updateZookeeperValue(zkNode, 0L, appConfig.zookeeperList)
       0L
     }
 
@@ -314,16 +313,16 @@ private[framework] object ApplicationUtils {
 
     val workflowTimeZk = getValFromZk(zkNode, appConfig.zookeeperList)
 
-    if ( workflowTimeZk != null) {
+    if (workflowTimeZk != null) {
 
       workflowTimeZk.toLong
     } else {
-     0
+      0
     }
 
   }
 
-  def getValFromZk(zkNode: String, zookeeperList : String, appPrefix: String = null) : String = {
+  def getValFromZk(zkNode: String, zookeeperList: String, appPrefix: String = null): String = {
     var valZK: String = null
     val zk = ZooKeeperConnection.create(zookeeperList)
 
@@ -345,14 +344,14 @@ private[framework] object ApplicationUtils {
     } catch {
       case ex: Throwable => {
         logger.error("ZooKeeperException {}", ex.getMessage)
-         throw ex
+        throw ex
       }
     }
     valZK
 
   }
 
-  def deleteKeyZk(key: String, zookeeperList : String): Unit = {
+  def deleteKeyZk(key: String, zookeeperList: String): Unit = {
     val zk = ZooKeeperConnection.create(zookeeperList)
     try {
       val keyModified = modifyKey(key)
@@ -367,36 +366,49 @@ private[framework] object ApplicationUtils {
   }
 
 
-  def checkPath(zk: ZooKeeper, path: String): Unit = {
+  def checkPath(zk: ZooKeeper, path: String, retry: Int = 0): Unit = {
+    try {
+      if (zk.exists(path, false) == null) {
+        logger.info(s"zkNode $path does not exist. Let's create it.")
 
-    if (zk.exists(path, false) == null) {
-      logger.info(s"zkNode $path does not exist. Let's create it.")
+        synchronized {
+          val zkNodes = path.substring(1).split("/");
+          logger.info(s"${path}")
+          var currPath = ""
+          zkNodes.foreach(zkNode => {
+            currPath += s"/$zkNode"
+            logger.info(s"Checking ZK Path $currPath")
 
-      synchronized {
-        val zkNodes = path.substring(1).split("/");
-        logger.info(s"${path}")
-        var currPath = ""
-        zkNodes.foreach(zkNode => {
-          currPath += s"/$zkNode"
-          logger.info(s"Checking ZK Path $currPath")
+            if (null == zk.exists(currPath, false)) {
+              logger.info(s"Create ${currPath}")
+              logger.info(s"ZooKeeperConnection created :${zk.getState}")
 
-          if (null == zk.exists(currPath, false)) {
-            logger.info(s"Create ${currPath}")
+              zk.create(currPath,
+                null,
+                Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT)
 
-            zk.create(currPath,
-              null,
-              Ids.OPEN_ACL_UNSAFE,
-              CreateMode.PERSISTENT)
-
-          }
-        })
+            }
+          })
+        }
+      }
+    }
+    catch {
+      case ex: Throwable => {
+        logger.warn(s"ZooKeeperConnection created in checkPath :${zk.getState}, Retrying again 5 of ${retry}", ex)
+        if (retry < 5) {
+          checkPath(zk, path, retry + 1)
+        }
+        else {
+          throw ex
+        }
       }
     }
   }
 
   def modifyKey(key: String, appPrefix: String = null): String = {
 
-    if (appPrefix == null){
+    if (appPrefix == null) {
 
       s"${zkPrefix}${
         ApplicationManager.getConfig().
@@ -414,7 +426,7 @@ private[framework] object ApplicationUtils {
                                   topicName: String,
                                   workflowConfig: WorkflowConfig): String = {
 
-    buildKafkaZkPath( appConfig, topicName, workflowConfig.workflow)
+    buildKafkaZkPath(appConfig, topicName, workflowConfig.workflow)
   }
 
   def getDependentWorkflowKafkaPath(appConfig: ApplicationConfig,
@@ -450,7 +462,7 @@ private[framework] object ApplicationUtils {
     val dependentWorkflows = workflowConfig.dependentWorkflows
     if (dependentWorkflows != null) {
       val dependentItr = dependentWorkflows.iterator()
-      while (dependentItr.hasNext){
+      while (dependentItr.hasNext) {
         val dependentWorkflow = dependentItr.next()
         val zkNode = s"/${dependentWorkflow}/${lastSuccessfulAccess}"
         logger.info("zkNode")
@@ -461,40 +473,40 @@ private[framework] object ApplicationUtils {
     dependentWorkFlowTime
   }
 
-  def isDependentWorkflowExecuted (appConfig: ApplicationConfig,
-                                   workflowConfig: WorkflowConfig): Boolean = {
+  def isDependentWorkflowExecuted(appConfig: ApplicationConfig,
+                                  workflowConfig: WorkflowConfig): Boolean = {
 
     val dependentWorkflows = workflowConfig.dependentWorkflows
-    if (dependentWorkflows != null && appConfig.enableDependencies ) {
-    val dependentsWorkflowTime = getDependentsWorkflowTime(appConfig, workflowConfig)
+    if (dependentWorkflows != null && appConfig.enableDependencies) {
+      val dependentsWorkflowTime = getDependentsWorkflowTime(appConfig, workflowConfig)
       val zkNode = s"/${workflowConfig.workflow}/${lastSuccessfulAccess}"
       val currentWorkflowTime = getDependentValFromZk(zkNode, appConfig)
       val dependentItr = dependentWorkflows.iterator()
-        while (dependentItr.hasNext){
-          val dependentWFName = dependentItr.next()
-          val conditionRun = currentWorkflowTime >= dependentsWorkflowTime(dependentWFName).get
-         val dependentRun = {
-           if (conditionRun) "Not completed"
-           else "completed"
-         }
-          logger.info(" Workflow : " + workflowConfig.workflow +
-            " is dependent on workflow == >" + dependentWFName + "  Status :"  + dependentRun)
-
-          if (conditionRun) return false
+      while (dependentItr.hasNext) {
+        val dependentWFName = dependentItr.next()
+        val conditionRun = currentWorkflowTime >= dependentsWorkflowTime(dependentWFName).get
+        val dependentRun = {
+          if (conditionRun) "Not completed"
+          else "completed"
         }
-        true
+        logger.info(" Workflow : " + workflowConfig.workflow +
+          " is dependent on workflow == >" + dependentWFName + "  Status :" + dependentRun)
+
+        if (conditionRun) return false
+      }
+      true
     } else true
   }
 
-  def waitForDependentWorkflow (appConfig: ApplicationConfig,
-                         workflowConfig: WorkflowConfig): Boolean = {
-    while (true){
+  def waitForDependentWorkflow(appConfig: ApplicationConfig,
+                               workflowConfig: WorkflowConfig): Boolean = {
+    while (true) {
       val isDependentWfExecuted = isDependentWorkflowExecuted(appConfig, workflowConfig)
 
       if (isDependentWfExecuted) return true
       logger.info("Waiting for DependentWorkflow to be executed" +
         " ..isDependentWorkflowExecuted " + isDependentWfExecuted)
-       Thread.sleep(workflowConfig.dependentFrequencyToCheck * 1000L)
+      Thread.sleep(workflowConfig.dependentFrequencyToCheck * 1000L)
     }
     false
 

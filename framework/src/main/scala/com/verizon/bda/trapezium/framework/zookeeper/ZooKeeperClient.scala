@@ -1,19 +1,21 @@
 package com.verizon.bda.trapezium.framework.zookeeper
 
 import org.apache.curator.RetryPolicy
-import org.apache.curator.framework.{CuratorFrameworkFactory, CuratorFramework}
+import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.curator.utils.CloseableUtils
+import org.slf4j.LoggerFactory
 
 /**
  * Created by parmana on 12/20/18.
  */
 object ZooKeeperClient {
   var curatorFramework: CuratorFramework = _
+  val logger = LoggerFactory.getLogger(this.getClass)
 
-  def apply(quorum: String, retryCount: Int = 3, connectionTimeoutInMillis: Int = 2 * 1000,
-            sessionTimeoutInMillis: Int = 6000): Unit = {
-    val retryPolicy = new ExponentialBackoffRetry(1000, 10)
+  def apply(quorum: String, retryCount: Int = 3, connectionTimeoutInMillis: Int = 2 * 10000,
+            sessionTimeoutInMillis: Int = 60000): Unit = {
+    val retryPolicy = new ExponentialBackoffRetry(10000, 20)
     curatorFramework = init(quorum, connectionTimeoutInMillis, sessionTimeoutInMillis, retryPolicy)
     //    curatorFramework.getZookeeperClient.getZooKeeper
   }
@@ -65,7 +67,7 @@ object ZooKeeperClient {
   def init(zkQuorum: String, connectionTimeoutInMillis: Int,
            sessionTimeoutInMillis: Int, retryPolicy: RetryPolicy):
   CuratorFramework = {
-    val client = CuratorFrameworkFactory.builder()
+    val client: CuratorFramework = CuratorFrameworkFactory.builder()
       .connectString(zkQuorum)
       .retryPolicy(retryPolicy)
       .connectionTimeoutMs(connectionTimeoutInMillis)
