@@ -16,7 +16,7 @@ import org.apache.lucene.index._
 import org.apache.lucene.store.{Directory, LockFactory, MMapDirectory, NoLockFactory}
 import org.apache.solr.store.hdfs.HdfsDirectory
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
