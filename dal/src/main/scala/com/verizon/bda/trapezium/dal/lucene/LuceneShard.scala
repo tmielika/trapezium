@@ -42,13 +42,19 @@ class LuceneShard(hdfsPath: String,
   }
 
   private def getLuceneShard = {
-    if (luceneShard == null) {
-      this.synchronized {
-        if (luceneShard == null)
+    if(luceneShard==null) {
+      this.synchronized{
+        if(luceneShard==null) {
+          if(!new File(indexPath).exists()) {
+            LuceneShard.getLogger.info(s"LuceneShard construction: Copying the hdfs file to local from ${hdfsPath}")
+            LuceneShard.copyToLocal(hdfsPath, indexPath.toString)
+          }
           luceneShard = createLocalLuceneShard(indexPath,
             preload,
             converter,
             analyzerStr)
+        }
+
       }
     }
 
