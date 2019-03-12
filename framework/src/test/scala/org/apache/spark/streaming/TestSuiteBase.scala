@@ -296,7 +296,6 @@ trait TestSuiteBase extends FunSuite with BeforeAndAfterAll {
 
   override def afterAll() {
     if (sparkSession != null) {
-      sc.stop()
       sparkSession.stop()
       logger.info("Spark Session Stopped")
     }

@@ -30,6 +30,7 @@ import com.verizon.bda.trapezium.framework.kafka.{KafkaDStream, KafkaRDD}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.utils.{ApplicationUtils, ScanFS}
 import com.verizon.bda.trapezium.transformation.DataTranformer
+import com.verizon.bda.trapezium.validation.{SchemaBuilder, ValidationConfig}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -162,6 +163,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
         }
         else {
           val batchFiles = ScanFS.getFiles(dataDir, currentWorkflowTime)
+          val sourceFileFormat = SourceGenerator.getFileFormat(batchData).toUpperCase
           logger.info("source name " + name)
           logger.info(s"Number of available files for processing for source $name = " +
             s": ${batchFiles.size}")
@@ -169,6 +171,21 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
             logger.info(s"list of files for this run " + batchFiles.mkString(","))
             val dataMap = addDF(sparkSession, batchFiles, batchData, dataDir)
             dataSourcesNoSplit ++= dataMap
+          } else if (sourceFileFormat.equalsIgnoreCase("text")) {
+            logger.info(s"Number of available files are not available, so creating empty dataframe")
+
+            val appConfig = ApplicationManager.getConfig()
+            val workFlowConfig = ApplicationManager.getWorkflowConfig
+            val inputName = batchData.getString("name")
+
+            val validationConfig =
+              ValidationConfig.getValidationConfig(
+                appConfig, workFlowConfig, inputName)
+
+            val schema = SchemaBuilder.buildSchema(validationConfig)
+            val inputDF = sparkSession.createDataFrame(sparkSession.sparkContext.emptyRDD[Row], schema)
+            val dataMap = (name, inputDF)
+            dataSourcesNoSplit += dataMap
           }
         }
         val iter = dataSources.iterator

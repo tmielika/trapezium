@@ -38,7 +38,7 @@ class StartAndStopContextTest extends ApplicationManagerTestSuite {
 
   test("Start Context") {
     val logger = LoggerFactory.getLogger(this.getClass)
-    if (!sc.isStopped) {
+    if (sc!=null && !sc.isStopped) {
       sc.stop()
       sc = null
       logger.info("Context stopped")
