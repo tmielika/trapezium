@@ -168,7 +168,7 @@ FileSourceGenerator(workflowConfig: WorkflowConfig,
           logger.info(s"Number of available files for processing for source $name = " +
             s": ${batchFiles.size}")
           if (batchFiles.size > 0) {
-            logger.info(s"list of files for this run " + batchFiles.mkString(","))
+            // logger.debug(s"list of files for this run " + batchFiles.mkString(","))
             val dataMap = addDF(sparkSession, batchFiles, batchData, dataDir)
             dataSourcesNoSplit ++= dataMap
           } else if (sourceFileFormat.equalsIgnoreCase("text")) {
