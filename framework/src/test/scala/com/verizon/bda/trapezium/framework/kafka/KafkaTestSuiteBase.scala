@@ -380,8 +380,6 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       KafkaDStream.sparkcontext = None
     }
 
-    assert (!ApplicationManager.stopStreaming)
-
   }
 
   /**
@@ -444,7 +442,7 @@ trait KafkaTestSuiteBase extends FunSuite with BeforeAndAfter {
       KafkaDStream.sparkcontext = None
     }
 
-    assert (!ApplicationManager.stopStreaming)
+    assert (ApplicationManager.stopStreaming)
 
   }
 

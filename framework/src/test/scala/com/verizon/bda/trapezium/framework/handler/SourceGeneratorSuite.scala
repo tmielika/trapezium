@@ -115,7 +115,7 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkSession with BeforeAn
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
 
     val sources = new FileSourceGenerator(workflowConfig, appConfig, spark).get
-    val rddMap = sources(0)._2._1
+    val rddMap = sources(0)._2._2
 
     assert(0 == rddMap.size)
     assert(!rddMap.contains("zeroFiles"))

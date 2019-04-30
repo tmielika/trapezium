@@ -237,8 +237,8 @@ object TestBatchTxn9 extends BatchTransaction {
 
     logger.info("Inside process of TestBatchTxn9")
     require(df.size > 0)
-    val inData = df("onlyDirTrue")
-    inData.rdd.saveAsTextFile(path + "/tmp/dropRowWithExtraColumn")
+    val inData = df("source1")
+    inData.write.mode(SaveMode.Overwrite).save(path + "/tmp/dropRowWithExtraColumn")
     val count = inData.count()
     inData.show(false)
     inData
@@ -258,16 +258,16 @@ object TestBatchTxn9 extends BatchTransaction {
 
 object TestReadByDate extends BatchTransaction {
   val logger = LoggerFactory.getLogger(this.getClass)
-override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
-logger.info("Inside process of TestReadByDate  " + new Date(wfTime.getTime))
-require(df.size > 0)
-val inData = df.head._2
-
-  df("testDataSplitFiles").show()
-  df("location").show()
-  df("secondSource").show()
-inData
-}
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+    logger.info("Inside process of TestReadByDate  " + new Date(wfTime.getTime))
+    require(df.size > 0)
+    val inData = df.head._2
+    logger.info("df :" + df)
+    df("testDataSplitFiles").show()
+    df("location").show()
+    df("secondSource").show()
+    inData
+  }
 
 override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
 require(df.count > 0)

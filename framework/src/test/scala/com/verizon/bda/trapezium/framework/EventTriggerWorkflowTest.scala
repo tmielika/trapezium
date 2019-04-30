@@ -28,6 +28,7 @@ class EventTriggerWorkflowTest extends KafkaTestSuiteBase with ApplicationManage
     cleanOutput("target/testdata/eventworkflow")
     cleanOutput("target/testdata/TriggeringTest")
 
+/*
     val workFlowToRun: WorkflowConfig = ApplicationManager.setWorkflowConfig("eventworkflow")
     createTopic("eventworkflow")
     ApplicationManager.runBatchWorkFlow(
@@ -40,6 +41,7 @@ class EventTriggerWorkflowTest extends KafkaTestSuiteBase with ApplicationManage
     val sqlContext = sparkSession.sqlContext
     val df = sqlContext.read.parquet("target/testdata/TriggeringTest")
     assert(df.count()>1)
+*/
 
   }
 }
