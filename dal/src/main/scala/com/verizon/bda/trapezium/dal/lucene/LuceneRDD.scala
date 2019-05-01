@@ -3,9 +3,10 @@ package com.verizon.bda.trapezium.dal.lucene
 import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.BooleanQuery
-import org.apache.spark.sql.Row
-import org.apache.spark.{TaskContext, SparkContext, Partition}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Row
+import org.apache.spark.{Partition, SparkContext, TaskContext}
+
 /**
  * @author debasish83 on 12/15/16.
  */

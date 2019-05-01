@@ -35,6 +35,7 @@ import scala.concurrent.Future
 /**
   * Created by Jegan on 5/24/16.
   */
+//scalastyle:off
 class AkkaRouteHandler(sc: SparkContext, implicit val as: ActorSystem) extends ReflectionSupport {
 
 
