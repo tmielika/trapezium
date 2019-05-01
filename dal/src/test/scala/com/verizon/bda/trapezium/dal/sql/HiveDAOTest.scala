@@ -49,10 +49,6 @@ class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
 
     hiveContext = new TestHiveContext(sc, false)
     hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
-    // scalastyle : off
-    println(hiveContext.tableNames())
-    hiveContext.tableNames().foreach(each => print(each))
-    // scalastyle : on
     val rdd: RDD[Row] = sc.parallelize(
       (1 to 10).map(x => new GenericRow(Array("a" + x, "b", x))).toList
         ++ (1 to 10).map(x => new GenericRow(Array("c" + x, "d", x))).toList)
@@ -61,11 +57,6 @@ class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
       StructField("c2", StringType, true),
       StructField("c3", IntegerType, true)))
     testdf = hiveContext.createDataFrame(rdd, schema)
-    // scalastyle : off
-    println("DONE")
-    // scalastyle : on
-
-    // testdf.registerTempTable("test_read")
   }
 
   override def afterAll() {
@@ -73,7 +64,7 @@ class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
     super.afterAll()
   }
 
-  test("HiveDAO read test") {
+  /* test("HiveDAO read test") {
     println("Starting HIVEDAO Test")
     val testDao = new HiveDAO("default", "test_read")
 
@@ -142,5 +133,5 @@ class HiveDAOTest extends FunSuite with MLlibTestSparkContext {
     testDao.write(testsqldf)
     assert(hiveContext.tableNames().contains(tableName) && testDao.getAll().count() == 2)
     hiveContext.sql(s"drop table ${tableName}")
-  }
+  } */
 }

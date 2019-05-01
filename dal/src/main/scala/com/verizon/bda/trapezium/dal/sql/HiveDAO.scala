@@ -24,7 +24,7 @@ import org.apache.spark.sql.types.StructType
  * using the <code>SparkContext</code> object passed in implicitly.
  *
  * @author pramod.lakshminarasimha
- *
+ * @deprecated
  * @param tableName name of the hive table to connect.
  */
 class HiveDAO(database: String, tableName: String)(implicit sqlContext: SQLContext)

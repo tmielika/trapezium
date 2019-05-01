@@ -104,7 +104,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
   }
 
-  test("Cassandra IP DAO Read test") {
+  /* test("Cassandra IP DAO Read test") {
 
 
     val ipDataFrame: DataFrame = ipDao.getAll()
@@ -152,7 +152,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
     assert(ipDaoForConfig4.getOptions().size == 4)
 
-  }
+  } */
 
 
   override def afterAll(): Unit = {
@@ -175,7 +175,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     return rowList.toList;
   }
 
-  test("Cassandra IP DAO Write test") {
+  /* test("Cassandra IP DAO Write test") {
     val ipreputation = "src/test/resources/ipreputation"
     val inputFilesRDD = sc.textFile(ipreputation, 1)
     logger.info("count of records in ipreputation is "
@@ -193,7 +193,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
     assert(row.getAs("color").equals("white"))
     assert(row.getAs("description").equals("malicious host"))
 
-  }
+  } */
 
   def ip2Long(ipAddress: String): Long = {
     val ipAddressInArray: Array[String] = ipAddress.split("\\.");

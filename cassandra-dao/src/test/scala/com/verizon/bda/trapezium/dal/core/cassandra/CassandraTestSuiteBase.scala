@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory
 
 /**
   * Created by v468328 on 5/26/16.
+  * @deprecated
   */
 trait CassandraTestSuiteBase extends FunSuite with BeforeAndAfterAll {
   override def beforeAll() {
