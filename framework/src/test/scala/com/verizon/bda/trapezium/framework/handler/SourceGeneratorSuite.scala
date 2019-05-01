@@ -15,12 +15,13 @@
 package com.verizon.bda.trapezium.framework.handler
 
 import java.io.{BufferedWriter, FileWriter}
+
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
-import org.apache.spark.mllib.util.LocalSparkContext
+import org.apache.spark.mllib.util.{LocalSparkContext, LocalSparkSession}
 import org.apache.spark.sql.Row
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfter, FunSuite}
@@ -29,7 +30,7 @@ import org.scalatest.{BeforeAndAfter, FunSuite}
  * @author sumanth.venkatasubbaiah
  *         tests for source generators
  */
-class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAndAfter {
+class SourceGeneratorSuite extends FunSuite with LocalSparkSession with BeforeAndAfter {
   val numberOfBadRecordsMIDM = 7
   var zk: EmbeddedZookeeper = null
   var appConfig: ApplicationConfig = _
@@ -55,15 +56,15 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
     val path1 = "src/test/data/hdfs/source1/"
     val path2 = "src/test/data/hdfs/source2/"
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val sources = FileSourceGenerator(workflowConfig, appConfig, spark).get
     val dfMap = sources(0)._2._1
     assert(2 == dfMap.size)
     assert(dfMap.contains("source1"))
     assert(dfMap.contains("source2"))
     assert(!dfMap.contains("txn1Output"))
 
-    val source1 = sc.textFile(path1).map(Row(_))
-    val source2 = sc.textFile(path2).map(Row(_))
+    val source1 = spark.read.textFile(path1).rdd.map(Row(_))
+    val source2 = spark.read.textFile(path2).rdd.map(Row(_))
 
     assert(source1.count - numberOfBadRecordsMIDM == dfMap("source1").count)
     assert(source2.count == dfMap("source2").count)
@@ -99,7 +100,7 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
       fs.setTimes(new Path(destFile), MTIME, 1)
     }}
 
-    val sources = FileSourceGenerator(workflowConfig, appConfig, sc).get
+    val sources = FileSourceGenerator(workflowConfig, appConfig, spark).get
     val rddMap = sources(0)._2._1
 
     assert(1 == rddMap.size)
@@ -113,8 +114,8 @@ class SourceGeneratorSuite extends FunSuite with LocalSparkContext with BeforeAn
     val workflowConfig = ApplicationManager.setWorkflowConfig("testWorkFlow1")
     ApplicationManager.updateWorkflowTime(System.currentTimeMillis())
 
-    val sources = new FileSourceGenerator(workflowConfig, appConfig, sc).get
-    val rddMap = sources(0)._2._1
+    val sources = new FileSourceGenerator(workflowConfig, appConfig, spark).get
+    val rddMap = sources(0)._2._2
 
     assert(0 == rddMap.size)
     assert(!rddMap.contains("zeroFiles"))

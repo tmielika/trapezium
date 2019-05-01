@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.{Path, Paths}
 import java.sql.Time
 import java.util.UUID
+import javax.net.ssl.SSLContext
 
 import com.verizon.bda.trapezium.dal.exceptions.SolrOpsException
 import com.verizon.bda.trapezium.dal.util.zookeeper.ZooKeeperClient
@@ -11,6 +12,7 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.log4j.Logger
+import org.apache.spark.SparkContext
 import org.codehaus.jackson.map.ObjectMapper
 
 import scala.collection.mutable.ListBuffer
@@ -26,6 +28,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
   val solrDeployerZnode = "/solrDeployer"
   lazy val log = Logger.getLogger(classOf[SolrOps])
   val appName = solrMap("appName")
+  val httpTypeSolr = solrMap("httpTypeSolr")
   var aliasCollectionName: String = null
   var collectionName: String = null
   lazy val configName = s"$appName/${aliasCollectionName}"
@@ -44,7 +47,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   def getSolrCollectionUrl(): String = {
     val host = SolrClusterStatus.solrLiveNodes.head
-    val solrServerUrl = s"http://$host/solr/admin/collections"
+    val solrServerUrl = s"$httpTypeSolr$host/solr/admin/collections"
     solrServerUrl
   }
 
@@ -56,9 +59,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val response = SolrOps.makeHttpRequest(aliaseCollectionUrl)
     //    storeFiledsinZk()
     ZooKeeperClient(solrMap("zkHosts"))
-
-    ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/indicesPath",
-      (solrMap("storageDir").stripSuffix("/") + "/" + collectionName).getBytes())
+    if (solrMap.contains("storageDir")) {
+      ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/indicesPath",
+        (solrMap("storageDir").stripSuffix("/") + "/" + collectionName).getBytes())
+    }
     ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/hdfsPath",
       hdfsIndexFilePath.getBytes())
     ZooKeeperClient.setData(s"$solrDeployerZnode/$aliasCollectionName/failureCoreCount",
@@ -92,7 +96,14 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
     if (useAsync) {
       SolrOps.makeHttpRequest(deleteCollectionUrl + s"&async=$asyncId")
-      requestPolling(asyncId)
+      try {
+        requestPolling(asyncId)
+      } catch {
+        case se: SolrOpsException => {
+          log.warn(se.getMessage)
+          SolrOps.makeHttpRequest(deleteCollectionUrl)
+        }
+      }
     } else {
       SolrOps.makeHttpRequest(deleteCollectionUrl)
     }
@@ -127,17 +138,23 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       s"replicationFactor=$replicationFactor&" +
       s"maxShardsPerNode=$maxShardsPerNode" +
       s"&collection.configName=$configName&" +
-      s"router.name=compositeId&async=$asyncId"
+      s"router.name=compositeId"
 
-    SolrOps.makeHttpRequest(createCollectionUrl)
-
+    SolrOps.makeHttpRequest(createCollectionUrl + s"&async=$asyncId")
+    try {
+      requestPolling(asyncId)
+    } catch {
+      case se: SolrOpsException =>
+        log.warn(se.getMessage)
+        SolrOps.makeHttpRequest(createCollectionUrl, 5, true)
+    }
     requestPolling(asyncId)
-    val solrReponse = SolrClusterStatus.parseSolrResponse
+    val solrReponse = SolrClusterStatus.parseSolrResponse(httpTypeSolr)
     coreMap = solrReponse.map(p => (p.coreName, p.machine)).toMap
     for ((corename, ip) <- coreMap) {
       log.info(s"coreName:  ${corename} ip ${ip}"
       )
-      lb.append(SolrOps.unloadCore(ip, corename))
+      lb.append(SolrOps.unloadCore(ip, corename, solrMap("httpTypeSolr")))
     }
 
     log.info(coreMap)
@@ -159,6 +176,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   }
 
+  @throws(classOf[Exception])
   def requestPolling(asyncId: String): Unit = {
     log.info(s"polling on request for asyncId: ${asyncId}")
 
@@ -182,7 +200,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
       hdfsPath
     }
     collectionName = s"${aliasCollectionName}_${workflowTime.getTime.toString}"
-    SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName)
+    SolrClusterStatus(solrMap("zkHosts"), solrMap("zroot"), collectionName, solrMap("httpTypeSolr"))
     val oldCollection = SolrClusterStatus.getOldCollectionMapped(aliasName)
     ZooKeeperClient(solrMap("zkHosts"))
     ZooKeeperClient.setData(s"$solrDeployerZnode/isRunning", 1.toString.getBytes)
@@ -199,6 +217,7 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
   }
 
+  @throws(classOf[Exception])
   def isReqComplete(asyncId: String): Boolean = {
     val url = getSolrCollectionUrl()
     val asyncUrl = s"$url?action=REQUESTSTATUS&requestid=$asyncId&wt=json"
@@ -206,6 +225,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
     val objectMapper = new ObjectMapper()
     val jsonNode = objectMapper.readTree(response)
     val asyncState = jsonNode.get("status").get("state").asText()
+    if (asyncState.equalsIgnoreCase("failed")) {
+      throw SolrOpsException(s"async state for $asyncId failed there might be problem solr." +
+        s"So trying with out async")
+    }
     log.info(s"async state for $asyncId is $asyncState")
     log.info(response)
     asyncState.equalsIgnoreCase("completed")
@@ -216,9 +239,10 @@ abstract class SolrOps(solrMap: Map[String, String]) {
 
 object SolrOps {
   val log = Logger.getLogger(classOf[SolrOps])
+  var sslContext: SSLContext = _
 
   def apply(mode: String,
-            params: Map[String, String]): SolrOps = {
+            params: Map[String, String], sparkContext: SparkContext = null): SolrOps = {
     val solrOps = mode.toUpperCase() match {
       case "HDFS" => {
         val set = Set("appName", "zkHosts", "nameNode", "zroot", "storageDir",
@@ -242,6 +266,23 @@ object SolrOps {
         }
         new SolrOpsLocal(params)
       }
+      case "LOCAL_API" => {
+        val set = Set("appName", "zkHosts", "nameNode",
+          "folderPrefix", "zroot", "solrConfig",
+          "replicationFactor", "uploadEndPoint",
+          "deleteEndPoint", "testEndPoint", "uploadServicePort",
+          "httpType", "httpTypeSolr")
+        set.foreach(p =>
+          if (!params.contains(p)) {
+            throw new SolrOpsException(s"Map Doesn't have ${p} map should contain ${set}")
+          }
+        )
+        sslContext = PostZipDataAPI.getSSLContext(params)
+        if (sslContext == null && params("httpType") == "https://" && params("httpTypeSolr") == "https://") {
+          throw new SolrOpsException(s"sslContext could not be generated")
+        }
+        new SolrOpsLocalApi(params, sparkContext)
+      }
     }
     for ((k, v) <- params) {
       log.info(s"${k}<-------->${v}")
@@ -250,11 +291,14 @@ object SolrOps {
   }
 
 
-  def unloadCore(node: String, coreName: String): Future[Boolean] = {
+  def unloadCore(node: String, coreName: String,
+                 httpType: String = "http://"): Future[Boolean] = {
     val unloadFuture: Future[Boolean] = Future {
       log.info("unloading core")
-      val client = HttpClientBuilder.create().build()
-      val request = new HttpGet(s"http://$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
+
+      val client = HttpClientBuilder.create().setSslcontext(sslContext).build()
+
+      val request = new HttpGet(s"$httpType$node/solr/admin/cores?action=UNLOAD&core=${coreName}")
       val response = client.execute(request)
       response.close()
       client.close()
@@ -306,13 +350,14 @@ object SolrOps {
   }
 
   @throws(classOf[Exception])
-  def makeHttpRequest(url: String, retry: Int = 5, printResponse: Boolean = true): String = {
+  def makeHttpRequest(url: String, retry: Int = 5,
+                      printResponse: Boolean = true): String = {
     var responseBody: String = null
     var noError = false
     var retries = 0
     try {
       do {
-        val client = HttpClientBuilder.create().build()
+        val client = HttpClientBuilder.create().setSslcontext(sslContext).build()
         val request = new HttpGet(url)
         // check for response status (should be 0)
         log.info(s"making request to url ${url}")
@@ -321,8 +366,9 @@ object SolrOps {
           log.info(s"response status: ${response.getStatusLine} and status" +
             s" code ${response.getStatusLine.getStatusCode} ")
           responseBody = EntityUtils.toString(response.getEntity())
-          if(printResponse)
-          {log.info(s"responseBody: ${responseBody} for url ")}
+          if (printResponse) {
+            log.info(s"responseBody: ${responseBody} for url ")
+          }
           if (response.getStatusLine.getStatusCode != 200) {
             noError = true
             retries = retries + 1

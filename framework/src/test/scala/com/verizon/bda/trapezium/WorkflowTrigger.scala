@@ -25,7 +25,7 @@ class WorkflowTrigger extends ApplicationManagerTestSuite{
   test("Test JSON DF"){
     val json = "{ \"datasources\" : [ { \"name\": \"test\",  \"location\":" +
       " \"src/test/data/parquet\"}]}"
-    val df = FileSourceGenerator.getDFFromStream(json, sc)
+    val df = FileSourceGenerator.getDFFromStream(json, sparkSession)
     val df1 = df("test")
     assert(df.size==1)
     assert(df1.count()>1)

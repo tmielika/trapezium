@@ -206,4 +206,17 @@ object WorkflowUtils {
     logger.info(s"frameworkProperty is $propValue")
     propValue
   }
+
+  def getFrameworkPropertyTime (workflowName: String,
+                            persistSchema: String = null,
+                            zookeeperList: String,
+                            uid: String = ""): String = {
+
+    val propValue = ApplicationUtils.
+      getValFromZk(ApplicationUtils.lastSuccessfulAccess,
+        zookeeperList, s"${persistSchema}${uid}/${workflowName}/")
+
+    logger.info(s"frameworkProperty is $propValue")
+    propValue
+  }
 }

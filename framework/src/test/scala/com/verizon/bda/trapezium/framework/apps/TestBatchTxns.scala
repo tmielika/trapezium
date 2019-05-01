@@ -14,12 +14,12 @@
 */
 package com.verizon.bda.trapezium.framework.apps
 
-import java.nio.file.{Paths, Path}
+import java.nio.file.{Path, Paths}
 import java.sql.{Date, Time}
 
-import com.verizon.bda.trapezium.framework.{DataSource, Trigger, BatchTransaction}
+import com.verizon.bda.trapezium.framework.{BatchTransaction, DataSource, Trigger}
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SaveMode, DataFrame}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.slf4j.LoggerFactory
 
 
@@ -35,7 +35,7 @@ object TestBatchTxn1 extends BatchTransaction {
   private val CONST_STRING = "This has to be populated in the preprocess method"
   var populateFromPreprocess: String = _
   val logger = LoggerFactory.getLogger(this.getClass)
-  override def preprocess(sc: SparkContext): Unit = {
+  override def preprocess(sparkSession: SparkSession): Unit = {
     logger.info("Inside preprocess of TestBatchTxn1")
     populateFromPreprocess = CONST_STRING
   }
@@ -237,8 +237,8 @@ object TestBatchTxn9 extends BatchTransaction {
 
     logger.info("Inside process of TestBatchTxn9")
     require(df.size > 0)
-    val inData = df("onlyDirTrue")
-    inData.rdd.saveAsTextFile(path + "/tmp/dropRowWithExtraColumn")
+    val inData = df("source1")
+    inData.write.mode(SaveMode.Overwrite).save(path + "/tmp/dropRowWithExtraColumn")
     val count = inData.count()
     inData.show(false)
     inData
@@ -258,16 +258,16 @@ object TestBatchTxn9 extends BatchTransaction {
 
 object TestReadByDate extends BatchTransaction {
   val logger = LoggerFactory.getLogger(this.getClass)
-override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
-logger.info("Inside process of TestReadByDate  " + new Date(wfTime.getTime))
-require(df.size > 0)
-val inData = df.head._2
-
-  df("testDataSplitFiles").show()
-  df("location").show()
-  df("secondSource").show()
-inData
-}
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+    logger.info("Inside process of TestReadByDate  " + new Date(wfTime.getTime))
+    require(df.size > 0)
+    val inData = df.head._2
+    logger.info("df :" + df)
+    df("testDataSplitFiles").show()
+    df("location").show()
+    df("secondSource").show()
+    inData
+  }
 
 override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
 require(df.count > 0)

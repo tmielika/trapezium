@@ -17,7 +17,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-object ShardBalancer {
+object ShardBalancer{
   val solrDeployerZnode = "/solrDeployer"
 
 

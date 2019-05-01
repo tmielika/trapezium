@@ -37,7 +37,7 @@ class ApplicationManagerWildCharSuite extends ApplicationManagerTestSuite {
     val workFlowToRun = ApplicationManager.setWorkflowConfig("wildcharWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(sparkSession)
   }
 
 
@@ -46,7 +46,7 @@ class ApplicationManagerWildCharSuite extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(startTime, "fileSplitSpecialCharWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(sparkSession)
   }
 
   test("file split with time stamp wild char workflow should successfully run the batch workflow") {
@@ -55,7 +55,7 @@ class ApplicationManagerWildCharSuite extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(startTime, "fileSplittimestampWorkFlow")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig, maxIters = 1 )(sc)
+      appConfig, maxIters = 1 )(sparkSession)
   }
 
   override def afterAll(): Unit = {

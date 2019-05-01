@@ -25,14 +25,10 @@ class LuceneShard(hdfsPath: String,
                   analyzerStr: String) extends ILuceneIndex with Serializable {
 
   @transient
-  var luceneShard : LocalLuceneShard = createLocalLuceneShard(indexPath,
-                                                            preload,
-                                                            converter,
-                                                            analyzerStr)
+  var luceneShard: LocalLuceneShard = _
 
-
-  private def createLocalLuceneShard(indexPath: String, preload: Boolean,converter: OLAPConverter,
-                                analyzerStr: String ) : LocalLuceneShard = {
+  private def createLocalLuceneShard(indexPath: String, preload: Boolean, converter: OLAPConverter,
+                                     analyzerStr: String): LocalLuceneShard = {
     val directory = new MMapDirectory(new File(indexPath).toPath)
     directory.setPreload(preload)
     val reader = DirectoryReader.open(directory)
@@ -42,56 +38,76 @@ class LuceneShard(hdfsPath: String,
 
 
   override def searchDocs(queryStr: String, sample: Double): util.BitSet = {
-    luceneShard.searchDocs(queryStr,sample)
+    getLuceneShard.searchDocs(queryStr, sample)
+  }
+
+  private def getLuceneShard = {
+    if(luceneShard==null) {
+      this.synchronized{
+        if(luceneShard==null) {
+          if(!new File(indexPath).exists()) {
+            LuceneShard.getLogger.info(s"LuceneShard construction: Copying the hdfs file to local from ${hdfsPath}")
+            LuceneShard.copyToLocal(hdfsPath, indexPath.toString)
+          }
+          luceneShard = createLocalLuceneShard(indexPath,
+            preload,
+            converter,
+            analyzerStr)
+        }
+
+      }
+    }
+
+    luceneShard
   }
 
   override def searchDocsWithRelevance(queryStr: String, sample: Double): Array[ScoreDoc] = {
-    luceneShard.searchDocsWithRelevance(queryStr,sample)
+    getLuceneShard.searchDocsWithRelevance(queryStr, sample)
   }
 
   override def search(queryStr: String, columns: Seq[String], sample: Double): Iterator[Row] = {
-    luceneShard.search(queryStr, columns, sample)
+    getLuceneShard.search(queryStr, columns, sample)
   }
 
   override def filter(docs: util.BitSet, column: String, min: Long, max: Long): util.BitSet = {
-    luceneShard.filter(docs, column, min, max)
+    getLuceneShard.filter(docs, column, min, max)
   }
 
   override def aggregate(queryStr: String, measure: String, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.aggregate(queryStr,measure,agg)
+    getLuceneShard.aggregate(queryStr, measure, agg)
   }
 
   override def facet(queryStr: String, dimension: String, dimOffset: Int, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.facet(queryStr , dimension , dimOffset , agg)
+    getLuceneShard.facet(queryStr, dimension, dimOffset, agg)
   }
 
   override def group(queryStr: String, dimension: String, dimOffset: Int, measure: String, minTime: Long, maxTime: Long, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.group(queryStr , dimension , dimOffset , measure , minTime , maxTime , agg)
+    getLuceneShard.group(queryStr, dimension, dimOffset, measure, minTime, maxTime, agg)
   }
 
   override def timeseries(queryStr: String, minTime: Long, maxTime: Long, rollup: Long, measure: String, agg: OLAPAggregator): OLAPAggregator = {
-    luceneShard.timeseries(queryStr , minTime , maxTime , rollup , measure , agg)
+    getLuceneShard.timeseries(queryStr, minTime, maxTime, rollup, measure, agg)
   }
 
   def count(query: String): Long = {
-    luceneShard.count(luceneShard.parseQuery(query))
+    getLuceneShard.count(getLuceneShard.parseQuery(query))
   }
 
   def parseQuery(queryStr: String): Query = {
-    luceneShard.parseQuery(queryStr)
+    getLuceneShard.parseQuery(queryStr)
   }
 
   def getIndexReader(): IndexReader = {
-    luceneShard.getIndexReader
+    getLuceneShard.getIndexReader
   }
 
-  def search(query: String, n: Int) : TopDocs = {
-    luceneShard.search(parseQuery(query),n)
+  def search(query: String, n: Int): TopDocs = {
+    getLuceneShard.search(parseQuery(query), n)
   }
 
 
   /** Used by the JVM when serializing this object. */
-  private def writeObject(out: ObjectOutputStream): Unit =  {
+  private def writeObject(out: ObjectOutputStream): Unit = {
     out.defaultWriteObject()
   }
 
@@ -105,13 +121,13 @@ class LuceneShard(hdfsPath: String,
       * We have to now copy the index from HDFS back to the expected location
       * before creating the LuceneShard from that location
       */
-    if(!new File(indexPath).exists()) {
+    if (!new File(indexPath).exists()) {
       LuceneShard.getLogger.info(s"LuceneShard construction: Copying the hdfs file to local from ${hdfsPath}")
       LuceneShard.copyToLocal(hdfsPath, indexPath.toString)
     }
 
     LuceneShard.getLogger.info("Creating the lucene shard")
-    luceneShard = createLocalLuceneShard(indexPath,preload, converter, analyzerStr)
+    getLuceneShard
   }
 
 
@@ -119,23 +135,24 @@ class LuceneShard(hdfsPath: String,
 
 object LuceneShard {
 
-  @transient var log : Logger = null
+  @transient var log: Logger = null
 
-  def getLogger : Logger = {
-    if(log==null)
+  def getLogger: Logger = {
+    if (log == null) {
       log = Logger.getLogger(classOf[LuceneShard])
+    }
     log
   }
 
   def apply(hdfsPath: String,
-             path: String,
+            path: String,
             preload: Boolean,
             converter: OLAPConverter,
             analyzer: String): LuceneShard = {
     new LuceneShard(hdfsPath, path, preload, converter, analyzer)
   }
 
-  def copyToLocal(hdfsPath:String,indexPath:String):Unit = {
+  def copyToLocal(hdfsPath: String, indexPath: String): Unit = {
     val conf = new org.apache.hadoop.conf.Configuration
     FileSystem.get(conf).copyToLocalFile(false,
       new HadoopPath(hdfsPath),

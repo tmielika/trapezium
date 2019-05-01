@@ -16,15 +16,15 @@ package com.verizon.bda.trapezium.framework.utils
 
 import com.verizon.bda.trapezium.framework.ApplicationManager
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import org.apache.spark.Logging
 import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.slf4j.LoggerFactory
 
 /**
  * Created by Pankaj on 7/12/16.
  */
-class WorkflowUtilsSuite extends FunSuite with BeforeAndAfterAll with Logging {
-
+class WorkflowUtilsSuite extends FunSuite with BeforeAndAfterAll  {
+  val logger = LoggerFactory.getLogger(this.getClass)
   var zk: EmbeddedZookeeper = _
   val appConfig = ApplicationManager.getConfig()
 

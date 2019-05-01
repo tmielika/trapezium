@@ -16,7 +16,7 @@ import org.apache.lucene.index._
 import org.apache.lucene.store.{Directory, LockFactory, MMapDirectory, NoLockFactory}
 import org.apache.solr.store.hdfs.HdfsDirectory
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
@@ -83,14 +83,15 @@ class LuceneDAO(val location: String,
     val dfWithFeatures = df.withColumn("arrFeatures", array(features.map(df(_)): _*))
     val key = this
     var udfObject = ObjectManager.get(key)
-    if(udfObject.isEmpty) {
-      val broadcastDictionary : Broadcast[DictionaryManager] = df.sqlContext.sparkContext.broadcast(_dictionary)
-      println("Creating a broadcast dictionary")
+    if (udfObject.isEmpty) {
+      val broadcastDictionary: Broadcast[DictionaryManager] = df.sqlContext.sparkContext.broadcast(_dictionary)
+      log.info("Creating a broadcast dictionary")
       var newUdfObject = new FeatureUDF(broadcastDictionary)
       ObjectManager.put(key, newUdfObject)
       udfObject = ObjectManager.get(key)
     }
-    val udf = udfObject.get.asInstanceOf[FeatureUDF].featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures"))
+    val udf = udfObject.get.asInstanceOf[FeatureUDF]
+      .featureIndexUdf(array(dimension.map(lit(_)): _*), dfWithFeatures("arrFeatures"))
     val vectorized = dfWithFeatures.withColumn(vectorizedColumn, udf)
     val finalDF = vectorized.drop("arrFeatures")
     finalDF
@@ -101,8 +102,8 @@ class LuceneDAO(val location: String,
     */
   def close(): Unit = {
     val key = this
-    if(!ObjectManager.get(key).isEmpty) {
-      val broadcast= ObjectManager.get(key).get.asInstanceOf[FeatureUDF].broadcastDictionary
+    if (!ObjectManager.get(key).isEmpty) {
+      val broadcast = ObjectManager.get(key).get.asInstanceOf[FeatureUDF].broadcastDictionary
       broadcast.destroy()
     }
     ObjectManager.removeAll()
@@ -168,7 +169,7 @@ class LuceneDAO(val location: String,
       indexWriter.close()
       directory.close()
 
-      //Remove the lock for Solr HDFS/Local Uploads, Windows will handle / differently
+      // Remove the lock for Solr HDFS/Local Uploads, Windows will handle / differently
       val lockFile = new File(shuffleIndexFile + File.separator + IndexWriter.WRITE_LOCK_NAME)
 
       if (!lockFile.delete()) {
@@ -208,7 +209,7 @@ class LuceneDAO(val location: String,
   // TODO: load logic will move to LuceneRDD
   @transient private var _shards: RDD[LuceneShard] = _
 
-  def load(sc: SparkContext, preload:Boolean=true): Unit = {
+  def load(sc: SparkContext, preload: Boolean = true): Unit = {
     val indexPath = location.stripSuffix("/") + "/" + INDICES_PREFIX
     val dictionaryPath = location.stripSuffix("/") + "/" + DICTIONARY_PREFIX
     val schemaPath = location.stripSuffix("/") + "/" + SCHEMA_PREFIX
@@ -230,35 +231,40 @@ class LuceneDAO(val location: String,
 
     val partitionIds = sc.parallelize((0 until numPartitions).toList, sc.defaultParallelism)
 
-    _shards = RDDUtils.mapPartitionsInternal(partitionIds, (indices: Iterator[Int]) => {
-      converter.setSchema(schema)
-      indices.map((index: Int) => {
-        val sparkConf = new SparkConf()
-        val localDir = new File(DalUtils.getLocalDir(sparkConf))
-        log.info(s"LuceneDAO_Load: Created ${localDir} to write lucene shuffle")
+    /*
+        val f = (indices: Iterator[Int]) => {
+          converter.setSchema(schema)
+          indices.map((index: Int) => {
+            val sparkConf = new SparkConf()
+            val localDir = new File(DalUtils.getLocalDir(sparkConf))
+            log.info(s"LuceneDAO_Load: Created ${localDir} to write lucene shuffle")
 
-        val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
-        // Open a directory on Standalone/YARN/Mesos disk cache
-        val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
-        val shuffleIndexPath = shuffleIndexFile.toPath
-        log.info(s"LuceneDAO_Load: Created ${shuffleIndexPath} to read lucene partition $index shuffle")
+            val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
+            // Open a directory on Standalone/YARN/Mesos disk cache
+            val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
+            val shuffleIndexPath = shuffleIndexFile.toPath
+            log.info(s"LuceneDAO_Load: Created ${shuffleIndexPath} to read lucene partition $index shuffle")
 
-        val shard: Option[LuceneShard] = {
-          log.info(s"Copying data from deep storage: ${hdfsPath} to " +
-            s"local shuffle: ${shuffleIndexPath}")
-          try {
-            LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
-            Some(LuceneShard(hdfsPath,shuffleIndexFile.getAbsolutePath, preload, converter, luceneAnalyzer))
-          } catch {
-            case e: IOException =>
-              throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
-                s"shuffle: ${shuffleIndexPath} failed",e)
-            case x: Throwable => throw new RuntimeException(x)
-          }
+            val shard: Option[LuceneShard] = {
+              log.info(s"Copying data from deep storage: ${hdfsPath} to " +
+                s"local shuffle: ${shuffleIndexPath}")
+              try {
+                LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
+                Some(LuceneShard(hdfsPath, shuffleIndexFile.getAbsolutePath, preload, converter, luceneAnalyzer))
+              } catch {
+                case e: IOException =>
+                  throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
+                    s"shuffle: ${shuffleIndexPath} failed", e)
+                case x: Throwable => throw new RuntimeException(x)
+              }
+            }
+            shard.get
+          })
         }
-        shard.get
-      })
-    })
+    */
+    val copyTask = new CopyTask(converter, schema, indexPath, SUFFIX, INDEX_PREFIX, PREFIX, preload, luceneAnalyzer)
+
+    _shards = RDDUtils.mapPartitionsInternal(partitionIds, copyTask.copy)
     _shards.cache()
 
     log.info("Number of shards: " + shards.count())
@@ -269,6 +275,7 @@ class LuceneDAO(val location: String,
     log.info(s"dictionary stats ${_dictionary}")
 
   }
+
 
   /**
     * @param sc
@@ -355,23 +362,25 @@ class LuceneDAO(val location: String,
 
   def count(queryStr: String): Long = {
     if (shards == null) throw new LuceneDAOException(s"count called with null shards")
-    shards.map((shard: LuceneShard) => {
-      shard.count(queryStr)
-    }).sum().toLong
+    shards.map(new CountTask(queryStr).count).sum().toLong
   }
 
   def search(queryStr: String,
              columns: Seq[String],
              sample: Double): RDD[Row] = {
     if (shards == null) throw new LuceneDAOException(s"search called with null shards")
-    val rows = shards.flatMap((shard: LuceneShard) => {
+    val searchTask = new SearchTask(converter, columns, queryStr, sample)
+    /*
+    val f = (shard: LuceneShard) => {
       converter.setColumns(columns)
       shard.search(queryStr, columns, sample)
-    })
+    }
+    */
+    val rows = shards.flatMap(searchTask.search)
     rows
   }
 
-  //search a query and retrieve for all stored fields
+  // search a query and retrieve for all stored fields
   def search(queryStr: String, sample: Double = 1.0): RDD[Row] = {
     search(queryStr, storedFields.toSeq ++ searchAndStoredFields.toSeq, sample)
   }
@@ -394,11 +403,6 @@ class LuceneDAO(val location: String,
     }
   }
 
-  // TODO: Look into treeAggregate architecture for multiple queries
-  private def combOp = (agg: OLAPAggregator,
-                        other: OLAPAggregator) => {
-    agg.merge(other)
-  }
 
   // TODO: Multiple  measures can be aggregated at same time
   def aggregate(queryStr: String,
@@ -535,18 +539,13 @@ class LuceneDAO(val location: String,
     val dimSize = dimRange._2 - dimRange._1 + 1
     val dimOffset = dimRange._1
 
-    val seqOp = (agg: OLAPAggregator,
-                 shard: LuceneShard) => {
-      shard.facet(
-        queryStr,
-        dimension,
-        dimOffset,
-        agg)
-    }
+    val fTask = new FacetTask(queryStr, dimension, dimOffset)
+    //    val seqOp = facet(
 
     val facetStart = System.nanoTime()
     agg.init(dimSize)
-    val results = shards.treeAggregate(agg)(seqOp, combOp)
+    val results = shards.treeAggregate(agg)(fTask.facet, combOp)
+
     log.info(f"OLAP facet time ${(System.nanoTime() - facetStart) * 1e-9}%6.3f sec")
     val facets = results.eval().zipWithIndex
 
@@ -555,15 +554,17 @@ class LuceneDAO(val location: String,
     }.toMap
     transformed
   }
+
 }
 
 /**
   * A plain simple wrapper on the UDF that helps to hold the broadcasted dictionary for the
   * current request session
+  *
   * @param broadcastDictionary
   */
 
-class FeatureUDF( val broadcastDictionary : Broadcast[DictionaryManager]) extends Serializable {
+class FeatureUDF(val broadcastDictionary: Broadcast[DictionaryManager]) extends Serializable {
   /**
     * Udf to compute the indices and values for sparse vector.
     * Here s is storedDimension and m is featureColumns mapped as Array
@@ -596,11 +597,11 @@ object ObjectManager {
 
   val repository = scala.collection.mutable.Map[Object, Object]()
 
-  def put(key:Object, value: Object) : Option[Object] = {
+  def put(key: Object, value: Object): Option[Object] = {
     repository.put(key, value)
   }
 
-  def remove(key:Object): Option[Object] = {
+  def remove(key: Object): Option[Object] = {
     repository.remove(key)
   }
 
@@ -608,7 +609,7 @@ object ObjectManager {
     repository.clear()
   }
 
-  def get(key:Object): Option[Object] = {
+  def get(key: Object): Option[Object] = {
     repository.get(key)
   }
 
@@ -624,12 +625,85 @@ object LuceneDAO {
   val DICTIONARY_PREFIX = "dictionary"
   val SCHEMA_PREFIX = "schema"
 
-  def getAnalyzer(analyzerStr: String) : Analyzer = {
+  def getAnalyzer(analyzerStr: String): Analyzer = {
     val analyzer: Analyzer = analyzerStr match {
       case "keyword" => new KeywordAnalyzer()
       case "standard" => new StandardAnalyzer()
       case _ => throw new LuceneDAOException("supported analyzers are keyword/standard")
     }
     analyzer
+  }
+
+  // TODO: Look into treeAggregate architecture for multiple queries
+  def combOp = (agg: OLAPAggregator,
+                other: OLAPAggregator) => {
+    agg.merge(other)
+  }
+}
+
+trait Task extends Serializable {
+
+}
+
+class FacetTask(queryStr: String, dimension: String, dimOffset: Int) extends Task {
+  def facet(agg: OLAPAggregator, shard: LuceneShard): OLAPAggregator = {
+    shard.facet(
+      queryStr,
+      dimension,
+      dimOffset,
+      agg)
+  }
+}
+
+class CountTask(queryStr: String) extends Task {
+  def count(shard: LuceneShard): Long = {
+    shard.count(queryStr)
+  }
+}
+
+class SearchTask(converter: OLAPConverter, columns: Seq[String], queryStr: String, sample: Double) extends Task {
+  @transient lazy val log = Logger.getLogger(classOf[SearchTask])
+
+  def search(shard: LuceneShard) = {
+    log.info("Inside search ...")
+    converter.setColumns(columns)
+    shard.search(queryStr, columns, sample)
+  }
+}
+
+class CopyTask(converter: OLAPConverter, schema: StructType, indexPath: String,
+               SUFFIX: String, INDEX_PREFIX: String, PREFIX: String, preload: Boolean,
+               luceneAnalyzer: String) extends Task {
+  @transient lazy val log = Logger.getLogger(classOf[CopyTask])
+
+  def copy(indices: Iterator[Int]) = {
+    log.info("Inside Copy...")
+    converter.setSchema(schema)
+    indices.map((index: Int) => {
+      val sparkConf = new SparkConf()
+      val localDir = new File(DalUtils.getLocalDir(sparkConf))
+      log.info(s"LuceneDAO_Load: Created ${localDir} to write lucene shuffle")
+
+      val hdfsPath = indexPath + "/" + SUFFIX + index + "/" + INDEX_PREFIX
+      // Open a directory on Standalone/YARN/Mesos disk cache
+      val shuffleIndexFile = DalUtils.getTempFile(PREFIX, localDir)
+      val shuffleIndexPath = shuffleIndexFile.toPath
+      log.info(s"LuceneDAO_Load: Created ${shuffleIndexPath} to read lucene partition $index shuffle")
+
+      val shard: Option[LuceneShard] = {
+        log.info(s"Copying data from deep storage: ${hdfsPath} to " +
+          s"local shuffle: ${shuffleIndexPath}")
+        try {
+          LuceneShard.copyToLocal(hdfsPath, shuffleIndexPath.toString)
+          Some(LuceneShard(hdfsPath, shuffleIndexFile.getAbsolutePath, preload, converter, luceneAnalyzer))
+        } catch {
+          case e: IOException =>
+            throw new LuceneDAOException(s"Copy from: ${hdfsPath} to local " +
+              s"shuffle: ${shuffleIndexPath} failed", e)
+          case x: Throwable => throw new RuntimeException(x)
+        }
+      }
+      shard.get
+    })
   }
 }

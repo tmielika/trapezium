@@ -56,7 +56,7 @@ class ApplyCache() {
     // val content_type = ctx.request.getHeader(CacheRouteUtils.CONTENT_TYPE)
 
     var response: Option[String] = None;
-    if (cacheId.isDefined && no_cache_Directive.isEmpty) {
+    if (cacheId.isPresent && !no_cache_Directive.isPresent) {
       response = CacheRouteUtils.get(uri_path + cacheId.get.value())
 
     }
@@ -73,7 +73,7 @@ class ApplyCache() {
     else {
 
       val resultFuture: Future[akka.http.scaladsl.server.RouteResult] = endPoint.route(ctx)
-      if (cacheId.isDefined && no_cache_Directive.isEmpty) {
+      if (cacheId.isPresent && !no_cache_Directive.isPresent) {
         // only if we want to cache it.
         CacheRouteUtils.put(uri_path + cacheId.get.value(), resultFuture, materializer)
       }

@@ -3,7 +3,6 @@ package com.verizon.bda.trapezium.dal.solr
 import org.apache.log4j.Logger
 import org.apache.solr.client.solrj.impl.ZkClientClusterStateProvider
 import org.json.{JSONException, JSONObject}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
@@ -15,7 +14,7 @@ case class SolrCollectionStatus(machine: String, state: String, collectionName: 
 
 
 object SolrClusterStatus {
-  lazy val log = Logger.getLogger(SolrClusterStatus.getClass)
+  lazy val log = Logger.getLogger(this.getClass)
 
   var zkHostList: String = _
   // "listOfzookeepers"
@@ -23,10 +22,12 @@ object SolrClusterStatus {
   var collectionName: String = _
   var solrLiveNodes: List[String] = Nil
   var cloudClient: ZkClientClusterStateProvider = _
+  var solrHttpType: String = _
 
   // "zroot"
-  def apply(zkList: String, zroot: String, collection: String): Unit = {
+  def apply(zkList: String, zroot: String, collection: String, solrHttpTypeI: String = "http://"): Unit = {
     zkHostList = zkList
+    solrHttpType = solrHttpTypeI
     chroot = zroot
     collectionName = collection
     val zkHosts = zkHostList.split(",").toList.asJava
@@ -43,7 +44,7 @@ object SolrClusterStatus {
   def getSolrNodes(cloudClient: ZkClientClusterStateProvider): List[String] = {
     cloudClient.connect()
     log.info(s"in getSolrNodes the value of cloud client:$cloudClient ")
-    log.info(s"cloudclientObject $cloudClient")
+    log.info(s"cloudclient Object $cloudClient")
     try {
       log.info(s"liveNodes ${cloudClient.liveNodes}")
     }
@@ -69,10 +70,10 @@ object SolrClusterStatus {
     *
     * @return
     */
-  def getCollectionAliasMap(): Map[String, String] = {
+  def getCollectionAliasMap(httpTypeSolr: String = "http://"): Map[String, String] = {
     log.info("in collection alias map")
     val aliases: Map[String, String] = try {
-      val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false))
+      val clusterJsonResponse = new JSONObject(getClusterStatus(collectionName, false, httpTypeSolr))
       val json = clusterJsonResponse.get("cluster").asInstanceOf[JSONObject]
         .get("aliases").asInstanceOf[JSONObject]
       val set = json.keys()
@@ -96,7 +97,7 @@ object SolrClusterStatus {
   def getOldCollectionMapped(aliasName: String): String = {
     log.info(s"in getOldCollectionMapped alias name is $aliasName")
     val oldCollectionName = try {
-      val oldAliases = getCollectionAliasMap()
+      val oldAliases = getCollectionAliasMap(solrHttpType)
       if (oldAliases != null) oldAliases.get(aliasName).get else null
     }
     catch {
@@ -112,7 +113,9 @@ object SolrClusterStatus {
     oldCollectionName
   }
 
-  def getClusterStatus(collection: String, collectionNeeded: Boolean = true): String = {
+  def getClusterStatus(collection: String,
+                       collectionNeeded: Boolean = true,
+                       httpTypeSolr: String = "http://"): String = {
     try {
       val node: String = solrLiveNodes(0)
       val collectionUrl: String = if (collectionNeeded) {
@@ -120,7 +123,7 @@ object SolrClusterStatus {
       } else {
         ""
       }
-      val url = s"http://$node/solr/admin/collections?action=CLUSTERSTATUS&wt=json" + collectionUrl
+      val url = s"$httpTypeSolr$node/solr/admin/collections?action=CLUSTERSTATUS&wt=json" + collectionUrl
       SolrOps.makeHttpRequest(url, 5, false)
     }
     catch {
@@ -132,11 +135,11 @@ object SolrClusterStatus {
     }
   }
 
-  def parseSolrResponse(): List[SolrCollectionStatus] = {
+  def parseSolrResponse(httpType: String = "http://"): List[SolrCollectionStatus] = {
     val lb = new ListBuffer[SolrCollectionStatus]
 
     // Convert JSON string to JSONObject
-    val solrResponseBody = getClusterStatus(this.collectionName)
+    val solrResponseBody = getClusterStatus(this.collectionName, httpTypeSolr = httpType)
 
     val clusterJsonResponse = new JSONObject(solrResponseBody)
     val test = clusterJsonResponse.get("cluster").asInstanceOf[JSONObject]

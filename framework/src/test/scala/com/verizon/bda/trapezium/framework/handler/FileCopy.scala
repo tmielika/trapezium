@@ -35,7 +35,7 @@ object FileCopy {
     ( 1 to numberOffiles ).foreach { i => {
       var cal = Calendar.getInstance()
       cal.add(Calendar.DATE, - i)
-      val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      val dateFormat = new SimpleDateFormat("yyyyMMddHHmmss")
         createFiles(dateFormat.format(cal.getTime()) , i, conditions)
         cal.add(Calendar.HOUR, -i)
         createFiles(dateFormat.format(cal.getTime()), i, conditions)

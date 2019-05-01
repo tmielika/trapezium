@@ -16,21 +16,23 @@ package com.verizon.bda.trapezium.framework.kafka
 
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationListener}
+import com.verizon.bda.trapezium.framework.manager.{ApplicationListener, WorkflowConfig}
 import kafka.admin.AdminUtils
-import kafka.common.TopicAndPartition
+import kafka.utils.ZkUtils
+import org.apache.kafka.common.TopicPartition
 import org.apache.spark.streaming.StreamingContext
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable.{MutableList => MList}
 import scala.collection.mutable.{Map => MMap}
-import org.I0Itec.zkclient.ZkClient
+import org.I0Itec.zkclient.{ZkClient, ZkConnection}
 
 
 /**
  * Created by Pankaj on 2/17/17.
  */
-class KafkaApplicationUtils(zkClient: ZkClient, kafkaBrokers: String) {
+class KafkaApplicationUtils(zkUtils: ZkUtils, kafkaBrokers: String) {
   val logger = LoggerFactory.getLogger(this.getClass)
   /**
    * start Kafka workflow
@@ -45,7 +47,7 @@ class KafkaApplicationUtils(zkClient: ZkClient, kafkaBrokers: String) {
     val runMode = workflowConfig.runMode
     val kafkaConfig = workflowConfig.kafkaTopicInfo.asInstanceOf[Config]
 
-    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
+    val topicPartitionOffsets = MMap[TopicPartition, Long]()
 
     val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
     streamsInfo.asScala.foreach( streamInfo => {
@@ -95,9 +97,9 @@ class KafkaApplicationUtils(zkClient: ZkClient, kafkaBrokers: String) {
    * @param nparts
    */
   def createTopic(topic: String, nparts: Int = 1) {
-    if (!AdminUtils.topicExists(zkClient, topic)) {
 
-      AdminUtils.createTopic(zkClient, topic, nparts, 1)
+    if (!AdminUtils.topicExists(zkUtils, topic)) {
+      AdminUtils.createTopic(zkUtils, topic, nparts, 1)
       // wait until metadata is propagated
       // waitUntilMetadataIsPropagated(topic, 0)
       logger.info(s"==================== Topic $topic Created ====================")

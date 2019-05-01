@@ -1,6 +1,5 @@
 package com.verizon.bda.trapezium.dal.util.zookeeper
 
-import org.apache.commons.io.Charsets
 import org.apache.curator.RetryPolicy
 import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry
@@ -13,6 +12,7 @@ object ZooKeeperClient {
             sessionTimeoutInMillis: Int = 6000): Unit = {
     val retryPolicy = new ExponentialBackoffRetry(1000, 10)
     curatorFramework = init(quorum, connectionTimeoutInMillis, sessionTimeoutInMillis, retryPolicy)
+//    curatorFramework.getZookeeperClient.getZooKeeper
   }
 
   def create(znode: String): Unit = {

@@ -40,7 +40,7 @@ class ReadByFileMultipleSource extends ApplicationManagerTestSuite {
     ApplicationManager.updateWorkflowTime(updatedDate, "readByOffset2Source")
     ApplicationManager.runBatchWorkFlow(
       workFlowToRun,
-      appConfig , maxIters = 1)(sc)
+      appConfig , maxIters = 1)(sparkSession)
 
   }
 

@@ -14,17 +14,17 @@
 */
 package com.verizon.bda.trapezium.framework
 
-import _root_.kafka.common.TopicAndPartition
+import org.apache.kafka.common.TopicPartition
 import com.typesafe.config.Config
 import com.verizon.bda.trapezium.framework.handler.{BatchHandler, FileSourceGenerator, StreamingHandler}
 import com.verizon.bda.trapezium.framework.hdfs.HdfsDStream
 import com.verizon.bda.trapezium.framework.kafka.{KafkaApplicationUtils, KafkaDStream}
 import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
 import com.verizon.bda.trapezium.framework.server._
-import com.verizon.bda.trapezium.framework.utils.ApplicationUtils
+import com.verizon.bda.trapezium.framework.utils.{AkkaServerBuilder, ApplicationUtils, HttpsConnectionContextBuilder}
 import com.verizon.bda.license.{LicenseException, LicenseLib, LicenseType}
 import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.{StreamingContext, StreamingContextState}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -38,6 +38,8 @@ import java.util.Properties
 import java.io.InputStream
 import java.util.Calendar
 import java.sql.Time
+
+import akka.http.scaladsl.HttpsConnectionContext
 
 /**
  * @author Pankaj on 9/1/15.
@@ -158,16 +160,19 @@ object ApplicationManager {
     // load start up class
     initialize(appConfig)
 
+    logger.info("Done with initialize(appConfig)")
+
     // Initialize license library and licenseValidationTimeout
+    if (ApplicationManager.getConfig().env != "local" ) {
+      LicenseLib.init(appConfig.zookeeperList)
+    }
+
+    logger.info("Done with LicenseLib.init")
+
     val workflowConfig: WorkflowConfig = setWorkflowConfig(workFlowToRun)
     val runMode = workflowConfig.runMode
     val currentWorkflowName = ApplicationManager.getWorkflowConfig.workflow
     if (!runMode.equals("APIV2")) registerDriverHost(currentWorkflowName)
-
-    if (ApplicationManager.getConfig().env != "local" && !runMode.equals("APIV2")) {
-      LicenseLib.init(appConfig.zookeeperList)
-    }
-
     runMode match {
       case "STREAM" => {
 
@@ -185,11 +190,11 @@ object ApplicationManager {
             initStreamThread(workFlowToRun)
           }
           case _ => {
-            var sc: SparkContext = null
-            runBatchWorkFlow(workflowConfig, appConfig)(sc)
+            var sparkSession: SparkSession = null
+            runBatchWorkFlow(workflowConfig, appConfig)(sparkSession)
             // if spark context is not stopped, stop it
-            if (sc != null && !sc.isStopped) {
-              sc.stop
+            if (sparkSession != null && !sparkSession.sparkContext.isStopped) {
+              sparkSession.stop
             }
           }
         }
@@ -201,8 +206,8 @@ object ApplicationManager {
 
       }
       case "APIV2" => {
+        logger.info("Running in APIV2 mode")
         startHttpServer(workflowConfig)
-
       }
       case _ => logger.error("Not implemented run mode. Exiting.. {}", runMode)
     }
@@ -309,11 +314,11 @@ object ApplicationManager {
     val streamsInfo = kafkaConfig.getConfigList("streamsInfo")
     val kafkaBrokerList = appConfig.kafkabrokerList
 
-    logger.info("Kafka broker list " + kafkaBrokerList)
+    logger.info("Kafka broker list faraz" + kafkaBrokerList)
 
     ssc = KafkaDStream.createStreamingContext(sparkConf)
     setHadoopConf(ssc.sparkContext, appConfig)
-    val topicPartitionOffsets = MMap[TopicAndPartition, Long]()
+    val topicPartitionOffsets = MMap[TopicPartition, Long]()
 
     streamsInfo.asScala.foreach(streamInfo => {
       val topicName = streamInfo.getString("topicName")
@@ -378,10 +383,10 @@ object ApplicationManager {
   }
 
   /**
-   * Start HTTP (Jetty) server
-   *
-   * @param workflowConfig
-   */
+    * Start HTTP (Jetty) server
+    *
+    * @param workflowConfig
+    */
   private[framework] def startHttpServer(sc: SparkContext, workflowConfig: WorkflowConfig): Unit = {
 
     val serverConfig = workflowConfig.httpServer
@@ -398,17 +403,19 @@ object ApplicationManager {
   }
 
   /**
-    * Start HTTP (Jetty) server
-    *
-    * @param workflowConfig
-    */
+   * Start HTTP (Jetty) server
+   *
+   * @param workflowConfig
+   */
   private[framework] def startHttpServer(workflowConfig: WorkflowConfig): Unit = {
 
     val serverConfig = workflowConfig.httpServer
     if (serverConfig != null) {
       val provider = serverConfig.getString("provider")
       embeddedServer = provider match {
-        case "akka" => new AkkaServer()
+        case "akka" => {
+          AkkaServerBuilder.build(serverConfig)
+        }
         case "jetty" => new JettyServer(serverConfig)
       }
       logger.info(s"Starting $provider based Embedded HTTP Server")
@@ -471,8 +478,8 @@ object ApplicationManager {
   def runBatchWorkFlow(workFlow: WorkflowConfig,
                        appConfig: ApplicationConfig,
                        maxIters: Long = -1)
-                      (implicit sc: SparkContext): Unit = {
-    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sc)
+                      (implicit sparkSession: SparkSession): Unit = {
+    BatchHandler.scheduleBatchRun(workFlow, appConfig, maxIters, sparkSession)
   }
 
   def getSynchronizationTime: String = {
@@ -591,6 +598,7 @@ class StreamWorkflowThread (streamWorkflowName: String) extends Thread {
       }
       case ex: Throwable => {
 
+        ex.printStackTrace()
         logger.error("Stopping job", ex.getMessage)
         ApplicationManager.stopStreaming = true
       }

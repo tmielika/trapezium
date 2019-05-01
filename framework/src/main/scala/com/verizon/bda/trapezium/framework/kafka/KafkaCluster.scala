@@ -46,8 +46,10 @@ import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import java.util.Properties
+
 import kafka.api._
 import kafka.common.{ErrorMapping, OffsetAndMetadata, OffsetMetadataAndError, TopicAndPartition}
+import org.apache.kafka.common.TopicPartition
 import kafka.consumer.{ConsumerConfig, SimpleConsumer}
 import org.apache.spark.SparkException
 
@@ -102,15 +104,15 @@ class KafkaCluster(val kafkaParams: Map[String, String]) extends Serializable {
   }
 
   def findLeaders(
-                   topicAndPartitions: Set[TopicAndPartition]
+                   TopicPartitions: Set[TopicAndPartition]
                    ): Either[Err, Map[TopicAndPartition, (String, Int)]] = {
-    val topics = topicAndPartitions.map(_.topic)
+    val topics = TopicPartitions.map(_.topic)
     val response = getPartitionMetadata(topics).right
     val answer = response.flatMap { tms: Set[TopicMetadata] =>
       val leaderMap = tms.flatMap { tm: TopicMetadata =>
         tm.partitionsMetadata.flatMap { pm: PartitionMetadata =>
-          val tp = TopicAndPartition(tm.topic, pm.partitionId)
-          if (topicAndPartitions(tp)) {
+          val tp = new TopicAndPartition(tm.topic, pm.partitionId)
+          if (TopicPartitions(tp)) {
             pm.leader.map { l =>
               tp -> (l.host -> l.port)
             }
@@ -120,10 +122,10 @@ class KafkaCluster(val kafkaParams: Map[String, String]) extends Serializable {
         }
       }.toMap
 
-      if (leaderMap.keys.size == topicAndPartitions.size) {
+      if (leaderMap.keys.size == TopicPartitions.size) {
         Right(leaderMap)
       } else {
-        val missing = topicAndPartitions.diff(leaderMap.keySet)
+        val missing = TopicPartitions.diff(leaderMap.keySet)
         val err = new Err
         err.append(new SparkException(s"Couldn't find leaders for ${missing}"))
         Left(err)
@@ -136,7 +138,7 @@ class KafkaCluster(val kafkaParams: Map[String, String]) extends Serializable {
     getPartitionMetadata(topics).right.map { r =>
       r.flatMap { tm: TopicMetadata =>
         tm.partitionsMetadata.map { pm: PartitionMetadata =>
-          TopicAndPartition(tm.topic, pm.partitionId)
+          new TopicAndPartition(tm.topic, pm.partitionId)
         }
       }
     }
@@ -169,20 +171,20 @@ class KafkaCluster(val kafkaParams: Map[String, String]) extends Serializable {
   // scalastyle:on
 
   def getLatestLeaderOffsets(
-                              topicAndPartitions: Set[TopicAndPartition]
+                              TopicPartitions: Set[TopicAndPartition]
                               ): Either[Err, Map[TopicAndPartition, LeaderOffset]] =
-    getLeaderOffsets(topicAndPartitions, OffsetRequest.LatestTime)
+    getLeaderOffsets(TopicPartitions, OffsetRequest.LatestTime)
 
   def getEarliestLeaderOffsets(
-                                topicAndPartitions: Set[TopicAndPartition]
+                                TopicPartitions: Set[TopicAndPartition]
                                 ): Either[Err, Map[TopicAndPartition, LeaderOffset]] =
-    getLeaderOffsets(topicAndPartitions, OffsetRequest.EarliestTime)
+    getLeaderOffsets(TopicPartitions, OffsetRequest.EarliestTime)
 
   def getLeaderOffsets(
-                        topicAndPartitions: Set[TopicAndPartition],
+                        TopicPartitions: Set[TopicAndPartition],
                         before: Long
                         ): Either[Err, Map[TopicAndPartition, LeaderOffset]] = {
-    getLeaderOffsets(topicAndPartitions, before, 1).right.map { r =>
+    getLeaderOffsets(TopicPartitions, before, 1).right.map { r =>
       r.map { kv =>
         // mapValues isnt serializable, see SI-7005
         kv._1 -> kv._2.head
@@ -196,11 +198,11 @@ class KafkaCluster(val kafkaParams: Map[String, String]) extends Serializable {
     }
 
   def getLeaderOffsets(
-                        topicAndPartitions: Set[TopicAndPartition],
+                        TopicPartitions: Set[TopicAndPartition],
                         before: Long,
                         maxNumOffsets: Int
                         ): Either[Err, Map[TopicAndPartition, Seq[LeaderOffset]]] = {
-    findLeaders(topicAndPartitions).right.flatMap { tpToLeader =>
+    findLeaders(TopicPartitions).right.flatMap { tpToLeader =>
       val leaderToTp: Map[(String, Int), Seq[TopicAndPartition]] = flip(tpToLeader)
       val leaders = leaderToTp.keys
       var result = Map[TopicAndPartition, Seq[LeaderOffset]]()
@@ -230,11 +232,11 @@ class KafkaCluster(val kafkaParams: Map[String, String]) extends Serializable {
             }
           }
         }
-        if (result.keys.size == topicAndPartitions.size) {
+        if (result.keys.size == TopicPartitions.size) {
           return Right(result)
         }
       }
-      val missing = topicAndPartitions.diff(result.keySet)
+      val missing = TopicPartitions.diff(result.keySet)
       errs.append(new SparkException(s"Couldn't find leader offsets for ${missing}"))
       Left(errs)
     }

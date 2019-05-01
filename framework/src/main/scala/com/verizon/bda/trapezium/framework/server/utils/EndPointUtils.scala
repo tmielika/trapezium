@@ -20,6 +20,7 @@ import akka.actor.ActorSystem
 import com.verizon.bda.trapezium.framework.server.ServiceEndPoint
 import org.apache.spark.SparkContext
 import org.slf4j.LoggerFactory
+
 import scala.util.Try
 
 /**
@@ -38,11 +39,10 @@ object EndPointUtils {
     */
     val instance = if (sc != null) {
       instanceOf[SparkContext](clazz, classOf[SparkContext], sc) orElse
-      instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)  }
-      else {
+        instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
+    } else {
       instanceOf[ActorSystem](clazz, classOf[ActorSystem], as)
     }
-
 
     instance.getOrElse {
       logger.error(
@@ -59,6 +59,7 @@ object EndPointUtils {
     cons.map(c => c.newInstance(param).asInstanceOf[ServiceEndPoint])
   }
 
+
   // scalastyle:off classforname
   def loadClass(name: String): Class[_] = Class.forName(name)
 
@@ -66,5 +67,6 @@ object EndPointUtils {
 
   def getConstructorOfType[T](clazz: Class[_], paramType: Class[T]): Option[Constructor[_]] =
     Try(clazz.getDeclaredConstructor(paramType)).toOption
+
 
 }

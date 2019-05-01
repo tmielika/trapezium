@@ -1,7 +1,9 @@
 package org.apache.spark.util
 
-import org.apache.spark.{HashPartitioner, Logging}
+import org.apache.spark.{HashPartitioner}
 import org.apache.spark.rdd.RDD
+import org.slf4j.LoggerFactory
+
 import scala.reflect.ClassTag
 
 /**
@@ -9,7 +11,9 @@ import scala.reflect.ClassTag
   *         RDD Utilities to expose private spark classes
   */
 
-object RDDUtils extends Logging {
+object RDDUtils  {
+
+  private val log = LoggerFactory.getLogger(this.getClass)
   /**
     * Aggregates the elements of this RDD in a multi-level tree pattern and reduces the
     * final results to an executor identified by the executorId
@@ -52,15 +56,15 @@ object RDDUtils extends Logging {
   }
 
   /**
-   * map partitions without cleaning up the closures
-   * @tparam T RDD type
-   * @tparam U map partition type
-   * @param in RDD
-   */
+    * map partitions without cleaning up the closures
+    * @tparam T RDD type
+    * @tparam U map partition type
+    * @param in RDD
+    */
   def mapPartitionsInternal[T: ClassTag, U: ClassTag](
-    in: RDD[T],
-    f: (Iterator[T]) => Iterator[U],
-    preservesPartitioning: Boolean = false): RDD[U] = {
+                                                       in: RDD[T],
+                                                       f: (Iterator[T]) => Iterator[U],
+                                                       preservesPartitioning: Boolean = false): RDD[U] = {
     in.mapPartitionsInternal(f, preservesPartitioning)
   }
 }

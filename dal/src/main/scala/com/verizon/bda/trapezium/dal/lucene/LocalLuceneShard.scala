@@ -6,24 +6,25 @@ import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.index.IndexReader
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.{BooleanQuery, IndexSearcher, Query, ScoreDoc}
-import org.apache.spark.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.TimestampType
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 
 
 /**
   * @author debasish83 on 12/15/16.
-  *         Supports primitives for searching and aggregation on one(topk)/multiple(groupby) dimension given set
+  * Supports primitives for searching and aggregation on one(topk)/multiple(groupby) dimension given set
   *         of measures
   */
 
 class LocalLuceneShard(reader: IndexReader,
                        converter: OLAPConverter,
-                       analyzer: Analyzer) extends IndexSearcher(reader) with Logging with ILuceneIndex {
+                       analyzer: Analyzer) extends IndexSearcher(reader) with ILuceneIndex {
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
-  logInfo(s"lucene shard leaf readers ${leafContexts.size}")
+  logger.info(s"lucene shard leaf readers ${leafContexts.size}")
 
   // TODO: LeafReader > 1 are shards created by singlethreaded index writer due to flush limits
   // TODO: Each flush limit generates a new shard
@@ -54,7 +55,7 @@ class LocalLuceneShard(reader: IndexReader,
   val leafReaders = (0 until leafContexts.size()).map((ctxId) => {
     val ctx = leafContexts.get(ctxId)
     val reader = ctx.reader()
-    log.info(s"leafContext ord ${ctx.ord} docBase ${ctx.docBase} numDocs ${reader.numDocs()}")
+    logger.info(s"leafContext ord ${ctx.ord} docBase ${ctx.docBase} numDocs ${reader.numDocs()}")
     LuceneReader(reader, FeatureAttr(ctx.docBase, reader.numDocs()))
   })
 
@@ -73,7 +74,7 @@ class LocalLuceneShard(reader: IndexReader,
 
   val timeColumn =
     if (timeColumns.size >= 1) {
-      log.info(s"timestamp column ${timeColumns.head} selected in dataset")
+      logger.info(s"timestamp column ${timeColumns.head} selected in dataset")
       Option(timeColumns.head)
     }
     else None
@@ -103,7 +104,7 @@ class LocalLuceneShard(reader: IndexReader,
   override def searchDocsWithRelevance(queryStr: String, sample: Double = 1.0): Array[ScoreDoc] = {
     val maxRowsPerPartition = Math.floor(sample * getIndexReader.numDocs()).toInt
     val topDocs = search(parseQuery(queryStr), maxRowsPerPartition)
-    log.info("Hits within partition: " + topDocs.totalHits)
+    logger.info("Hits within partition: " + topDocs.totalHits)
     topDocs.scoreDocs
   }
 
@@ -159,7 +160,7 @@ class LocalLuceneShard(reader: IndexReader,
                          agg: OLAPAggregator): OLAPAggregator = {
     val scoreStart = System.nanoTime()
     val docs = searchDocs(queryStr)
-    log.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
+    logger.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
 
     val aggStart = System.nanoTime()
     var i = docs.nextSetBit(0)
@@ -172,18 +173,18 @@ class LocalLuceneShard(reader: IndexReader,
       }
       i = docs.nextSetBit(i + 1)
     }
-    log.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
+    logger.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
     agg
   }
 
-  //TODO: Use term dictionary to extract dimension and avoid dv seeks
+  // TODO: Use term dictionary to extract dimension and avoid dv seeks
   override def facet(queryStr: String,
                      dimension: String,
                      dimOffset: Int,
                      agg: OLAPAggregator): OLAPAggregator = {
     val scoreStart = System.nanoTime()
     val docs = searchDocs(queryStr)
-    log.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
+    logger.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
 
     val aggStart = System.nanoTime()
     var i = docs.nextSetBit(0)
@@ -199,7 +200,7 @@ class LocalLuceneShard(reader: IndexReader,
       }
       i = docs.nextSetBit(i + 1)
     }
-    log.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
+    logger.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
     agg
   }
 
@@ -214,19 +215,19 @@ class LocalLuceneShard(reader: IndexReader,
 
     val scoreStart = System.nanoTime()
     val docs = searchDocs(queryStr)
-    log.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
+    logger.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
 
     val filterStart = System.nanoTime()
     val filteredDocs = if (timeColumn == None) {
-      log.warn(s"no timestamp in dataset for time [$minTime, $maxTime] filter")
+      logger.warn(s"no timestamp in dataset for time [$minTime, $maxTime] filter")
       docs
     } else {
       filter(docs, timeColumn.get, minTime, maxTime)
     }
 
-    log.info(f"document filtering time :${(System.nanoTime() - filterStart) * 1e-9}%6.3f sec")
+    logger.info(f"document filtering time :${(System.nanoTime() - filterStart) * 1e-9}%6.3f sec")
 
-    log.info(s"scored docs ${docs.cardinality()} filtered docs ${filteredDocs.cardinality()}")
+    logger.info(s"scored docs ${docs.cardinality()} filtered docs ${filteredDocs.cardinality()}")
 
     val aggStart = System.nanoTime()
     var i = docs.nextSetBit(0)
@@ -246,7 +247,7 @@ class LocalLuceneShard(reader: IndexReader,
       }
       i = docs.nextSetBit(i + 1)
     }
-    log.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
+    logger.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
     agg
   }
 
@@ -262,13 +263,13 @@ class LocalLuceneShard(reader: IndexReader,
     assert(timeColumn != None, s"no timestamp in dataset for time series aggregation")
     val scoreStart = System.nanoTime()
     val docs = searchDocs(queryStr)
-    log.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
+    logger.info(f"document scoring time: ${(System.nanoTime() - scoreStart) * 1e-9}%6.3f sec")
 
     val filterStart = System.nanoTime()
     val filteredDocs = filter(docs, timeColumn.get, minTime, maxTime)
-    log.info(f"document filtering time :${(System.nanoTime() - filterStart) * 1e-9}%6.3f sec")
+    logger.info(f"document filtering time :${(System.nanoTime() - filterStart) * 1e-9}%6.3f sec")
 
-    log.info(s"scored docs ${docs.cardinality()} filtered docs ${filteredDocs.cardinality()}")
+    logger.info(s"scored docs ${docs.cardinality()} filtered docs ${filteredDocs.cardinality()}")
 
     val aggStart = System.nanoTime()
     var i = docs.nextSetBit(0)
@@ -288,7 +289,7 @@ class LocalLuceneShard(reader: IndexReader,
       }
       i = docs.nextSetBit(i + 1)
     }
-    log.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
+    logger.info(f"document aggregation time :${(System.nanoTime() - aggStart) * 1e-9}%6.3f sec")
     agg
   }
 }
