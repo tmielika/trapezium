@@ -36,7 +36,7 @@ class DropRowWithExctraColumn  extends ApplicationManagerTestSuite {
       workFlowToRun,
       appConfig, maxIters = 1 )(sparkSession)
      val cnt = sc.textFile(path + "/tmp/dropRowWithExtraColumn").count()
-     assert(cnt == 15, "Excpected numner of row is not correct")
+     assert(cnt == 12, "Excpected numner of row is not correct")
 
   }
 }
