@@ -54,13 +54,6 @@
     <MaxPermGen>512m</MaxPermGen>
     <CodeCacheSize>512m</CodeCacheSize>
   </properties>
-	<distributionManagement>
-		<snapshotRepository>
-			<id>md-bdadev-3.verizon.com</id>
-			<name>md-bdadev-3.verizon.com-snapshots</name>
-			<url>http://md-bdadev-3.verizon.com:8081/artifactory/libs-local</url>
-		</snapshotRepository>
-	</distributionManagement>
 	<pluginRepositories>
 		<pluginRepository>
 			<id>central</id>
@@ -597,6 +590,20 @@
         </executions>
       </plugin>
     </plugins>
+    <extensions>
+           <extension>
+             <groupId>org.apache.maven.wagon</groupId>
+             <artifactId>wagon-ssh-external</artifactId>
+             <version>2.2</version>
+           </extension>
+    </extensions>
   </build>
+   <distributionManagement>
+       <repository>
+         <id>bdai-libs-release-local</id>
+         <name>bdai-libs-release-local</name>
+         <url>scpexe://artifactory-ssh-proxy.corp.yahoo.com:4443/bdai-libs-release-local/</url>
+       </repository>
+  </distributionManagement>
 
 </project>
