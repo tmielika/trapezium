@@ -574,10 +574,10 @@ index_interval: 128
 #
 encryption_options:
     internode_encryption: none
-    keystore: conf/.keystore
-    keystore_password: cassandra
-    truststore: conf/.truststore
-    truststore_password: cassandra
+    keystore: <keystore location >
+    keystore_password:
+    truststore: <truststore location >
+    truststore_password:
     # More advanced defaults below:
     # protocol: TLS
     # algorithm: SunX509

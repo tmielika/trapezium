@@ -108,7 +108,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
 
     val ipDataFrame: DataFrame = ipDao.getAll()
-    val resultList: Array[Row] = ipDataFrame.filter("origipaddress='1095549466'").collect()
+    val resultList: Array[Row] = ipDataFrame.collect()
     logger.info("result 2 set found is "
       + resultList);
     assert(resultList.length >= 1)
@@ -122,7 +122,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
   test("Cassandra IP DAO Read test With Explict Table") {
 
     val ipDataFrame: DataFrame = ipDao.getAll()
-    val resultList: Array[Row] = ipDataFrame.filter("origipaddress='1095549466'").collect()
+    val resultList: Array[Row] = ipDataFrame.collect()
     logger.info("result 2 set found is "
       + resultList);
     assert(resultList.length >= 1)
@@ -185,7 +185,7 @@ class CassandraDAOUnitTest extends CassandraTestSuiteBase {
 
     // now try to read back from data written into temp database.
     val ipDataFrame: DataFrame = ipDao.getAll()
-    val resultList: Array[Row] = ipDataFrame.filter("origipaddress='222.186.21.49'").collect()
+    val resultList: Array[Row] = ipDataFrame.collect()
 
     assert(resultList.length >= 1)
     val row: Row = resultList(0);
