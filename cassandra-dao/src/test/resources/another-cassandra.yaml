@@ -575,9 +575,9 @@ index_interval: 128
 encryption_options:
     internode_encryption: none
     keystore: <keystore file>
-    keystore_password:
+    keystore_pssword:
     truststore: <truststore file>
-    truststore_password:
+    truststore_pssword:
     # More advanced defaults below:
     # protocol: TLS
     # algorithm: SunX509

@@ -6,11 +6,12 @@ import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.util.ByteString
 import com.verizon.trapezium.api.akkahttp.ApiHttpServices
-import com.verizon.trapezium.api.akkahttp.security.{ApiAuthorizationService, FederatedAuthorizerSvc}
+
+import com.verizon.bda.commons.serviceapis.security.ApiAuthorizationService
 import com.verizon.trapezium.api.akkahttp.utils.AkkaHttpHeaderUtil
 import com.verizon.trapezium.api.akkahttp.utils.HttpServicesUtils._
 import com.verizon.trapezium.api.akkahttp.utils.HttpServicesConstants._
-import com.verizon.trapezium.api.akkahttp.security.FederatedAuthorizerSvc
+import com.verizon.bda.commons.serviceapis.security.utils.AuthorizationHelper
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.Map
@@ -148,20 +149,8 @@ trait AkkaHttpRouteHelper extends Directives {
   def configureAuthorizer(publishEndpoint: String, routeService: ApiHttpServices) :
   ApiAuthorizationService = {
     val routeAuthorizer = routeService.getApiSvcAuthorizer
-    var authorizer : ApiAuthorizationService = null
-    if (routeAuthorizer.equals( FEDERATED_AUTHORIZER_CONFIG ) ){
-      logger.info("setting up route authorizer from configuration : " +  routeAuthorizer)
-     // if("samplesvcs".equals(publishEndpoint)) {
-        logger.info("setting up route authorizer for samplesvcs")
-        authorizer = new FederatedAuthorizerSvc
-     // }
-    }
-//    else {
-//      authorizer = new ApiAuthorizationService()
-//      authorizer.setAuthSvcProivderType(routeAuthorizer)
-//    }
-      authorizer
-
+    logger.info(s"service authorizer is :  ${routeAuthorizer}")
+    AuthorizationHelper.getAuthorizer(routeService.getApiSvcAuthorizer)
   }
 
   def getClientProfileFromAuthData(authData : Any, authrizer: String ) : String = {

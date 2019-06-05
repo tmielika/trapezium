@@ -14,14 +14,12 @@
 */
 package com.verizon.bda.trapezium.framework.handler
 
-import com.verizon.bda.trapezium.framework.manager.{WorkflowConfig, ApplicationConfig}
-import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import com.verizon.bda.trapezium.validation.{ValidationConfig, DataValidator}
-import org.apache.spark.mllib.util.LocalSparkContext
-import org.apache.spark.sql.{SQLContext, Row}
-import org.scalatest.FunSuite
-import org.apache.spark.zookeeper.EmbeddedZookeeper
 import com.verizon.bda.trapezium.framework.ApplicationManager
+import com.verizon.bda.trapezium.framework.manager.{ApplicationConfig, WorkflowConfig}
+import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
+import org.apache.spark.mllib.util.LocalSparkContext
+import org.apache.spark.zookeeper.EmbeddedZookeeper
+import org.scalatest.FunSuite
 
 
 /**

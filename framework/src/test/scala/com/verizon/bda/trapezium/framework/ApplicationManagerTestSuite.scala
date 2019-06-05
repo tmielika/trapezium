@@ -33,6 +33,7 @@ trait ApplicationManagerTestSuite extends TestSuiteBase {
   var appConfig: ApplicationConfig = _
   var zk: EmbeddedZookeeper = _
   val logger = LoggerFactory.getLogger(this.getClass)
+
   override def beforeAll() {
     super.beforeAll()
     appConfig = ApplicationManager.getConfig()

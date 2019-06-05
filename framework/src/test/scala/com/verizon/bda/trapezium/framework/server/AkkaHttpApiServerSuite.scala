@@ -16,15 +16,10 @@ package com.verizon.bda.trapezium.framework.server
 
 import com.verizon.bda.trapezium.cache.CacheConfig
 import com.verizon.bda.trapezium.framework.ApplicationManager
-import com.verizon.bda.trapezium.framework.manager.ApplicationConfig
-import com.verizon.bda.trapezium.framework.server.directives.CacheRouteUtils
-import com.verizon.bda.trapezium.framework.zookeeper.ZooKeeperConnection
-import org.apache.commons.httpclient.HttpClient
+import org.apache.commons.httpclient.{Header, HttpClient}
 import org.apache.commons.httpclient.methods.GetMethod
-import org.apache.spark.zookeeper.EmbeddedZookeeper
 import org.junit.Ignore
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
-import org.apache.commons.httpclient.Header
+import org.scalatest.BeforeAndAfterAll
 import org.slf4j.LoggerFactory
 ;
 
@@ -41,6 +36,16 @@ import org.slf4j.LoggerFactory
 
     super.beforeAll()
     ApplicationManager.main(args)
+
+//    Wait for the server to start - give 60 secs with 1 sec interval checks
+    if(!ApplicationManager.getEmbeddedServer.isStarted()) {
+      var count =0
+      while(!ApplicationManager.getEmbeddedServer.isStarted() && count < 60) {
+        count+=1
+        logger.info(s"Server is not started. Waiting for server to start before proceeding with test. count=${count}")
+        Thread.sleep(1000) // wait for one sec
+      }
+    }
   }
 
   override def afterAll: Unit = {
@@ -49,13 +54,13 @@ import org.slf4j.LoggerFactory
 
     // stop HTTP server if started
     if (ApplicationManager.getEmbeddedServer != null) {
-
       logger.info(s"Stopping embedded server")
       ApplicationManager.getEmbeddedServer.stop(true)
     }
   }
 
    test("configured end-points should work for API tests with or without cache") {
+
     val client = new HttpClient
 
     val port = ApplicationManager.getEmbeddedServer.getBindPort

@@ -341,4 +341,25 @@ object TestTriggering extends BatchTransaction {
   override def rollbackBatch(batchTime: Time): Unit = {
   }
 }
+object TestParquetReadFull extends BatchTransaction {
+  val logger = LoggerFactory.getLogger(this.getClass)
+  override def processBatch(df: Map[String, DataFrame], wfTime: Time): DataFrame = {
+
+    logger.info("Inside process of TestBatchTxn4" + wfTime )
+    require(df.size > 0)
+    val inData = df.head._2
+    inData.show()
+    inData
+  }
+
+  override def persistBatch(df: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
+    require(df.count > 0)
+    None
+  }
+
+  override def rollbackBatch(batchTime: Time): Unit = {
+  }
+} // end TestBatchTxn5
+
+
 

@@ -46,6 +46,8 @@ object DataSimulation extends BatchTransaction {
    */
   override def persistBatch(data: DataFrame, batchTime: Time): Option[Seq[Trigger]] = {
     try {
+      logger.debug(s"DataSimulation persistedBatch == ${data.count}")
+
     val appConfig = ApplicationManager.getConfig()
     val workflowConfig = ApplicationManager.getWorkflowConfig()
      Simulation.simulation(data, workflowConfig)
