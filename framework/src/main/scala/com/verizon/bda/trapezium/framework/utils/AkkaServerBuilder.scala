@@ -32,18 +32,10 @@ object HttpsConnectionContextBuilder {
     val oathEnv = httpServerConfig.getBoolean("oathEnv")
     val certPath = httpServerConfig.getString("certPath")
     val keyPath = httpServerConfig.getString("keyPath")
-    val trustStorePath = if (oathEnv) {
-      httpServerConfig.getString("trustStorePath")
-    } else {
-      ""
-    }
-    val trustStorePassword = if (oathEnv) {
-      httpServerConfig.getString("trustStorePassword")
-    } else {
-      ""
-    }
+    val trustStorePath = ""
+    val trustPsWord = null
 
-    val passwd = s"secret"
+    val pWord = httpServerConfig.getString("pWord")
 
     val keystore = Utils.createKeyStore(certPath, keyPath)
 
@@ -51,13 +43,13 @@ object HttpsConnectionContextBuilder {
 
     val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance("SunX509")
 
-    keyManagerFactory.init(keystore, passwd.toCharArray)
+    keyManagerFactory.init(keystore, pWord.toCharArray)
 
     val tmf: TrustManagerFactory = TrustManagerFactory.getInstance("SunX509")
     if (oathEnv) {
       val ksTrust = KeyStore.getInstance("JKS")
       val trustStoreResource = this.getClass.getClassLoader.getResourceAsStream(trustStorePath)
-      ksTrust.load(trustStoreResource, trustStorePassword.toCharArray)
+      ksTrust.load(trustStoreResource, trustPsWord.toCharArray)
       tmf.init(ksTrust)
     }
     else {
@@ -65,7 +57,7 @@ object HttpsConnectionContextBuilder {
     }
 
     val sslContext = if (oathEnv) {
-      createSSLContext(certPath, keyPath, trustStorePath, trustStorePassword)
+      createSSLContext(certPath, keyPath, trustStorePath, trustPsWord)
     }
     else {
       SSLContext.getInstance("TLS")
@@ -76,12 +68,10 @@ object HttpsConnectionContextBuilder {
   }
 
   def createSSLContext(certPath: String, keyPath: String,
-                       trustStorePath: String, trustStorePassword: String): SSLContext = {
+                       trustStorePath: String, trustStorePssword: String): SSLContext = {
     try {
-      log.info("certPath=" + certPath)
-      log.info("keyPath=" + keyPath)
-      log.info("trustStorePath=" + trustStorePath)
-      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
+
+      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePssword,
         certPath, keyPath)
       // Default refresh period is every hour.
       keyRefresher.startup()

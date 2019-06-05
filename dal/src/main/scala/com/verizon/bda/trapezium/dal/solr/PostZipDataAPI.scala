@@ -92,7 +92,7 @@ object PostZipDataAPI {
     val caCertsB = sc.broadcast(makeByteFromPem(solrMap("trustStorePath")))
     val privateKeyB = sc.broadcast(makeByteFromPem(solrMap("keyPath")))
     val publicKeyB = sc.broadcast(makeByteFromPem(solrMap("certPath")))
-    val trustStorePassword = solrMap("trustStorePassword")
+    val trustStorePssword = getData(solrMap)
 
     //    val sslContextB = sc.broadcast(ssLContext)
     val partitionIds = sc.parallelize(partFileMapB.value.keySet.toList, sc.defaultParallelism).repartition(sc.defaultParallelism)
@@ -111,7 +111,7 @@ object PostZipDataAPI {
 
           try {
             val sslContext = makeSSLContext(localDir.getAbsolutePath, caCertsB.value,
-              privateKeyB.value, publicKeyB.value, trustStorePassword)
+              privateKeyB.value, publicKeyB.value, trustStorePssword)
             if (sslContext == null) {
               log.error("sslcontext not intialized")
             }
@@ -160,6 +160,10 @@ object PostZipDataAPI {
     outMap.toMap
   }
 
+  private def getData(solrMap: Map[String, String]) = {
+    solrMap("trustStorePassword")
+  }
+
   def transformCoreMap(coreMap: Map[String, String], solrMap: Map[String, String]): Map[String, String] = {
     log.info("inside PostZipDataAPI.transformCoreMap")
 
@@ -191,16 +195,16 @@ object PostZipDataAPI {
   }
 
   def makeSSLContext(path: String, caCerts: Array[Byte],
-                     privateKey: Array[Byte], publicKey: Array[Byte], trustStorePassword: String): SSLContext = {
+                     privateKey: Array[Byte], publicKey: Array[Byte], trustPsWord: String): SSLContext = {
     val caCertsPath = path + "/caCerts.jks"
     val privateKeyPath = path + "/privateKey.pem"
     val publicKeyPath = path + "/publicKey.pem"
     log.info("caCertsPath: {}, publicKeyPath: {}, privateKeyPath:{}, trustStorePassword{}",
-      caCertsPath, publicKeyPath, privateKeyPath, trustStorePassword)
+      caCertsPath, publicKeyPath, privateKeyPath, trustPsWord)
     FileUtils.writeByteArrayToFile(new File(caCertsPath), caCerts)
     FileUtils.writeStringToFile(new File(privateKeyPath), new String(privateKey), "UTF-8")
     FileUtils.writeStringToFile(new File(publicKeyPath), new String(publicKey), "UTF-8")
-    createSSLContext(caCertsPath, publicKeyPath, privateKeyPath, trustStorePassword)
+    createSSLContext(caCertsPath, publicKeyPath, privateKeyPath, trustPsWord)
   }
 
   def upload(zipFile: String, fileName: String,
@@ -268,18 +272,18 @@ object PostZipDataAPI {
     val privateKey = map("keyPath")
     val publicKey = map("certPath")
     val trustStorePath = map("trustStorePath")
-    val trustStorePassword = map("trustStorePassword")
+    val trustStorePssWord = getData(map)
     //                val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(trustStorePath, trustStorePassword,
     //                    certPath, keyPath)
-    createSSLContext(trustStorePath, publicKey, privateKey, trustStorePassword)
+    createSSLContext(trustStorePath, publicKey, privateKey, trustStorePssWord)
 
   }
 
   def createSSLContext(caCerts: String, publicKey: String,
-                       privateKey: String, trustStorePassword: String): SSLContext = {
+                       privateKey: String, trustStorePssword: String): SSLContext = {
     try {
       //    val keyRefresher: KeyRefresher = Utils.generateKeyRefresherFromCaCert(caCerts, publicKey, privateKey)
-      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(caCerts, trustStorePassword,
+      val keyRefresher: KeyRefresher = Utils.generateKeyRefresher(caCerts, trustStorePssword,
         publicKey, privateKey)
       // Default refresh period is every hour.
       keyRefresher.startup()

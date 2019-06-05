@@ -71,12 +71,4 @@ object ZooKeeperClient {
     client.start()
     client
   }
-
-  def main(args: Array[String]): Unit = {
-    ZooKeeperClient("istgbd019.verizon.com:2181," +
-      "istgbd018.verizon.com:2181,istgbd017.verizon.com:2181")
-    ZooKeeperClient.setData("/test11/test111", "hello world1".getBytes)
-    //    println(ZooKeeperClient.delete("/test11"))
-    //    println()
-  }
 }

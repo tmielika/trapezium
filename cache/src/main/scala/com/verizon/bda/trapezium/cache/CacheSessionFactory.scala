@@ -45,10 +45,10 @@ class CacheSessionFactory[K, V] {
     * Returns Application specfic bucket.
     *
     * @param appName This translate to app specfic bucket in case of couch Base
-    * @param pwd     The password for couchBase
+    * @param pCode     The password for couchBase
     * @return
     */
-  def getCache(appName: String = globalBucket, pwd: String , retryCount: Int = 0):
+  def getCache(appName: String = globalBucket, pCode: String, retryCount: Int = 0):
   KVStore[K, V] = {
 
     logger.debug("params to init cache are default app name => " + globalBucket +
@@ -63,14 +63,14 @@ class CacheSessionFactory[K, V] {
 
 
       try {
-        cache.init(appName, pwd)
+        cache.init(appName, pCode)
 
       } catch {
         case ioe: IOException => {
 
           if (retryCount < retryMax) {
             Thread.sleep(retryDelay)
-            return getCache(appName, pwd, retryCount + 1)
+            return getCache(appName, pCode, retryCount + 1)
           }
           else {
             logger.error(s"Unable to initialize the app cache > $appName" +
