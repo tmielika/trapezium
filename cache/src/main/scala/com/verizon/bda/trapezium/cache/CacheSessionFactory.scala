@@ -48,7 +48,7 @@ class CacheSessionFactory[K, V] {
     * @param pwd     The password for couchBase
     * @return
     */
-  def getCache(appName: String = globalBucket, pwd: String = "", retryCount: Int = 0):
+  def getCache(appName: String = globalBucket, pwd: String , retryCount: Int = 0):
   KVStore[K, V] = {
 
     logger.debug("params to init cache are default app name => " + globalBucket +

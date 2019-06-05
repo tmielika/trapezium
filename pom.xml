@@ -602,7 +602,7 @@
        <repository>
          <id>bdai-libs-release-local</id>
          <name>bdai-libs-release-local</name>
-         <url>scpexe://artifactory-ssh-proxy.corp.yahoo.com:4443/bdai-libs-release-local/</url>
+         <url>artifactory-url</url>
        </repository>
   </distributionManagement>
 
