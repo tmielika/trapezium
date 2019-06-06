@@ -210,5 +210,7 @@ Contributions from:
 * Venkatesh poosarla(@venkateshpoosarla)
 * Narendra Parmar(@narendrasfo)
 * Venkatesh Pooserla
+* Mahesh Sankaran
+* Suresh Pothineni
 
-And others (contact Pankaj Rastogi / Debasish Das if you've contributed code and aren't listed).
+And others (contact Mahesh Sankaran(@smahesh17) if you've contributed code and aren't listed).
