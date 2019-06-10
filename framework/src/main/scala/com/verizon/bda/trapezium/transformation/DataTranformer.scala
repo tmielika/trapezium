@@ -17,8 +17,6 @@ package com.verizon.bda.trapezium.transformation
 import java.io._
 import java.util.Properties
 
-import com.google.common.base.Charsets
-import com.google.common.io.Files
 import com.typesafe.config.Config
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.broadcast.Broadcast
